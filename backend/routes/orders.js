@@ -1,45 +1,8 @@
 const express = require('express');
 const { ordersDb, machinesDb } = require('../db/init');
 const { authenticateToken, requireRole } = require('../middleware/auth');
+const { propagateSchedule } = require('../utils/scheduler');
 const router = express.Router();
-
-// ─── Helper: propagate delay to subsequent orders on same machine ───────────
-function propagateDelay(machineId, fromOrderId, delayMinutes) {
-  // 1. Get the order where delay started
-  const currentOrder = ordersDb.prepare('SELECT * FROM orders WHERE id = ?').get(fromOrderId);
-  if (!currentOrder) return;
-
-  // 2. Update current order end time
-  const newCurrentEnd = addMinutes(currentOrder.planned_end, delayMinutes);
-  ordersDb.prepare('UPDATE orders SET planned_end = ? WHERE id = ?').run(newCurrentEnd, fromOrderId);
-
-  // 3. Shift all FUTURE orders on this machine
-  // We look for orders that start AFTER or AT the same time as the current one's ORIGINAL end time
-  const subsequentOrders = ordersDb.prepare(`
-    SELECT * FROM orders
-    WHERE machine_id = ? AND id != ? AND status IN ('pending','active')
-    AND datetime(planned_start) >= datetime(?)
-    ORDER BY planned_start ASC
-  `).all(machineId, fromOrderId, currentOrder.planned_start);
-
-  let lastEnd = newCurrentEnd;
-
-  for (const order of subsequentOrders) {
-    // Force start to be exactly at the previous order's end to avoid gaps/overlaps as requested
-    const newStart = lastEnd; 
-    const durationMins = (new Date(order.planned_end) - new Date(order.planned_start)) / 60000;
-    const newEnd = addMinutes(newStart, durationMins);
-    
-    ordersDb.prepare('UPDATE orders SET planned_start = ?, planned_end = ? WHERE id = ?').run(newStart, newEnd, order.id);
-    lastEnd = newEnd;
-  }
-}
-
-function addMinutes(dateStr, minutes) {
-  const d = new Date(dateStr);
-  d.setMinutes(d.getMinutes() + minutes);
-  return d.toISOString().replace('T', ' ').substring(0, 19);
-}
 
 // GET /api/orders — all orders (optionally filtered by machine)
 router.get('/', authenticateToken, (req, res) => {
@@ -189,7 +152,7 @@ router.post('/:id/delay', authenticateToken, (req, res) => {
     .run(order.id, delay_minutes, reason || '', req.user.id, source || 'system');
 
   // Propagate to current order + subsequent orders on same machine
-  propagateDelay(order.machine_id, order.id, delay_minutes);
+  propagateSchedule(order.machine_id, order.id, delay_minutes);
 
   res.json({ message: `Delay de ${delay_minutes} minute aplicat și propagat`, applied: true });
 });

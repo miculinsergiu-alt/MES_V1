@@ -9,6 +9,7 @@ if (!fs.existsSync(DB_DIR)) fs.mkdirSync(DB_DIR, { recursive: true });
 // Unified Database
 const db = new Database(path.join(DB_DIR, 'smartfactory.db'));
 db.pragma('foreign_keys = ON');
+db.pragma('journal_mode = WAL');
 
 // ─── CORE SCHEMA ────────────────────────────────────────────────────────────
 db.exec(`
@@ -265,6 +266,12 @@ db.exec(`
     machine_id INTEGER NOT NULL REFERENCES machines(id) ON DELETE CASCADE,
     UNIQUE(user_id, machine_id)
   );
+
+  -- INDEXES FOR PERFORMANCE
+  CREATE INDEX IF NOT EXISTS idx_orders_machine_status ON orders(machine_id, status);
+  CREATE INDEX IF NOT EXISTS idx_machine_allocations_order ON machine_allocations(order_id);
+  CREATE INDEX IF NOT EXISTS idx_operator_actions_allocation ON operator_actions(allocation_id);
+  CREATE INDEX IF NOT EXISTS idx_stock_transactions_item ON stock_transactions(item_id);
 `);
 
 // ─── SEED DATA ─────────────────────────────────────────────────────────────
