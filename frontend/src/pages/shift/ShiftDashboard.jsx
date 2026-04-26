@@ -133,32 +133,48 @@ export default function ShiftDashboard() {
                   <div key={l} className="card stat-card"><div style={{ fontSize:32, fontWeight:800, color:c }}>{v}</div><div className="stat-label">{l}</div></div>
                 ))}
               </div>
-              <div className="card">
-                <div className="card-title">Comenzi Planificate</div>
-                <div className="table-wrap">
-                  <table>
-                    <thead><tr><th>Produs</th><th>Utilaj</th><th>Interval Planificat</th><th>Cantitate</th><th>Status</th><th>Acțiuni</th></tr></thead>
-                    <tbody>
-                      {myOrders.map(o => {
-                        const machine = machines.find(m => m.id === o.machine_id);
-                        const hasDelay = (o.delays||[]).some(d=>d.applied);
-                        return (
-                          <tr key={o.id}>
-                            <td style={{ fontWeight:500 }}>{o.product_name}</td>
-                            <td>{machine?.name || `#${o.machine_id}`}</td>
-                            <td style={{ fontSize:12 }}>
-                              {o.planned_start?.substring(0,16)} → {o.planned_end?.substring(0,16)}
-                              {hasDelay && <span className="badge badge-red" style={{ marginLeft:6 }}>Delay</span>}
-                            </td>
-                            <td>{o.quantity} buc</td>
-                            <td><span className={`badge ${o.status==='active'?'badge-green':o.status==='done'?'badge-blue':'badge-gray'}`}>{o.status}</span></td>
-                            <td><button className="btn btn-primary btn-sm" onClick={() => setShowAllocModal(o)}><Users size={12}/> Alocare</button></td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+              <div className="table-container">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Produs</th>
+                      <th>Utilaj</th>
+                      <th>Interval Planificat</th>
+                      <th>Cantitate</th>
+                      <th>Status</th>
+                      <th className="text-center">Acțiuni</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {myOrders.map(o => {
+                      const machine = machines.find(m => m.id === o.machine_id);
+                      const hasDelay = (o.delays||[]).some(d=>d.applied);
+                      return (
+                        <tr key={o.id}>
+                          <td className="font-bold text-foreground">{o.product_name}</td>
+                          <td>{machine?.name || `#${o.machine_id}`}</td>
+                          <td>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs">{o.planned_start?.substring(11,16)}</span>
+                              <span className="text-muted-foreground">→</span>
+                              <span className="text-xs">{o.planned_end?.substring(11,16)}</span>
+                              {hasDelay && <span className="badge badge-red">Delay</span>}
+                            </div>
+                          </td>
+                          <td className="font-mono">{o.quantity} buc</td>
+                          <td><span className={`badge ${o.status==='active'?'badge-green':o.status==='done'?'badge-blue':'badge-gray'}`}>{o.status}</span></td>
+                          <td>
+                            <div className="flex justify-center">
+                              <button className="btn btn-primary btn-sm gap-2" onClick={() => setShowAllocModal(o)}>
+                                <Users size={14}/> Alocare
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
@@ -268,31 +284,43 @@ function AllocateModal({ order, orders, machines, operators, onClose, onAllocate
       start_time: form.start_time.replace('T',' '), end_time: form.end_time.replace('T',' ') });
   };
   return (
-    <div className="modal-overlay">
-      <div className="modal">
-        <div className="modal-header"><h3>Alocare Manuală</h3><button className="btn btn-ghost btn-icon" onClick={onClose}><X size={16}/></button></div>
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label className="form-label">Comandă</label>
-            <select className="form-select" value={form.order_id} onChange={e=>{const o=orders.find(x=>x.id===+e.target.value);set('order_id',e.target.value);if(o){set('machine_id',o.machine_id);set('start_time',o.planned_start?.replace(' ','T')||'');set('end_time',o.planned_end?.replace(' ','T')||'');}}} required>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden border border-border">
+        <div className="px-8 py-6 border-b border-border flex justify-between items-center">
+          <div>
+            <h3 className="font-display text-2xl">Alocare Manuală</h3>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Asignare operator pe comandă</p>
+          </div>
+          <button className="p-2 hover:bg-muted rounded-full" onClick={onClose}><X size={24}/></button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-8 space-y-6">
+          <div className="space-y-2">
+            <label className="text-[11px] font-bold text-muted-foreground uppercase ml-1">Comandă Producție</label>
+            <select className="w-full h-12 rounded-xl border border-border bg-white px-4 focus:ring-2 focus:ring-accent outline-none text-sm font-medium" value={form.order_id} onChange={e=>{const o=orders.find(x=>x.id===+e.target.value);set('order_id',e.target.value);if(o){set('machine_id',o.machine_id);set('start_time',o.planned_start?.replace(' ','T')||'');set('end_time',o.planned_end?.replace(' ','T')||'');}}} required>
               <option value="">Selectați comanda...</option>
-              {orders.filter(o=>o.status!=='done'&&o.status!=='cancelled').map(o=><option key={o.id} value={o.id}>{o.product_name} — #{o.machine_id}</option>)}
+              {orders.filter(o=>o.status!=='done'&&o.status!=='cancelled').map(o=><option key={o.id} value={o.id}>{o.product_name} — Utilaj #{o.machine_id}</option>)}
             </select>
           </div>
-          <div className="form-group">
-            <label className="form-label">Operator</label>
-            <select className="form-select" value={form.operator_id} onChange={e=>set('operator_id',e.target.value)} required>
+          <div className="space-y-2">
+            <label className="text-[11px] font-bold text-muted-foreground uppercase ml-1">Operator Desemnat</label>
+            <select className="w-full h-12 rounded-xl border border-border bg-white px-4 focus:ring-2 focus:ring-accent outline-none text-sm font-medium" value={form.operator_id} onChange={e=>set('operator_id',e.target.value)} required>
               <option value="">Selectați operatorul...</option>
-              {operators.map(u=><option key={u.id} value={u.id}>{u.first_name} {u.last_name}</option>)}
+              {operators.map(u=><option key={u.id} value={u.id}>{u.first_name} {u.last_name} (#{u.badge_number})</option>)}
             </select>
           </div>
-          <div className="form-row">
-            <div className="form-group"><label className="form-label">Start</label><input className="form-input" type="datetime-local" value={form.start_time} onChange={e=>set('start_time',e.target.value)} required /></div>
-            <div className="form-group"><label className="form-label">Sfârșit</label><input className="form-input" type="datetime-local" value={form.end_time} onChange={e=>set('end_time',e.target.value)} required /></div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-[11px] font-bold text-muted-foreground uppercase ml-1">Dată/Oră Start</label>
+              <input className="w-full h-12 rounded-xl border border-border bg-white px-4 outline-none focus:ring-2 focus:ring-accent text-sm" type="datetime-local" value={form.start_time} onChange={e=>set('start_time',e.target.value)} required />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[11px] font-bold text-muted-foreground uppercase ml-1">Dată/Oră Sfârșit</label>
+              <input className="w-full h-12 rounded-xl border border-border bg-white px-4 outline-none focus:ring-2 focus:ring-accent text-sm" type="datetime-local" value={form.end_time} onChange={e=>set('end_time',e.target.value)} required />
+            </div>
           </div>
-          <div className="modal-footer">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>Anulare</button>
-            <button type="submit" className="btn btn-primary">Confirmă Alocarea</button>
+          <div className="flex gap-3 pt-4">
+            <button type="button" className="btn btn-secondary flex-1" onClick={onClose}>Anulare</button>
+            <button type="submit" className="btn btn-primary flex-1">Confirmă Alocarea</button>
           </div>
         </form>
       </div>

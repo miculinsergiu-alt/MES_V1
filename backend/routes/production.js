@@ -159,6 +159,41 @@ router.post('/allocations', authenticateToken, requireRole('shift_responsible','
   res.status(201).json({ id: result.lastInsertRowid, delay_minutes: delayMin, message: 'Operator alocat cu succes' });
 });
 
+// Helper to add minutes (Duplicated from orders.js for simplicity or moved to a shared utils)
+function addMinutes(dateStr, minutes) {
+  const d = new Date(dateStr);
+  d.setMinutes(d.getMinutes() + minutes);
+  return d.toISOString().replace('T', ' ').substring(0, 19);
+}
+
+// Internal propagate function (Matching the logic in orders.js)
+function propagateScheduleShift(machineId, fromOrderId, delayMinutes) {
+  const { ordersDb } = require('../db/init');
+  const order = ordersDb.prepare('SELECT * FROM orders WHERE id = ?').get(fromOrderId);
+  if (!order) return;
+
+  // 1. Update current order
+  const newEnd = addMinutes(order.planned_end, delayMinutes);
+  ordersDb.prepare('UPDATE orders SET planned_end = ? WHERE id = ?').run(newEnd, fromOrderId);
+
+  // 2. Propagate to ALL future orders on same machine
+  const futureOrders = ordersDb.prepare(`
+    SELECT * FROM orders 
+    WHERE machine_id = ? AND id != ? AND status != 'cancelled'
+    AND datetime(planned_start) >= datetime(?)
+    ORDER BY planned_start ASC
+  `).all(machineId, fromOrderId, order.planned_start);
+
+  let lastEnd = newEnd;
+  for (const o of futureOrders) {
+    const duration = (new Date(o.planned_end) - new Date(o.planned_start)) / 60000;
+    const newOStart = lastEnd;
+    const newOEnd = addMinutes(newOStart, duration);
+    ordersDb.prepare('UPDATE orders SET planned_start = ?, planned_end = ? WHERE id = ?').run(newOStart, newOEnd, o.id);
+    lastEnd = newOEnd;
+  }
+}
+
 // POST /api/production/actions
 router.post('/actions', authenticateToken, (req, res) => {
   const { allocation_id, action_type, notes } = req.body;
@@ -167,7 +202,30 @@ router.post('/actions', authenticateToken, (req, res) => {
   db.transaction(() => {
     db.prepare('INSERT INTO operator_actions (allocation_id, action_type, notes) VALUES (?,?,?)').run(allocation_id, action_type, notes || '');
 
-    // Track machine running hours on '_end' actions
+    // AUTOMATIC DELAY DETECTION
+    if (action_type === 'setup_start' || action_type === 'working_start') {
+      const alloc = db.prepare('SELECT * FROM machine_allocations WHERE id = ?').get(allocation_id);
+      const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(alloc.order_id);
+      
+      const now = new Date();
+      const plannedStart = new Date(order.planned_start);
+      
+      // If operator starts more than 1 minute late
+      if (now > plannedStart.getTime() + 60000) {
+        const delayMins = Math.ceil((now - plannedStart) / 60000);
+        
+        // Log the delay
+        db.prepare('INSERT INTO order_delays (order_id, delay_minutes, reason, reported_by, source, applied) VALUES (?,?,?,?,?,1)')
+          .run(order.id, delayMins, `Pornire întârziată (${action_type})`, req.user.id, 'operator');
+        
+        // Update current order start to actual
+        db.prepare('UPDATE orders SET planned_start = ? WHERE id = ?').run(now.toISOString().replace('T',' ').substring(0,19), order.id);
+        
+        // Propagate to shift everything
+        propagateScheduleShift(order.machine_id, order.id, delayMins);
+      }
+    }
+
     if (action_type.endsWith('_end')) {
       const phase = action_type.replace('_end', '');
       const startAction = db.prepare(`

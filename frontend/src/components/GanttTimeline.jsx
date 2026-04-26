@@ -1,46 +1,21 @@
 import { useMemo, useRef, useEffect } from 'react';
-import { format, addHours, startOfDay, differenceInMinutes, parseISO } from 'date-fns';
-
-const PHASE_COLORS = {
-  setup: 'setup',
-  working: 'working',
-  supervision: 'supervision',
-  delay: 'delay',
-};
+import { format, addHours, startOfDay, differenceInMinutes } from 'date-fns';
 
 export default function GanttTimeline({ orders = [], machines = [], viewDate = new Date(), hoursToShow = 24, onBlockClick }) {
   const containerRef = useRef(null);
   const dayStart = startOfDay(viewDate);
-  const viewEnd = addHours(dayStart, hoursToShow);
-  
-  const visibleOrders = useMemo(() => {
-    return orders.filter(o => {
-      try {
-        const s = typeof o.planned_start === 'string' ? new Date(o.planned_start.replace(' ', 'T')) : o.planned_start;
-        const e = typeof o.planned_end === 'string' ? new Date(o.planned_end.replace(' ', 'T')) : o.planned_end;
-        let endTime = e.getTime();
-        const totalDelayMin = (o.delays || []).filter(d=>d.applied).reduce((a,d)=>a+d.delay_minutes, 0);
-        endTime += totalDelayMin * 60000;
-        return s.getTime() <= viewEnd.getTime() && endTime >= dayStart.getTime();
-      } catch { return true; }
-    });
-  }, [orders, dayStart, viewEnd]);
-
-  const dynamicTotalMinutes = hoursToShow * 60;
-  const totalMinutes = dynamicTotalMinutes;
-  const dynamicHours = hoursToShow;
+  const totalMinutes = hoursToShow * 60;
 
   const scrollToNow = () => {
     if (containerRef.current) {
       const nowMin = differenceInMinutes(new Date(), dayStart);
       const percent = Math.max(0, Math.min(100, (nowMin / totalMinutes) * 100));
-      const scrollPos = (containerRef.current.scrollWidth - 180) * (percent / 100);
+      const scrollPos = (containerRef.current.scrollWidth - 220) * (percent / 100);
       containerRef.current.scrollTo({ left: scrollPos - 300, behavior: 'smooth' });
     }
   };
 
   useEffect(() => {
-    // Auto-scroll to "now" on mount if viewDate is today
     if (format(viewDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')) {
       setTimeout(scrollToNow, 500);
     }
@@ -60,147 +35,184 @@ export default function GanttTimeline({ orders = [], machines = [], viewDate = n
     return Math.max(0, Math.min(100, (nowMin / totalMinutes) * 100));
   }, [dayStart, totalMinutes]);
 
-  function toPercent(dateStr) {
+  const toPercent = (dateStr) => {
     try {
       const d = typeof dateStr === 'string' ? new Date(dateStr.replace(' ', 'T')) : dateStr;
       const minutes = differenceInMinutes(d, dayStart);
       return (minutes / totalMinutes) * 100;
     } catch { return 0; }
-  }
+  };
 
-  function widthPercent(startStr, endStr) {
+  const widthPercent = (startStr, endStr) => {
     try {
       const s = typeof startStr === 'string' ? new Date(startStr.replace(' ', 'T')) : startStr;
       const e = typeof endStr === 'string' ? new Date(endStr.replace(' ', 'T')) : endStr;
       const mins = differenceInMinutes(e, s);
       return Math.max(0.2, (mins / totalMinutes) * 100);
     } catch { return 1; }
-  }
+  };
 
-  // Group visible orders by machine
   const ordersByMachine = useMemo(() => {
     const map = {};
     for (const m of machines) map[m.id] = [];
-    for (const o of visibleOrders) {
+    for (const o of orders) {
+      if (o.status === 'cancelled') continue;
       if (!map[o.machine_id]) map[o.machine_id] = [];
       map[o.machine_id].push(o);
     }
     return map;
-  }, [visibleOrders, machines]);
+  }, [orders, machines]);
 
-  if (machines.length === 0) return <div className="empty-state">Niciun utilaj disponibil</div>;
+  if (machines.length === 0) return <div className="card py-20 text-center italic text-muted-foreground">Niciun utilaj configurat în sistem</div>;
 
   return (
-    <div className="gantt-wrapper-outer">
-      <div className="flex justify-end mb-2 no-print">
-        <button className="btn btn-ghost btn-sm" onClick={scrollToNow} title="Sari la ora curentă">
-          📍 Sari la Acum
+    <div className="space-y-4">
+      <div className="flex justify-end no-print">
+        <button className="btn btn-secondary btn-sm gap-2 shadow-sm" onClick={scrollToNow}>
+          <span className="text-red-500 font-black">📍</span> SARI LA ACUM
         </button>
       </div>
-      <div className="gantt-wrap" ref={containerRef}>
-        <div className="gantt-container">
-          {/* Header with time labels */}
-          <div style={{ display:'flex', marginLeft:180, marginBottom:4, position:'relative', height:24 }}>
-            {timeLabels.map(({ hour, label }) => (
-              <div key={hour} className="gantt-time-label" style={{ position:'absolute', left:`${(hour*60/totalMinutes)*100}%`, transform:'translateX(-50%)', fontSize:11, color:'var(--text-muted)', whiteSpace:'nowrap' }}>
-                {label}
-              </div>
-            ))}
+
+      <div className="gantt-wrap border border-border rounded-xl shadow-sm bg-white overflow-x-auto" ref={containerRef}>
+        <div className="min-w-[1400px]">
+          {/* Header */}
+          <div className="gantt-time-header">
+            <div className="w-[220px] border-r border-border flex items-center px-4">
+              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Utilaj / Flux de Lucru</span>
+            </div>
+            <div className="flex-1 relative">
+              {timeLabels.map(({ hour, label }) => (
+                <div key={hour} className="gantt-time-label" style={{ left:`${(hour*60/totalMinutes)*100}%` }}>
+                  {label}
+                </div>
+              ))}
+            </div>
           </div>
 
-          {/* Machine rows */}
-          {machines.map(machine => {
-            const machineOrders = ordersByMachine[machine.id] || [];
-            return (
-              <div key={machine.id} className="gantt-row">
-                <div className="gantt-label" title={machine.name}>{machine.name}</div>
-                <div className="gantt-track" style={{ borderLeft:'1px solid var(--border)' }}>
-                  {/* Grid lines */}
-                  {timeLabels.map(({ hour }) => (
-                    <div key={hour} style={{ position:'absolute', left:`${(hour*60/totalMinutes)*100}%`, top:0, bottom:0, width:1, background:'rgba(255,255,255,0.04)' }} />
-                  ))}
-                  {/* Now line */}
-                  <div className="gantt-now-line" style={{ left:`${nowOffset}%` }} />
-                  {/* Order blocks */}
-                  {machineOrders.map(order => {
-                    const delays = order.delays || [];
-                    const baseLeft = toPercent(order.planned_start);
-                    const baseWidth = widthPercent(order.planned_start, order.planned_end);
+          {/* Machine Rows */}
+          <div className="divide-y divide-border">
+            {machines.map(machine => {
+              const machineOrders = ordersByMachine[machine.id] || [];
+              return (
+                <div key={machine.id} className="gantt-row">
+                  {/* Left Label Column */}
+                  <div className="gantt-label-col">
+                    <div className="gantt-machine-name">{machine.name}</div>
+                    <div className="gantt-row-markers">
+                      <div className="gantt-marker">PLAN</div>
+                      <div className="gantt-marker">EXEC</div>
+                    </div>
+                  </div>
+
+                  {/* Main Track area */}
+                  <div className="gantt-track">
+                    {/* Background Grid */}
+                    {timeLabels.map(({ hour }) => (
+                      <div key={hour} className="gantt-grid-line" style={{ left:`${(hour*60/totalMinutes)*100}%` }} />
+                    ))}
                     
-                    const plannedSegments = (order.allocations || []).map(a => ({
-                      phase: a.phase, left: toPercent(a.start_time), width: widthPercent(a.start_time, a.end_time)
-                    }));
+                    {/* Now Line */}
+                    <div className="gantt-now-line" style={{ left:`${nowOffset}%` }} />
+                    
+                    {/* LAYER 1: PLAN (Top) */}
+                    <div className="gantt-layer">
+                      {machineOrders.map(order => {
+                        const left = toPercent(order.planned_start);
+                        const width = widthPercent(order.planned_start, order.planned_end);
+                        const delays = (order.delays || []).filter(d => d.applied);
+                        return (
+                          <div key={`p-${order.id}`}>
+                            <div className="gantt-segment planner cursor-pointer" 
+                              style={{ left:`${left}%`, width:`${width}%` }}
+                              onClick={() => onBlockClick?.(order)}
+                            />
+                            {/* Product Name as simple text */}
+                            <div className="gantt-block-tag" style={{ left: `${left}%`, width: `${width}%` }}>
+                              {order.product_name}
+                            </div>
+                            {delays.map(d => {
+                              const dWidth = (d.delay_minutes / totalMinutes) * 100;
+                              const dLeft = toPercent(order.planned_end);
+                              return (
+                                <div key={`dp-${d.id}`} className="gantt-segment bg-red-500/80 z-10" 
+                                  style={{ left:`${dLeft - dWidth}%`, width:`${dWidth}%` }} 
+                                />
+                              );
+                            })}
+                          </div>
+                        );
+                      })}
+                    </div>
 
-                    const actualSegments = [];
-                    let cPhase = null, cStart = null;
-                    for (const act of (order.actions || [])) {
-                      if (act.action_type.includes('_start')) {
-                        if (cPhase && cStart) {
-                          actualSegments.push({ phase: cPhase, left: toPercent(cStart), width: widthPercent(cStart, act.timestamp) });
+                    {/* LAYER 2: EXEC (Bottom) */}
+                    <div className="gantt-layer">
+                      {machineOrders.map(order => {
+                        const actualSegments = [];
+                        let cPhase = null, cStart = null;
+                        for (const act of (order.actions || [])) {
+                          if (act.action_type.includes('_start')) {
+                            cPhase = act.action_type.replace('_start', '');
+                            cStart = act.timestamp;
+                          } else if (act.action_type.includes('_end')) {
+                            if (cPhase && cStart) {
+                              actualSegments.push({ phase: cPhase, left: toPercent(cStart), width: widthPercent(cStart, act.timestamp) });
+                            }
+                            cPhase = null; cStart = null;
+                          }
                         }
-                        cPhase = act.action_type.replace('_start', '');
-                        cStart = act.timestamp;
-                      } else if (act.action_type.includes('_end')) {
                         if (cPhase && cStart) {
-                          actualSegments.push({ phase: cPhase, left: toPercent(cStart), width: widthPercent(cStart, act.timestamp) });
+                          actualSegments.push({ phase: cPhase, left: toPercent(cStart), width: widthPercent(cStart, new Date()) });
                         }
-                        cPhase = null; cStart = null;
-                      }
-                    }
-                    if (cPhase && cStart) {
-                      actualSegments.push({ phase: cPhase, left: toPercent(cStart), width: widthPercent(cStart, new Date()) });
-                    }
 
-                    return (
-                      <div key={order.id}>
-                        {plannedSegments.length === 0 && (
-                          <div className={`gantt-segment ${order.status === 'done' ? 'done' : 'working'}`} style={{ left: `${baseLeft}%`, width: `${baseWidth}%`, top: 4 }} title="Planificat" />
-                        )}
-                        {plannedSegments.map((seg, i) => (
-                          <div key={`p-${i}`} className={`gantt-segment ${seg.phase}`} style={{ left: `${seg.left}%`, width: `${seg.width}%`, top: 4 }} title="Planificat" />
-                        ))}
-                        {actualSegments.map((seg, i) => (
-                          <div key={`a-${i}`} className={`gantt-segment ${seg.phase}`} style={{ left: `${seg.left}%`, width: `${seg.width}%`, top: 20 }} title="Efectuat" />
-                        ))}
-                        {delays.filter(d => d.applied).map(delay => {
-                          const delayLeft = toPercent(order.planned_end);
-                          const delayWidth = (delay.delay_minutes / totalMinutes) * 100;
-                          return (
-                            <div key={delay.id} className="gantt-segment delay" style={{ left:`${delayLeft - delayWidth}%`, width:`${delayWidth}%`, top:4, opacity:0.85 }} title={`Delay ${delay.delay_minutes}m`}></div>
-                          );
-                        })}
-                        
-                        <div className="gantt-block-label" style={{ 
-                          left:`${Math.max(0, baseLeft)}%`, 
-                          width:`${Math.min(100, baseLeft + baseWidth) - Math.max(0, baseLeft)}%` 
-                        }} onClick={() => onBlockClick?.(order)}>
-                          {order.product_name}
-                          {baseLeft + baseWidth > 100 && ` ➡ ${format(new Date(order.planned_end.replace(' ','T')), 'dd/MM')}`}
-                        </div>
+                        return (
+                          <div key={`a-${order.id}`}>
+                            {actualSegments.map((seg, i) => (
+                              <div key={`s-${i}`} className="gantt-segment shadow-md z-10" 
+                                style={{ 
+                                  left: `${seg.left}%`, 
+                                  width: `${seg.width}%`,
+                                  backgroundColor: seg.phase === 'setup' ? 'var(--setup-color)' : seg.phase === 'working' ? 'var(--working-color)' : 'var(--blue)'
+                                }} 
+                              />
+                            ))}
+                            {(order.delays || []).filter(d => d.applied).map(d => {
+                              const dWidth = (d.delay_minutes / totalMinutes) * 100;
+                              const dLeft = toPercent(order.planned_end);
+                              return (
+                                <div key={`da-${d.id}`} className="gantt-segment bg-red-600 z-10" 
+                                  style={{ left:`${dLeft - dWidth}%`, width:`${dWidth}%` }} 
+                                />
+                              );
+                            })}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {machineOrders.length === 0 && (
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
+                        <span className="text-[10px] font-black uppercase tracking-[0.4em] text-muted-foreground">Disponibil</span>
                       </div>
-                    );
-                  })}
-                  {machineOrders.length === 0 && (
-                    <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', fontSize:11, color:'var(--text-muted)' }}>Liber</div>
-                  )}
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
+
       {/* Legend */}
-      <div style={{ display:'flex', gap:16, marginTop:12, flexWrap:'wrap' }} className="no-print">
+      <div className="flex flex-wrap gap-8 px-6 py-3 no-print bg-white border border-border rounded-2xl w-fit shadow-sm">
         {[
-          {cls:'setup',label:'Setup',color:'var(--setup-color)'},
-          {cls:'working',label:'Producție',color:'var(--working-color)'},
-          {cls:'active',label:'Activ (În lucru)',color:'var(--green)'},
-          {cls:'done',label:'Finalizat',color:'var(--blue)'},
-          {cls:'delay',label:'Întârziere',color:'var(--delay-color)'}
-        ].map(({cls,label,color}) => (
-          <div key={cls} style={{ display:'flex', alignItems:'center', gap:6, fontSize:12, color:'var(--text-secondary)' }}>
-            <div style={{ width:12, height:12, borderRadius:3, background:color }} />
-            {label}
+          { label:'Planificat', color:'bg-slate-300 opacity-40 border border-dashed border-slate-500' },
+          { label:'Setup (Actual)', color:'bg-blue-500 shadow-blue-200' },
+          { label:'Producție (Actual)', color:'bg-green-500 shadow-green-200' },
+          { label:'Întârziere (Delay)', color:'bg-red-500 animate-pulse shadow-red-200' }
+        ].map((item, i) => (
+          <div key={i} className="flex items-center gap-2.5">
+            <div className={`w-4 h-4 rounded-md shadow-sm ${item.color}`} />
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{item.label}</span>
           </div>
         ))}
       </div>

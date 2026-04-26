@@ -96,35 +96,69 @@ export default function SupervisorDashboard() {
           )}
 
           {tab === 'machines' && (
-            <div className="grid-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {machines.map(m => {
                 const st = machineStatus[m.id] || {};
                 const hasDelay = st.activeOrder && (st.activeOrder.delays||[]).some(d=>d.applied);
+                const isActive = !!st.activeOrder;
+                
                 return (
-                  <div key={m.id} className={`machine-card ${st.activeOrder ? (hasDelay?'delayed':'active') : ''}`} onClick={() => loadMachineStatus(m.id)}>
-                    <div className="flex justify-between items-center mb-2">
-                      <span style={{ fontWeight:600, fontSize:15 }}>{m.name}</span>
-                      <span className={`machine-status-dot ${st.activeOrder ? (hasDelay?'delayed':'active') : 'idle'}`} />
+                  <div key={m.id} className={`card transition-all ${isActive ? (hasDelay ? 'border-red-300 bg-red-50/10' : 'border-green-300 bg-green-50/10') : 'hover:border-accent/30'}`}>
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{m.area_name}</span>
+                        <h4 className="text-xl font-bold text-foreground">{m.name}</h4>
+                      </div>
+                      <div className={`h-3 w-3 rounded-full shadow-sm ${isActive ? (hasDelay ? 'bg-red-500 animate-pulse' : 'bg-green-500') : 'bg-slate-300'}`} />
                     </div>
-                    <div style={{ fontSize:12, color:'var(--text-muted)', marginBottom:8 }}>{m.area_name}</div>
-                    {st.activeOrder ? (
-                      <>
-                        <div style={{ fontSize:13, fontWeight:500 }}>{st.activeOrder.product_name}</div>
-                        <div style={{ marginTop:8 }}>
-                          <div className="flex justify-between text-sm mb-1">
-                            <span className="text-muted">Progres</span>
-                            <span style={{ color:'var(--green-light)' }}>{st.progress}%</span>
+
+                    {isActive ? (
+                      <div className="space-y-4">
+                        <div>
+                          <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Comandă Activă</p>
+                          <p className="text-sm font-semibold text-foreground truncate">{st.activeOrder.product_name}</p>
+                        </div>
+                        
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between text-[10px] font-bold uppercase">
+                            <span className="text-muted-foreground">Progres Producție</span>
+                            <span className={hasDelay ? 'text-red-600' : 'text-green-600'}>{st.progress}%</span>
                           </div>
-                          <div className="progress-bar"><div className="progress-fill green" style={{ width:`${st.progress}%` }} /></div>
+                          <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                            <div 
+                              className={`h-full transition-all duration-500 ${hasDelay ? 'bg-red-500' : 'bg-green-500'}`} 
+                              style={{ width: `${st.progress}%` }} 
+                            />
+                          </div>
                         </div>
-                        <div className="flex gap-3 mt-2">
-                          <span style={{ fontSize:11, color:'var(--green-light)' }}>✓ {st.totalOk} OK</span>
-                          <span style={{ fontSize:11, color:'var(--red-light)' }}>✗ {st.totalFail} FAIL</span>
+
+                        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/50">
+                          <div className="text-center">
+                            <p className="text-lg font-display text-green-600 leading-none">{st.totalOk}</p>
+                            <p className="text-[9px] font-bold text-muted-foreground uppercase">Conform</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-lg font-display text-red-600 leading-none">{st.totalFail}</p>
+                            <p className="text-[9px] font-bold text-muted-foreground uppercase">Defect</p>
+                          </div>
                         </div>
-                        {st.currentAlloc && <div style={{ fontSize:11, color:'var(--text-muted)', marginTop:4 }}>Op: {st.currentAlloc.first_name} {st.currentAlloc.last_name}</div>}
-                        {hasDelay && <div className="badge badge-red" style={{ marginTop:8 }}>⚠ Delay activ</div>}
-                      </>
-                    ) : <div style={{ color:'var(--text-muted)', fontSize:13 }}>Utilaj liber</div>}
+
+                        {st.currentAlloc && (
+                          <div className="pt-3 border-t border-border/50 flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-accent/10 flex items-center justify-center text-[10px] font-bold text-accent">
+                              {st.currentAlloc.first_name[0]}{st.currentAlloc.last_name[0]}
+                            </div>
+                            <span className="text-[11px] font-medium text-muted-foreground">
+                              Op: {st.currentAlloc.first_name} {st.currentAlloc.last_name}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="py-10 text-center">
+                        <p className="text-sm italic text-muted-foreground">Utilaj disponibil</p>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -197,38 +231,52 @@ function PerformanceTab({ orders, machines, users }) {
   });
 
   return (
-    <div>
-      <div className="card mb-4">
-        <div className="card-title">Performanță pe Utilaj</div>
-        <div className="table-wrap">
-          <table>
-            <thead><tr><th>Utilaj</th><th>Total Comenzi</th><th>Finalizate</th><th>La Timp</th><th>Cu Delay</th><th>Rată Succes</th></tr></thead>
-            <tbody>
-              {byMachine.map(m => (
-                <tr key={m.id}>
-                  <td style={{ fontWeight:500, color:'var(--text-primary)' }}>{m.name}</td>
-                  <td>{m.total}</td>
-                  <td><span className="badge badge-green">{m.done}</span></td>
-                  <td><span className="badge badge-blue">{m.onTime}</span></td>
-                  <td><span className="badge badge-red">{m.delayed}</span></td>
-                  <td>
-                    <div className="flex items-center gap-2">
-                      <div className="progress-bar" style={{ width:80 }}>
-                        <div className="progress-fill green" style={{ width: m.total ? `${(m.done/m.total)*100}%` : '0%' }} />
-                      </div>
-                      <span style={{ fontSize:12 }}>{m.total ? Math.round((m.done/m.total)*100) : 0}%</span>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      <div className="grid-3">
-        {[['Total Comenzi',orders.length,'var(--blue-light)'],['Finalizate',orders.filter(o=>o.status==='done').length,'var(--green-light)'],['Cu Delay',orders.filter(o=>(o.delays||[]).some(d=>d.applied)).length,'var(--red-light)']].map(([l,v,c]) => (
-          <div key={l} className="card stat-card"><div style={{ fontSize:36, fontWeight:800, color:c }}>{v}</div><div className="stat-label">{l}</div></div>
+    <div className="space-y-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {[
+          { label: 'Total Comenzi', val: orders.length, color: 'text-accent' },
+          { label: 'Finalizate', val: orders.filter(o=>o.status==='done').length, color: 'text-green-600' },
+          { label: 'Cu Delay', val: orders.filter(o=>(o.delays||[]).some(d=>d.applied)).length, color: 'text-red-600' }
+        ].map((s, i) => (
+          <div key={i} className="card text-center py-10">
+            <div className={`text-4xl font-display ${s.color} mb-1`}>{s.val}</div>
+            <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{s.label}</div>
+          </div>
         ))}
+      </div>
+
+      <div className="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Utilaj</th>
+              <th className="text-center">Total Comenzi</th>
+              <th className="text-center">Finalizate</th>
+              <th className="text-center">La Timp</th>
+              <th className="text-center">Cu Delay</th>
+              <th>Rată Succes</th>
+            </tr>
+          </thead>
+          <tbody>
+            {byMachine.map(m => (
+              <tr key={m.id}>
+                <td className="font-bold text-foreground">{m.name}</td>
+                <td className="text-center font-mono">{m.total}</td>
+                <td className="text-center"><span className="badge border-green-200 bg-green-50 text-green-700">{m.done}</span></td>
+                <td className="text-center"><span className="badge border-blue-200 bg-blue-50 text-blue-700">{m.onTime}</span></td>
+                <td className="text-center"><span className="badge border-red-200 bg-red-50 text-red-700">{m.delayed}</span></td>
+                <td>
+                  <div className="flex items-center gap-3">
+                    <div className="h-2 w-24 bg-muted rounded-full overflow-hidden">
+                      <div className="h-full bg-accent" style={{ width: m.total ? `${(m.done/m.total)*100}%` : '0%' }} />
+                    </div>
+                    <span className="text-xs font-bold text-foreground">{m.total ? Math.round((m.done/m.total)*100) : 0}%</span>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );

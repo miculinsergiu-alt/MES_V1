@@ -5,10 +5,16 @@ const router = express.Router();
 
 // ─── Helper: propagate delay to subsequent orders on same machine ───────────
 function propagateDelay(machineId, fromOrderId, delayMinutes) {
-  // Get all pending/active orders on this machine after the current one
+  // 1. Get the order where delay started
   const currentOrder = ordersDb.prepare('SELECT * FROM orders WHERE id = ?').get(fromOrderId);
   if (!currentOrder) return;
 
+  // 2. Update current order end time
+  const newCurrentEnd = addMinutes(currentOrder.planned_end, delayMinutes);
+  ordersDb.prepare('UPDATE orders SET planned_end = ? WHERE id = ?').run(newCurrentEnd, fromOrderId);
+
+  // 3. Shift all FUTURE orders on this machine
+  // We look for orders that start AFTER or AT the same time as the current one's ORIGINAL end time
   const subsequentOrders = ordersDb.prepare(`
     SELECT * FROM orders
     WHERE machine_id = ? AND id != ? AND status IN ('pending','active')
@@ -16,15 +22,17 @@ function propagateDelay(machineId, fromOrderId, delayMinutes) {
     ORDER BY planned_start ASC
   `).all(machineId, fromOrderId, currentOrder.planned_start);
 
-  for (const order of subsequentOrders) {
-    const newStart = addMinutes(order.planned_start, delayMinutes);
-    const newEnd = addMinutes(order.planned_end, delayMinutes);
-    ordersDb.prepare('UPDATE orders SET planned_start=?, planned_end=? WHERE id=?').run(newStart, newEnd, order.id);
-  }
+  let lastEnd = newCurrentEnd;
 
-  // Also shift end of current order
-  const newEnd = addMinutes(currentOrder.planned_end, delayMinutes);
-  ordersDb.prepare('UPDATE orders SET planned_end=? WHERE id=?').run(newEnd, fromOrderId);
+  for (const order of subsequentOrders) {
+    // Force start to be exactly at the previous order's end to avoid gaps/overlaps as requested
+    const newStart = lastEnd; 
+    const durationMins = (new Date(order.planned_end) - new Date(order.planned_start)) / 60000;
+    const newEnd = addMinutes(newStart, durationMins);
+    
+    ordersDb.prepare('UPDATE orders SET planned_start = ?, planned_end = ? WHERE id = ?').run(newStart, newEnd, order.id);
+    lastEnd = newEnd;
+  }
 }
 
 function addMinutes(dateStr, minutes) {
@@ -129,13 +137,14 @@ router.post('/', authenticateToken, requireRole('planner', 'administrator'), (re
 
 // PUT /api/orders/:id
 router.put('/:id', authenticateToken, requireRole('planner', 'administrator'), (req, res) => {
-  const { product_name, item_id, bom_id, quantity, planned_start, planned_end, status } = req.body;
+  const { machine_id, product_name, item_id, bom_id, quantity, planned_start, planned_end, status } = req.body;
   const order = ordersDb.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
   if (!order) return res.status(404).json({ error: 'Comanda nu a fost găsită' });
 
   ordersDb.prepare(`
-    UPDATE orders SET product_name=?, item_id=?, bom_id=?, quantity=?, planned_start=?, planned_end=?, status=? WHERE id=?
+    UPDATE orders SET machine_id=?, product_name=?, item_id=?, bom_id=?, quantity=?, planned_start=?, planned_end=?, status=? WHERE id=?
   `).run(
+    machine_id || order.machine_id,
     product_name || order.product_name,
     item_id !== undefined ? item_id : order.item_id,
     bom_id !== undefined ? bom_id : order.bom_id,

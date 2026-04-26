@@ -2,7 +2,12 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
-import { Factory, Lock, CreditCard, Loader } from 'lucide-react';
+import { Factory, Lock, CreditCard, Loader, ArrowRight } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
+import { Input } from '../components/ui/Input';
+import { Badge } from '../components/ui/Badge';
 
 const ROLE_ROUTES = {
   administrator: '/admin',
@@ -10,6 +15,15 @@ const ROLE_ROUTES = {
   area_supervisor: '/supervisor',
   shift_responsible: '/shift',
   operator: '/operator',
+};
+
+const fadeInUp = {
+  hidden: { opacity: 0, y: 28 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.7, ease: [0.16, 1, 0.3, 1] } }
+};
+
+const stagger = {
+  visible: { transition: { staggerChildren: 0.1 } }
 };
 
 export default function LoginPage() {
@@ -35,47 +49,97 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="login-page">
-      <div className="login-card fade-in">
-        <div className="login-logo">
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:10, marginBottom:8 }}>
-            <Factory size={32} color="#60a5fa" />
-          </div>
-          <h1>SmartFactory Flow</h1>
-          <p>Sistem de Management al Producției</p>
-        </div>
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 relative overflow-hidden">
+      {/* Decorative Elements */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-accent/5 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-accent-secondary/5 rounded-full blur-[120px] pointer-events-none" />
+      
+      <motion.div 
+        className="w-full max-w-xl z-10"
+        initial="hidden"
+        animate="visible"
+        variants={stagger}
+      >
+        <motion.div variants={fadeInUp} className="flex flex-col items-center mb-12 text-center">
+          <Badge className="mb-6" pulsing>Live Platform</Badge>
+          <h1 className="font-display text-5xl md:text-6xl text-foreground leading-tight mb-4 relative">
+            SmartFactory <span className="gradient-text">Flow</span>
+            <span className="gradient-underline" />
+          </h1>
+          <p className="text-muted-foreground text-lg max-w-md">
+            Sistem inteligent de management al producției și automatizare procese.
+          </p>
+        </motion.div>
 
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label className="form-label">Număr Legitimație</label>
-            <div style={{ position:'relative' }}>
-              <CreditCard size={16} style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', color:'var(--text-muted)' }} />
-              <input id="badge-input" className="form-input" style={{ paddingLeft:36 }} placeholder="ex: ADMIN001" value={badge} onChange={e => setBadge(e.target.value)} autoFocus />
-            </div>
-          </div>
-          <div className="form-group">
-            <label className="form-label">Parolă</label>
-            <div style={{ position:'relative' }}>
-              <Lock size={16} style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', color:'var(--text-muted)' }} />
-              <input id="password-input" className="form-input" style={{ paddingLeft:36 }} type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
-            </div>
-          </div>
-          <button id="login-btn" type="submit" className="btn btn-primary w-full" style={{ marginTop:8, justifyContent:'center' }} disabled={loading}>
-            {loading ? <Loader size={16} className="spinner" /> : null}
-            {loading ? 'Se autentifică...' : 'Autentificare'}
-          </button>
-        </form>
+        <motion.div variants={fadeInUp}>
+          <Card className="p-8 md:p-10 border-border/50">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground/80 ml-1">Număr Legitimație</label>
+                <div className="relative group">
+                  <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-accent transition-colors" size={18} />
+                  <Input 
+                    className="pl-12" 
+                    placeholder="ADMIN001" 
+                    value={badge} 
+                    onChange={e => setBadge(e.target.value)}
+                    autoFocus
+                  />
+                </div>
+              </div>
 
-        <div style={{ marginTop:24, padding:16, background:'rgba(255,255,255,0.03)', borderRadius:'var(--radius-sm)', border:'1px solid var(--border)' }}>
-          <p style={{ fontSize:12, color:'var(--text-muted)', marginBottom:8, fontWeight:600 }}>CREDENȚIALE DEMO</p>
-          {[['Admin','ADMIN001','admin123'],['Planner','PLN001','pass123'],['Supervisor','SPV001','pass123'],['Ș.Resp.','SHR001','pass123'],['Operator','OPR001','pass123']].map(([role,b,p]) => (
-            <div key={b} style={{ display:'flex', justifyContent:'space-between', fontSize:12, color:'var(--text-muted)', marginBottom:2 }}>
-              <span>{role}</span>
-              <span style={{ color:'var(--blue-light)' }}>{b} / {p}</span>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground/80 ml-1">Parolă Securizată</label>
+                <div className="relative group">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-accent transition-colors" size={18} />
+                  <Input 
+                    className="pl-12" 
+                    type="password" 
+                    placeholder="••••••••" 
+                    value={password} 
+                    onChange={e => setPassword(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <Button type="submit" className="w-full group h-14" disabled={loading}>
+                {loading ? (
+                  <Loader className="animate-spin mr-2" size={20} />
+                ) : (
+                  <>
+                    Autentificare
+                    <ArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" size={20} />
+                  </>
+                )}
+              </Button>
+            </form>
+
+            <div className="mt-10 pt-8 border-t border-border">
+              <div className="flex items-center justify-between mb-4">
+                <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Credențiale Demo</span>
+                <div className="h-1 flex-1 bg-border/30 mx-4 rounded-full" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  ['Admin', 'ADMIN001'],
+                  ['Planner', 'PLN001'],
+                  ['Supervisor', 'SPV001'],
+                  ['Operator', 'OPR001']
+                ].map(([role, b]) => (
+                  <div key={b} className="flex flex-col p-3 rounded-xl bg-muted/50 border border-border/50 hover:border-accent/30 transition-colors">
+                    <span className="text-[10px] uppercase text-muted-foreground font-semibold">{role}</span>
+                    <span className="text-sm font-medium text-foreground">{b}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-          ))}
-        </div>
-      </div>
+          </Card>
+        </motion.div>
+
+        <motion.p variants={fadeInUp} className="text-center mt-8 text-muted-foreground text-sm">
+          &copy; 2026 SmartFactory Flow. Toate drepturile rezervate.
+        </motion.p>
+      </motion.div>
     </div>
   );
 }
