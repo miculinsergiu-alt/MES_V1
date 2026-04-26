@@ -2,6 +2,7 @@ const express = require('express');
 const { db } = require('../db/init');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 const { broadcast } = require('../services/socket');
+const { propagateSchedule } = require('../utils/scheduler');
 const router = express.Router();
 
 // ─── Helper: check operator conflict ───────────────────────────────────────
@@ -37,6 +38,12 @@ function deductStock(orderId, producedQty, userId) {
     // Update stock level
     db.prepare('UPDATE stock_levels SET quantity = quantity - ?, last_updated = datetime("now") WHERE item_id = ?')
       .run(requiredTotal, pos.item_id);
+
+    // Check for negative stock
+    const newStock = db.prepare('SELECT quantity FROM stock_levels WHERE item_id = ?').get(pos.item_id);
+    if (newStock && newStock.quantity < 0) {
+      console.warn(`[Stock] Warning: Negative stock for item_id ${pos.item_id} after Order ${orderId}. Current: ${newStock.quantity}`);
+    }
       
     // Log transaction
     db.prepare(`
@@ -159,40 +166,6 @@ router.post('/allocations', authenticateToken, requireRole('shift_responsible','
   res.status(201).json({ id: result.lastInsertRowid, delay_minutes: delayMin, message: 'Operator alocat cu succes' });
 });
 
-// Helper to add minutes (Duplicated from orders.js for simplicity or moved to a shared utils)
-function addMinutes(dateStr, minutes) {
-  const d = new Date(dateStr);
-  d.setMinutes(d.getMinutes() + minutes);
-  return d.toISOString().replace('T', ' ').substring(0, 19);
-}
-
-// Internal propagate function (Matching the logic in orders.js)
-function propagateScheduleShift(machineId, fromOrderId, delayMinutes) {
-  const { ordersDb } = require('../db/init');
-  const order = ordersDb.prepare('SELECT * FROM orders WHERE id = ?').get(fromOrderId);
-  if (!order) return;
-
-  // 1. Update current order
-  const newEnd = addMinutes(order.planned_end, delayMinutes);
-  ordersDb.prepare('UPDATE orders SET planned_end = ? WHERE id = ?').run(newEnd, fromOrderId);
-
-  // 2. Propagate to ALL future orders on same machine
-  const futureOrders = ordersDb.prepare(`
-    SELECT * FROM orders 
-    WHERE machine_id = ? AND id != ? AND status != 'cancelled'
-    AND datetime(planned_start) >= datetime(?)
-    ORDER BY planned_start ASC
-  `).all(machineId, fromOrderId, order.planned_start);
-
-  let lastEnd = newEnd;
-  for (const o of futureOrders) {
-    const duration = (new Date(o.planned_end) - new Date(o.planned_start)) / 60000;
-    const newOStart = lastEnd;
-    const newOEnd = addMinutes(newOStart, duration);
-    ordersDb.prepare('UPDATE orders SET planned_start = ?, planned_end = ? WHERE id = ?').run(newOStart, newOEnd, o.id);
-    lastEnd = newOEnd;
-  }
-}
 
 // POST /api/production/actions
 router.post('/actions', authenticateToken, (req, res) => {
@@ -222,7 +195,7 @@ router.post('/actions', authenticateToken, (req, res) => {
         db.prepare('UPDATE orders SET planned_start = ? WHERE id = ?').run(now.toISOString().replace('T',' ').substring(0,19), order.id);
         
         // Propagate to shift everything
-        propagateScheduleShift(order.machine_id, order.id, delayMins);
+        propagateSchedule(order.machine_id, order.id, delayMins);
       }
     }
 
@@ -253,6 +226,13 @@ router.post('/actions', authenticateToken, (req, res) => {
 router.post('/results', authenticateToken, (req, res) => {
   const { order_id, qty_ok, qty_fail, defects } = req.body;
   if (!order_id) return res.status(400).json({ error: 'order_id obligatoriu' });
+
+  // Validation
+  const ok = parseInt(qty_ok) || 0;
+  const fail = parseInt(qty_fail) || 0;
+  if (ok < 0 || fail < 0) {
+    return res.status(400).json({ error: 'Cantiățile trebuie să fie numere pozitive' });
+  }
 
   db.transaction(() => {
     const result = db.prepare('INSERT INTO production_results (order_id, operator_id, qty_ok, qty_fail) VALUES (?,?,?,?)')
