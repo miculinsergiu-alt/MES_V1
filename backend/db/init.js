@@ -219,7 +219,7 @@ db.exec(`
     timestamp TEXT DEFAULT (datetime('now'))
   );
 
-  -- INVENTORY
+  -- INVENTORY & LOT TRACKING
   CREATE TABLE IF NOT EXISTS stock_levels (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     item_id INTEGER NOT NULL UNIQUE REFERENCES items(id) ON DELETE CASCADE,
@@ -228,15 +228,35 @@ db.exec(`
     last_updated TEXT DEFAULT (datetime('now'))
   );
 
+  CREATE TABLE IF NOT EXISTS inventory_lots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    item_id INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+    lot_number TEXT NOT NULL UNIQUE,
+    quantity REAL DEFAULT 0,
+    supplier_code TEXT,
+    expiration_date TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+
   CREATE TABLE IF NOT EXISTS stock_transactions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     item_id INTEGER NOT NULL REFERENCES items(id),
+    lot_id INTEGER REFERENCES inventory_lots(id),
     quantity REAL NOT NULL,
     type TEXT CHECK(type IN ('in','out','adjustment')),
     reference_type TEXT, -- e.g. order, receipt
     reference_id INTEGER,
     user_id INTEGER REFERENCES users(id),
     created_at TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS order_material_lots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    item_id INTEGER NOT NULL REFERENCES items(id),
+    lot_id INTEGER NOT NULL REFERENCES inventory_lots(id),
+    quantity_used REAL NOT NULL,
+    recorded_at TEXT DEFAULT (datetime('now'))
   );
 
   -- PREVENTIVE MAINTENANCE
@@ -258,11 +278,13 @@ db.exec(`
     created_at TEXT DEFAULT (datetime('now'))
   );
 
-  -- OPERATOR SKILLS
+  -- OPERATOR SKILLS & HR MATRIX
   CREATE TABLE IF NOT EXISTS operator_skills (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     machine_id INTEGER NOT NULL REFERENCES machines(id) ON DELETE CASCADE,
+    skill_level TEXT DEFAULT 'independent' CHECK(skill_level IN ('trainee','independent','expert')),
+    expiration_date TEXT,
     UNIQUE(user_id, machine_id)
   );
 `);

@@ -13,6 +13,7 @@ export default function OperatorDashboard() {
   const [results, setResults] = useState(null);
   const [showDelayModal, setShowDelayModal] = useState(false);
   const [showResultModal, setShowResultModal] = useState(false);
+  const [showLotModal, setShowLotModal] = useState(false);
   const [activePhase, setActivePhase] = useState(null);
 
   const loadAllocations = useCallback(async () => {
@@ -49,13 +50,21 @@ export default function OperatorDashboard() {
     await loadActions(alloc);
   };
 
-  const logAction = async (phase, type) => {
+  const logAction = async (phase, type, extraData = {}) => {
     const actionType = `${phase}_${type}`;
     try {
-      await api.post('/production/actions', { allocation_id: selectedAlloc.id, action_type: actionType });
+      await api.post('/production/actions', { allocation_id: selectedAlloc.id, action_type: actionType, ...extraData });
       toast.success(type === 'start' ? `Ați început faza de ${phase}` : `Ați finalizat faza de ${phase}`);
       await loadActions(selectedAlloc);
     } catch(err) { toast.error(err.response?.data?.error || 'Eroare'); }
+  };
+
+  const handleSetupClick = () => {
+    if (activePhase === 'setup') {
+      logAction('setup', 'end');
+    } else {
+      setShowLotModal(true); // Open Lot scanner instead of direct start
+    }
   };
 
   const navItems = [{ path:'/operator', label:'Sarcinile Mele', icon:<LayoutDashboard size={18}/> }];
@@ -138,7 +147,7 @@ export default function OperatorDashboard() {
                   {/* SETUP */}
                   <button 
                     className={`op-btn op-btn-setup ${activePhase === 'setup' ? 'active' : ''}`}
-                    onClick={() => logAction('setup', activePhase === 'setup' ? 'end' : 'start')}
+                    onClick={handleSetupClick}
                     disabled={activePhase && activePhase !== 'setup'}
                   >
                     {activePhase === 'setup' ? <Square size={32} /> : <Settings size={32} />}
@@ -185,6 +194,13 @@ export default function OperatorDashboard() {
           alloc={selectedAlloc} 
           onClose={() => setShowResultModal(false)} 
           onSave={async () => { setShowResultModal(false); await loadActions(selectedAlloc); loadAllocations(); }} 
+        />
+      )}
+      {showLotModal && (
+        <LotScanModal 
+          alloc={selectedAlloc} 
+          onClose={() => setShowLotModal(false)} 
+          onSave={(lotNumber) => { setShowLotModal(false); logAction('setup', 'start', { notes: `Scanare Lot: ${lotNumber}` }); }} 
         />
       )}
     </div>
@@ -275,6 +291,48 @@ function ResultModal({ alloc, onClose, onSave }) {
           <div className="flex gap-3 pt-4">
             <button type="button" className="btn btn-secondary flex-1" onClick={onClose}>Anulare</button>
             <button type="submit" className="btn btn-primary flex-1" disabled={loading}>Salvează</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function LotScanModal({ alloc, onClose, onSave }) {
+  const [lot, setLot] = useState('');
+  
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!lot.trim()) return toast.error('Scanați sau introduceți codul lotului.');
+    onSave(lot);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-border">
+        <div className="px-8 py-6 border-b border-border flex justify-between items-center bg-accent/5">
+          <div>
+            <h3 className="font-display text-xl text-accent">Scanare Lot Material</h3>
+            <p className="text-xs text-muted-foreground mt-1">Obligatoriu pentru trasabilitate WMS</p>
+          </div>
+          <button className="p-2 hover:bg-muted rounded-full" onClick={onClose}><X size={24}/></button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-8 space-y-6 text-center">
+          <div className="w-16 h-16 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-8 h-8 border-4 border-dashed border-accent animate-spin-slow rounded-full"></div>
+          </div>
+          <p className="text-sm font-bold text-foreground">Scanați codul de bare al materiei prime:</p>
+          <input 
+            autoFocus
+            className="w-full h-14 text-2xl text-center font-mono rounded-xl border-2 border-accent/30 bg-accent/5 focus:border-accent outline-none" 
+            type="text" 
+            value={lot} 
+            onChange={e=>setLot(e.target.value)} 
+            placeholder="Ex: LOT-400X"
+          />
+          <div className="flex gap-3 pt-4">
+            <button type="button" className="btn btn-secondary flex-1" onClick={onClose}>Continuă Fără</button>
+            <button type="submit" className="btn btn-primary flex-1">Confirmă & Start</button>
           </div>
         </form>
       </div>

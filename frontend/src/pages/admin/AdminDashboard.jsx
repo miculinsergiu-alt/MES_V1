@@ -234,24 +234,45 @@ function ModalWrapper({ title, children, onClose, maxWidth = "max-w-xl" }) {
 }
 
 function SkillModal({ user, areas, onClose }) {
-  const [userSkills, setUserSkills] = useState([]);
+  const [userSkills, setUserSkills] = useState({}); // machine_id -> { skill_level, expiration_date }
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     api.get(`/users/${user.id}/skills`).then(r => {
-      setUserSkills(r.data.map(s => s.machine_id));
+      const skillsMap = {};
+      r.data.forEach(s => {
+        skillsMap[s.machine_id] = { skill_level: s.skill_level || 'independent', expiration_date: s.expiration_date || '' };
+      });
+      setUserSkills(skillsMap);
       setLoading(false);
     });
   }, [user.id]);
 
   const toggleSkill = (machineId) => {
-    setUserSkills(prev => prev.includes(machineId) ? prev.filter(id => id !== machineId) : [...prev, machineId]);
+    setUserSkills(prev => {
+      const newSkills = { ...prev };
+      if (newSkills[machineId]) delete newSkills[machineId];
+      else newSkills[machineId] = { skill_level: 'independent', expiration_date: '' };
+      return newSkills;
+    });
+  };
+
+  const updateSkillAttr = (machineId, attr, value) => {
+    setUserSkills(prev => ({
+      ...prev,
+      [machineId]: { ...prev[machineId], [attr]: value }
+    }));
   };
 
   const saveSkills = async () => {
     try {
-      await api.post(`/users/${user.id}/skills`, { machine_ids: userSkills });
-      toast.success('Skill-uri actualizate cu succes!');
+      const payload = Object.entries(userSkills).map(([machine_id, data]) => ({
+        machine_id: parseInt(machine_id),
+        skill_level: data.skill_level,
+        expiration_date: data.expiration_date
+      }));
+      await api.post(`/users/${user.id}/skills`, { skills: payload });
+      toast.success('Skill-uri și calificări actualizate cu succes!');
       onClose();
     } catch (err) { 
       toast.error('Eroare la salvarea skill-urilor'); 
@@ -266,22 +287,44 @@ function SkillModal({ user, areas, onClose }) {
           <div key={area.id}>
             <h5 className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-3">{area.name}</h5>
             <div className="grid grid-cols-3 gap-3">
-              {area.machines.map(m => (
-                <button 
+              {area.machines.map(m => {
+                const hasSkill = !!userSkills[m.id];
+                return (
+                <div 
                   key={m.id} 
-                  className={`p-4 rounded-xl border text-left transition-all ${
-                    userSkills.includes(m.id) 
+                  className={`p-4 rounded-xl border text-left transition-all flex flex-col gap-3 ${
+                    hasSkill 
                       ? 'bg-accent/5 border-accent shadow-sm' 
                       : 'bg-white border-border hover:border-accent/30'
                   }`}
-                  onClick={() => toggleSkill(m.id)}
                 >
-                  <div className="flex justify-between items-center mb-1">
-                    <span className={`text-sm font-semibold ${userSkills.includes(m.id) ? 'text-accent' : 'text-foreground/80'}`}>{m.name}</span>
-                    {userSkills.includes(m.id) && <CheckCircle size={14} className="text-accent" />}
+                  <div className="flex justify-between items-center cursor-pointer" onClick={() => toggleSkill(m.id)}>
+                    <span className={`text-sm font-semibold ${hasSkill ? 'text-accent' : 'text-foreground/80'}`}>{m.name}</span>
+                    {hasSkill && <CheckCircle size={14} className="text-accent" />}
                   </div>
-                </button>
-              ))}
+                  
+                  {hasSkill && (
+                    <div className="pt-2 border-t border-accent/20 flex flex-col gap-2">
+                      <select 
+                        className="w-full text-xs p-2 rounded-md border border-accent/30 bg-white outline-none"
+                        value={userSkills[m.id].skill_level}
+                        onChange={(e) => updateSkillAttr(m.id, 'skill_level', e.target.value)}
+                      >
+                        <option value="trainee">Începător (Trainee)</option>
+                        <option value="independent">Independent</option>
+                        <option value="expert">Expert / Trainer</option>
+                      </select>
+                      <input 
+                        type="date" 
+                        className="w-full text-xs p-2 rounded-md border border-accent/30 bg-white outline-none"
+                        value={userSkills[m.id].expiration_date}
+                        onChange={(e) => updateSkillAttr(m.id, 'expiration_date', e.target.value)}
+                        title="Data expirare calificare (opțional)"
+                      />
+                    </div>
+                  )}
+                </div>
+              )})}
             </div>
           </div>
         ))}

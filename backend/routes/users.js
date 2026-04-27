@@ -122,18 +122,19 @@ router.get('/:id/skills', authenticateToken, (req, res) => {
 });
 
 // POST /api/users/:id/skills — bulk update skills
-router.post('/:id/skills', authenticateToken, requireRole('administrator'), (req, res) => {
-  const { machine_ids } = req.body; 
-  if (!Array.isArray(machine_ids)) return res.status(400).json({ error: 'machine_ids must be an array' });
+router.post('/:id/skills', authenticateToken, requireRole('administrator','area_supervisor'), (req, res) => {
+  const { skills } = req.body; 
+  // skills = [{ machine_id, skill_level, expiration_date }, ...]
+  if (!Array.isArray(skills)) return res.status(400).json({ error: 'skills must be an array' });
 
   const userId = parseInt(req.params.id);
 
   try {
-    db.transaction(() => {
-      db.prepare('DELETE FROM operator_skills WHERE user_id = ?').run(userId);
-      const stmt = db.prepare('INSERT INTO operator_skills (user_id, machine_id) VALUES (?, ?)');
-      for (const mid of machine_ids) {
-        stmt.run(userId, parseInt(mid));
+    usersDb.transaction(() => {
+      usersDb.prepare('DELETE FROM operator_skills WHERE user_id = ?').run(userId);
+      const stmt = usersDb.prepare('INSERT INTO operator_skills (user_id, machine_id, skill_level, expiration_date) VALUES (?, ?, ?, ?)');
+      for (const s of skills) {
+        stmt.run(userId, parseInt(s.machine_id), s.skill_level || 'independent', s.expiration_date || null);
       }
     })();
     res.json({ message: 'Skills updated successfully' });

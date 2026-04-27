@@ -4,6 +4,7 @@ process.env.PORT = process.env.PORT || '3001';
 
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const { createServer } = require('http');
 const { seedIfNeeded } = require('./db/init');
 const { initSocket } = require('./services/socket');
@@ -20,6 +21,7 @@ const bomsRoutes = require('./routes/boms');
 const stockRoutes = require('./routes/stock');
 const maintenanceRoutes = require('./routes/maintenance');
 const analyticsRoutes = require('./routes/analytics');
+const oeeRoutes = require('./routes/oee');
 
 const app = express();
 const httpServer = createServer(app);
@@ -53,15 +55,25 @@ app.use('/api/boms', bomsRoutes);
 app.use('/api/stock', stockRoutes);
 app.use('/api/maintenance', maintenanceRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/oee', oeeRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString(), version: '1.1.0' });
 });
 
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({ error: `Ruta ${req.method} ${req.path} nu a fost găsită` });
+// API 404 handler
+app.use('/api', (req, res) => {
+  res.status(404).json({ error: `Ruta API ${req.method} ${req.path} nu a fost găsită` });
+});
+
+// ─── Frontend Serving (Production) ──────────────────────────────────────────
+const frontendDistPath = path.join(__dirname, '../frontend/dist');
+app.use(express.static(frontendDistPath));
+
+// Fallback for React Router
+app.get('*', (req, res) => {
+  res.sendFile(path.join(frontendDistPath, 'index.html'));
 });
 
 // Error handler
