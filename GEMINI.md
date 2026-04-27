@@ -46,6 +46,12 @@ Acest document servește ca memorie pe termen lung pentru Gemini CLI în cadrul 
 4. **HR & Skill Matrix:**
    - `SkillModal` din `AdminDashboard.jsx` permite nu doar asignarea mașinilor pe operatori, ci și stabilirea nivelului de competență (`skill_level`: trainee/independent/expert) și `expiration_date` pentru monitorizare training.
 
+## Configurare Deployment (Railway / Cloud)
+- **Arhitectură Monorepo:** Sistemul folosește `npm workspaces` în fișierul `package.json` de la rădăcină pentru a construi ambele module simultan, ideal pentru medii PaaS.
+- **Servire Statică:** Fișierele Vite de frontend (`dist/`) sunt servite direct de backend-ul Express (`server.js`), folosind un singur domeniu în producție și fallback pentru React Router.
+- **Probleme NPM Curente Evitate:** Librăriile Vite / Tailwind se țin în `dependencies` (nu `devDependencies`), iar `package-lock.json` este exclus pentru a evita bug-urile `NODE_ENV=production` și lipsa binarelor native Linux în cloud.
+- **WebSocket:** Socket.io folosește rută relativă în producție și un proxy în `vite.config.js` pe localhost.
+
 ## Cum să pornești rapid o sesiune nouă
 La începutul fiecărei conversații, poți folosi următoarea instrucțiune:
 > "Citește fișierul GEMINI.md și pune-te la curent cu statusul proiectului."
