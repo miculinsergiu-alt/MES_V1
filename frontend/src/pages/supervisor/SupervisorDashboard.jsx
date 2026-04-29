@@ -1,12 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { LayoutDashboard, BarChart2, Users, FileText, Plus, X, ChevronLeft, ChevronRight, Factory } from 'lucide-react';
+import { LayoutDashboard, BarChart2, Users, FileText, Plus, X, ChevronLeft, ChevronRight, Factory, Clock, ShieldCheck } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import GanttTimeline from '../../components/GanttTimeline';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { format, addDays, subDays } from 'date-fns';
 import { ro } from 'date-fns/locale';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Button } from '../../components/ui/Button';
+import { Card } from '../../components/ui/Card';
+import { Input } from '../../components/ui/Input';
+import { Badge } from '../../components/ui/Badge';
 
 export default function SupervisorDashboard() {
   const [tab, setTab] = useState('gantt');
@@ -17,19 +22,27 @@ export default function SupervisorDashboard() {
   const [reports, setReports] = useState([]);
   const [viewDate, setViewDate] = useState(new Date());
   const [showShiftModal, setShowShiftModal] = useState(false);
+  const [editShift, setEditShift] = useState(null);
   const [selectedMachine, setSelectedMachine] = useState(null);
   const [machineStatus, setMachineStatus] = useState({});
 
   const loadData = useCallback(async () => {
-    const fetchData = async (url, setter) => {
-      try { const r = await api.get(url); setter(r.data); }
-      catch (err) { console.error(`Failed to fetch ${url}:`, err); }
-    };
-    fetchData('/orders/gantt', setOrders);
-    fetchData('/machines', setMachines);
-    fetchData('/users/shifts/all', setShifts);
-    fetchData('/users', setUsers);
-    fetchData('/shift-reports', setReports);
+    try {
+      const [oRes, mRes, sRes, uRes, rRes] = await Promise.all([
+        api.get('/orders/gantt'),
+        api.get('/machines'),
+        api.get('/shifts'),
+        api.get('/users'),
+        api.get('/shift-reports')
+      ]);
+      setOrders(oRes.data);
+      setMachines(mRes.data);
+      setShifts(sRes.data);
+      setUsers(uRes.data);
+      setReports(rRes.data);
+    } catch (err) {
+      console.error("Failed to fetch data:", err);
+    }
   }, []);
 
   useEffect(() => { 
@@ -64,14 +77,33 @@ export default function SupervisorDashboard() {
     { path:'/supervisor/shift-reports', label:'Istoric Rapoarte', icon:<FileText size={16}/> },
   ];
 
+  const handleDeleteShift = async (id) => {
+    if (!window.confirm('Ștergeți acest schimb?')) return;
+    try {
+      await api.delete(`/shifts/${id}`);
+      toast.success('Schimb șters');
+      loadData();
+    } catch { toast.error('Eroare la ștergere'); }
+  };
+
   return (
     <div className="app-layout">
       <Sidebar items={navItems} />
       <div className="main-content">
-        <div className="page-header">
-          <h1>Dashboard Area Supervisor</h1>
-          <p>Monitorizare producție, rapoarte și gestionare schimburi</p>
-        </div>
+        <header className="page-header">
+           <div className="flex justify-between items-end w-full">
+              <div>
+                <h1>Dashboard Area Supervisor</h1>
+                <p>Monitorizare producție, rapoarte și gestionare schimburi</p>
+              </div>
+              {tab === 'shifts' && (
+                <Button onClick={() => { setEditShift(null); setShowShiftModal(true); }}>
+                  <Plus size={16} className="mr-2" /> Crează schimb nou
+                </Button>
+              )}
+           </div>
+        </header>
+        
         <div className="page-content">
 
           {tab === 'gantt' && (
@@ -166,59 +198,212 @@ export default function SupervisorDashboard() {
           )}
 
           {tab === 'shifts' && (
-            <div>
-              <div className="flex justify-between items-center mb-4">
-                <span style={{ fontWeight:600 }}>Schimburi Active</span>
-                <button className="btn btn-primary btn-sm" onClick={() => setShowShiftModal(true)}><Plus size={14}/> Schimb Nou</button>
-              </div>
-              <div className="grid-2">
-                {shifts.map(s => (
-                  <div key={s.id} className="card">
-                    <div className="flex justify-between items-center mb-2">
-                      <span style={{ fontWeight:700, fontSize:16 }}>{s.name}</span>
-                      <span className="badge badge-blue">{s.members?.length || 0} membri</span>
-                    </div>
-                    {s.responsible && <div style={{ fontSize:13, color:'var(--text-secondary)', marginBottom:12 }}>Responsabil: <strong>{s.responsible.first_name} {s.responsible.last_name}</strong></div>}
-                    <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
-                      {(s.members||[]).filter(m => m.role === 'operator').map(m => (
-                        <div key={m.id} style={{ display:'flex', justifyContent:'space-between', padding:'6px 10px', background:'var(--bg-primary)', borderRadius:6, fontSize:13 }}>
-                          <span>{m.first_name} {m.last_name}</span>
-                          <span style={{ fontSize:11, color:'var(--text-muted)' }}>#{m.badge_number}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {shifts.map(s => (
+                <Card key={s.id} className="p-0 overflow-hidden group">
+                   <div className="p-5 border-b border-border bg-accent/5 flex justify-between items-start">
+                      <div>
+                         <h4 className="font-bold text-lg text-foreground">{s.name}</h4>
+                         <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                            <Clock size={12}/> {s.start_time} - {s.end_time}
+                         </div>
+                      </div>
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                         <button className="p-2 hover:bg-white rounded-lg text-accent shadow-sm" onClick={() => { setEditShift(s); setShowShiftModal(true); }}>
+                            <ShieldCheck size={16}/>
+                         </button>
+                         <button className="p-2 hover:bg-red-50 rounded-lg text-red-500 shadow-sm" onClick={() => handleDeleteShift(s.id)}>
+                            <X size={16}/>
+                          </button>
+                      </div>
+                   </div>
+                   <div className="p-5">
+                      <div className="space-y-1">
+                         <span className="text-[10px] font-black uppercase text-muted-foreground tracking-tighter">Responsabil Schimb</span>
+                         <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-xs text-white font-bold">
+                               {s.first_name?.[0]}{s.last_name?.[0]}
+                            </div>
+                            <span className="text-sm font-bold">{s.first_name} {s.last_name}</span>
+                         </div>
+                      </div>
+                   </div>
+                </Card>
+              ))}
+              {shifts.length === 0 && <div className="card col-span-full py-20 text-center italic text-muted-foreground">Niciun schimb configurat.</div>}
             </div>
           )}
 
           {tab === 'reports' && <PerformanceTab orders={orders} machines={machines} users={users} />}
 
           {tab === 'shift-reports' && (
-            <div>
-              {reports.length === 0 && <div className="empty-state">Niciun raport de schimb disponibil</div>}
+            <div className="space-y-4">
+              {reports.length === 0 && <div className="card py-20 text-center italic text-muted-foreground">Niciun raport de schimb disponibil</div>}
               {reports.map(r => (
-                <div key={r.id} className="card" style={{ marginBottom:12 }}>
-                  <div className="flex justify-between items-center mb-2">
-                    <span style={{ fontWeight:600 }}>Raport {r.report_date} — Schimb #{r.shift_id}</span>
-                    <span className="badge badge-blue">{r.issues?.length || 0} probleme</span>
-                  </div>
-                  {r.general_notes && <p style={{ fontSize:13, color:'var(--text-secondary)', marginBottom:8 }}>{r.general_notes}</p>}
-                  {(r.issues||[]).map(issue => (
-                    <div key={issue.id} style={{ padding:'8px 12px', background:'var(--bg-primary)', borderRadius:6, marginBottom:6, borderLeft:'3px solid var(--red)' }}>
-                      <div style={{ fontSize:13, fontWeight:500 }}>{issue.description}</div>
-                      {issue.delay_minutes > 0 && <div style={{ fontSize:11, color:'var(--red-light)', marginTop:2 }}>Delay: {issue.delay_minutes} min {issue.delay_already_logged ? '(deja logat)' : ''}</div>}
+                <Card key={r.id} className="p-6">
+                  <div className="flex justify-between items-center mb-4 pb-4 border-b border-border">
+                    <div>
+                      <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Raport Data:</span>
+                      <p className="font-bold text-lg">{r.report_date} — Schimb #{r.shift_id}</p>
                     </div>
-                  ))}
-                </div>
+                    <Badge variant="outline" className="border-accent text-accent bg-accent/5">{r.issues?.length || 0} Probleme Raportate</Badge>
+                  </div>
+                  {r.general_notes && <p className="text-sm text-muted-foreground bg-muted/20 p-4 rounded-xl mb-4 italic">"{r.general_notes}"</p>}
+                  <div className="space-y-2">
+                    {(r.issues||[]).map(issue => (
+                      <div key={issue.id} className="p-3 bg-white border border-border rounded-xl flex items-center gap-4">
+                        <div className="w-2 h-2 rounded-full bg-red-500" />
+                        <div className="flex-1 text-sm font-medium text-foreground">{issue.description}</div>
+                        {issue.delay_minutes > 0 && (
+                          <div className="text-xs font-black text-red-600 bg-red-50 px-2 py-1 rounded-md">
+                            +{issue.delay_minutes} min {issue.delay_already_logged ? '✓' : ''}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </Card>
               ))}
             </div>
           )}
         </div>
       </div>
-      {showShiftModal && <CreateShiftModal users={users} onClose={() => setShowShiftModal(false)} onSave={() => { loadData(); setShowShiftModal(false); }} />}
+      
+      <AnimatePresence>
+        {showShiftModal && <ShiftDefinitionModal shift={editShift} users={users} onClose={() => setShowShiftModal(false)} onSave={() => { loadData(); setShowShiftModal(false); }} />}
+      </AnimatePresence>
     </div>
+  );
+}
+
+function ModalWrapper({ title, children, onClose, maxWidth = "max-w-xl" }) {
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }}
+        className={`bg-white rounded-3xl shadow-2xl w-full ${maxWidth} overflow-hidden border border-border flex flex-col max-h-[90vh]`}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="px-8 py-6 border-b border-border flex justify-between items-center bg-white sticky top-0 z-10">
+          <h3 className="font-display text-2xl text-foreground">{title}</h3>
+          <button className="p-2 hover:bg-muted rounded-full transition-colors" onClick={onClose}><X size={24}/></button>
+        </div>
+        <div className="p-8 overflow-y-auto">
+          {children}
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function ShiftDefinitionModal({ shift, users, onClose, onSave }) {
+  const [formData, setFormData] = useState({
+    name: shift?.name || '',
+    shift_responsible_id: shift?.shift_responsible_id || '',
+    start_time: shift?.start_time || '06:00',
+    end_time: shift?.end_time || '14:00',
+    members: []
+  });
+
+  useEffect(() => {
+    if (shift?.id) {
+      api.get(`/shifts/${shift.id}`).then(res => {
+        setFormData({
+          ...res.data,
+          members: res.data.members.map(m => m.id)
+        });
+      });
+    }
+  }, [shift]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!formData.shift_responsible_id) return toast.error("Selectați un responsabil de schimb");
+    try {
+      if (shift) await api.put(`/shifts/${shift.id}`, formData);
+      else await api.post('/shifts', formData);
+      toast.success('Schimb salvat cu succes');
+      onSave();
+    } catch(err) { toast.error(err.response?.data?.error || 'Eroare la salvare'); }
+  };
+
+  const toggleMember = (userId) => {
+    setFormData(prev => ({
+      ...prev,
+      members: prev.members.includes(userId) 
+        ? prev.members.filter(id => id !== userId) 
+        : [...prev.members, userId]
+    }));
+  };
+
+  return (
+    <ModalWrapper title={shift ? 'Editare Schimb' : 'Creare Schimb Nou'} onClose={onClose} maxWidth="max-w-2xl">
+      <form onSubmit={handleSubmit} className="space-y-8">
+        <div className="space-y-2">
+          <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Denumire Schimb</label>
+          <Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="ex: Schimbul A" required />
+        </div>
+
+        <div className="grid grid-cols-2 gap-6">
+           <div className="space-y-2">
+              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Ora Start</label>
+              <Input type="time" value={formData.start_time} onChange={e => setFormData({...formData, start_time: e.target.value})} required />
+           </div>
+           <div className="space-y-2">
+              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Ora Sfârșit</label>
+              <Input type="time" value={formData.end_time} onChange={e => setFormData({...formData, end_time: e.target.value})} required />
+           </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1 flex items-center gap-2">
+            <ShieldCheck size={14} className="text-accent"/> Responsabil Schimb
+          </label>
+          <select className="w-full h-12 rounded-xl border border-border bg-white px-4 focus:ring-2 focus:ring-accent outline-none appearance-none" value={formData.shift_responsible_id} onChange={e => setFormData({...formData, shift_responsible_id: e.target.value})} required>
+            <option value="">Selectați responsabilul...</option>
+            {users.filter(u => u.role === 'shift_responsible').map(u => (
+              <option key={u.id} value={u.id}>{u.first_name} {u.last_name} ({u.badge_number})</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="space-y-4">
+          <div className="flex justify-between items-center border-b border-border pb-2">
+             <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+               <Users size={14}/> Operatori în Schimb ({formData.members.length})
+             </label>
+          </div>
+          <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-2">
+             {users.filter(u => u.role === 'operator').map(u => {
+               const isSelected = formData.members.includes(u.id);
+               return (
+                 <button 
+                   key={u.id} 
+                   type="button"
+                   onClick={() => toggleMember(u.id)}
+                   className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${
+                     isSelected ? 'bg-accent/10 border-accent' : 'bg-white border-border hover:bg-muted/50'
+                   }`}
+                 >
+                   <div className={`w-2 h-2 rounded-full ${isSelected ? 'bg-accent' : 'bg-muted'}`} />
+                   <div>
+                      <div className="text-sm font-bold text-foreground leading-none">{u.first_name} {u.last_name}</div>
+                      <div className="text-[10px] font-mono text-muted-foreground mt-1">{u.badge_number}</div>
+                   </div>
+                 </button>
+               );
+             })}
+          </div>
+        </div>
+
+        <div className="pt-4 flex justify-end gap-3 border-t border-border">
+          <Button variant="secondary" onClick={onClose} type="button">Anulare</Button>
+          <Button type="submit">Finalizare Schimb</Button>
+        </div>
+      </form>
+    </ModalWrapper>
   );
 }
 
@@ -277,53 +462,6 @@ function PerformanceTab({ orders, machines, users }) {
             ))}
           </tbody>
         </table>
-      </div>
-    </div>
-  );
-}
-
-function CreateShiftModal({ users, onClose, onSave }) {
-  const [form, setForm] = useState({ name:'', shift_responsible_id:'', operator_ids:[] });
-  const responsibles = users.filter(u => u.role === 'shift_responsible');
-  const operators = users.filter(u => u.role === 'operator');
-
-  const toggleOp = (id) => setForm(p => ({ ...p, operator_ids: p.operator_ids.includes(id) ? p.operator_ids.filter(x=>x!==id) : [...p.operator_ids, id] }));
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try { await api.post('/users/shifts', { ...form, shift_responsible_id: parseInt(form.shift_responsible_id) }); toast.success('Schimb creat'); onSave(); }
-    catch(err) { toast.error(err.response?.data?.error || 'Eroare'); }
-  };
-
-  return (
-    <div className="modal-overlay">
-      <div className="modal">
-        <div className="modal-header"><h3>Creare Schimb Nou</h3><button className="btn btn-ghost btn-icon" onClick={onClose}><X size={16}/></button></div>
-        <form onSubmit={handleSubmit}>
-          <div className="form-group"><label className="form-label">Denumire Schimb</label><input className="form-input" placeholder="ex: Sch. A" value={form.name} onChange={e=>setForm(p=>({...p,name:e.target.value}))} required /></div>
-          <div className="form-group">
-            <label className="form-label">Shift Responsible</label>
-            <select className="form-select" value={form.shift_responsible_id} onChange={e=>setForm(p=>({...p,shift_responsible_id:e.target.value}))} required>
-              <option value="">Selectați...</option>
-              {responsibles.map(u => <option key={u.id} value={u.id}>{u.first_name} {u.last_name} #{u.badge_number}</option>)}
-            </select>
-          </div>
-          <div className="form-group">
-            <label className="form-label">Operatori</label>
-            <div style={{ maxHeight:200, overflowY:'auto', display:'flex', flexDirection:'column', gap:4 }}>
-              {operators.map(u => (
-                <label key={u.id} style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 10px', background:'var(--bg-primary)', borderRadius:6, cursor:'pointer', fontSize:13 }}>
-                  <input type="checkbox" checked={form.operator_ids.includes(u.id)} onChange={() => toggleOp(u.id)} />
-                  {u.first_name} {u.last_name} <span style={{ color:'var(--text-muted)', fontSize:11 }}>#{u.badge_number}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-          <div className="modal-footer">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>Anulare</button>
-            <button type="submit" className="btn btn-primary">Creare Schimb</button>
-          </div>
-        </form>
       </div>
     </div>
   );

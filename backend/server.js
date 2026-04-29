@@ -22,6 +22,7 @@ const stockRoutes = require('./routes/stock');
 const maintenanceRoutes = require('./routes/maintenance');
 const analyticsRoutes = require('./routes/analytics');
 const oeeRoutes = require('./routes/oee');
+const shiftsRoutes = require('./routes/shifts');
 
 const app = express();
 const httpServer = createServer(app);
@@ -56,6 +57,7 @@ app.use('/api/stock', stockRoutes);
 app.use('/api/maintenance', maintenanceRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/oee', oeeRoutes);
+app.use('/api/shifts', shiftsRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

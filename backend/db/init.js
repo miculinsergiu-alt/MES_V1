@@ -28,6 +28,8 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     shift_responsible_id INTEGER REFERENCES users(id),
+    start_time TEXT, -- e.g. "06:00"
+    end_time TEXT,   -- e.g. "14:00"
     created_at TEXT DEFAULT (datetime('now'))
   );
   
@@ -36,6 +38,16 @@ db.exec(`
     shift_id INTEGER NOT NULL REFERENCES shifts(id) ON DELETE CASCADE,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     UNIQUE(shift_id, user_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS operator_schedules (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    machine_id INTEGER NOT NULL REFERENCES machines(id) ON DELETE CASCADE,
+    shift_id INTEGER NOT NULL REFERENCES shifts(id) ON DELETE CASCADE,
+    work_date TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now')),
+    UNIQUE(user_id, work_date, shift_id)
   );
 
   -- MACHINES & AREAS
@@ -123,15 +135,24 @@ db.exec(`
     actual_start TEXT,
     actual_end TEXT,
     status TEXT DEFAULT 'pending' CHECK(status IN ('pending','active','done','cancelled')),
+    order_type TEXT DEFAULT 'production' CHECK(order_type IN ('production','maintenance')),
     created_by INTEGER REFERENCES users(id),
     created_at TEXT DEFAULT (datetime('now'))
   );
   
+  CREATE TABLE IF NOT EXISTS delay_reasons (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    category TEXT DEFAULT 'general'
+  );
+
   CREATE TABLE IF NOT EXISTS order_delays (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
     delay_minutes INTEGER NOT NULL,
     reason TEXT,
+    delay_reason_id INTEGER REFERENCES delay_reasons(id),
+    corrective_action TEXT,
     reported_by INTEGER REFERENCES users(id),
     source TEXT CHECK(source IN ('operator','shift_responsible','system')),
     applied INTEGER DEFAULT 0,
@@ -289,6 +310,26 @@ db.exec(`
   );
 `);
 
+// ─── MIGRATIONS ─────────────────────────────────────────────────────────────
+function addColumnIfNotExists(table, column, type) {
+  try {
+    const info = db.prepare(`PRAGMA table_info(${table})`).all();
+    if (!info.some(col => col.name === column)) {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+      console.log(`✅ Migration: Column ${column} added to ${table}`);
+    }
+  } catch (err) {
+    console.error(`❌ Migration Error (${table}.${column}):`, err.message);
+  }
+}
+
+addColumnIfNotExists('shifts', 'start_time', 'TEXT');
+addColumnIfNotExists('shifts', 'end_time', 'TEXT');
+addColumnIfNotExists('orders', 'order_type', "TEXT DEFAULT 'production' CHECK(order_type IN ('production','maintenance'))");
+addColumnIfNotExists('order_delays', 'delay_reason_id', 'INTEGER REFERENCES delay_reasons(id)');
+addColumnIfNotExists('order_delays', 'corrective_action', 'TEXT');
+addColumnIfNotExists('items', 'unit_price', 'REAL DEFAULT 0');
+
 // ─── SEED DATA ─────────────────────────────────────────────────────────────
 function seedIfNeeded() {
   const admin = db.prepare('SELECT id FROM users WHERE badge_number = ?').get('ADMIN001');
@@ -299,6 +340,33 @@ function seedIfNeeded() {
       VALUES (?, ?, ?, ?, ?)
     `).run('Admin', 'System', 'ADMIN001', 'administrator', hash);
     console.log('✅ Seed: Admin creat (badge: ADMIN001, parolă: admin123)');
+  }
+
+  // Update shifts with times
+  const shiftsCount = db.prepare('SELECT count(*) as count FROM shifts').get().count;
+  if (shiftsCount === 0) {
+    db.prepare('INSERT INTO shifts (name, start_time, end_time) VALUES (?, ?, ?)').run('Schimb 1', '06:00', '14:00');
+    db.prepare('INSERT INTO shifts (name, start_time, end_time) VALUES (?, ?, ?)').run('Schimb 2', '14:00', '22:00');
+    db.prepare('INSERT INTO shifts (name, start_time, end_time) VALUES (?, ?, ?)').run('Schimb 3', '22:00', '06:00');
+    console.log('✅ Seed: Schimburi 1, 2, 3 create');
+  }
+
+  // Delay reasons
+  const checkDelayReason = db.prepare('SELECT id FROM delay_reasons LIMIT 1').get();
+  if (!checkDelayReason) {
+    const reasons = [
+      ['Defecțiune Mecanică', 'mechanical'],
+      ['Defecțiune Electrică', 'electrical'],
+      ['Lipsă Materie Primă', 'material'],
+      ['Lipsă Operator', 'human'],
+      ['Schimbare Format (Setup)', 'setup'],
+      ['Mentenanță Planificată', 'maintenance'],
+      ['Pauză Masă', 'human'],
+      ['Altele', 'general']
+    ];
+    const stmt = db.prepare('INSERT INTO delay_reasons (name, category) VALUES (?, ?)');
+    reasons.forEach(r => stmt.run(r[0], r[1]));
+    console.log('✅ Seed: Motive întârzieri create');
   }
 
   // Demo area + machine
@@ -324,20 +392,13 @@ function seedIfNeeded() {
     for (const [fn, ln, badge, role] of roles) {
       db.prepare('INSERT OR IGNORE INTO users (first_name, last_name, badge_number, role, password_hash) VALUES (?,?,?,?,?)').run(fn, ln, badge, role, hash);
     }
-
-    // Create a demo shift
-    const shiftRes = db.prepare('INSERT INTO shifts (name, shift_responsible_id) VALUES (?,?)').run('Sch. A', 3);
-    const shiftId = shiftRes.lastInsertRowid;
-    for (let uid = 3; uid <= 5; uid++) {
-      db.prepare('INSERT OR IGNORE INTO shift_members (shift_id, user_id) VALUES (?,?)').run(shiftId, uid);
-    }
-    console.log('✅ Seed: Useri demo + Schimb A creat');
+    console.log('✅ Seed: Useri demo creați');
   }
 
   // Defect reasons
-  const reasons = ['Dimensiune incorectă', 'Zgârieturi suprafață', 'Eroare material', 'Defect asamblare', 'Altele'];
   const checkReason = db.prepare('SELECT id FROM defect_reasons LIMIT 1').get();
   if (!checkReason) {
+    const reasons = ['Dimensiune incorectă', 'Zgârieturi suprafață', 'Eroare material', 'Defect asamblare', 'Altele'];
     const stmt = db.prepare('INSERT INTO defect_reasons (name) VALUES (?)');
     reasons.forEach(r => stmt.run(r));
     console.log('✅ Seed: Motive defecte create');

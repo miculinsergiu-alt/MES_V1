@@ -1,21 +1,29 @@
 import { useState, useEffect } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { LayoutDashboard, TrendingUp, Clock, Activity, CheckCircle, Target } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts';
+import { LayoutDashboard, TrendingUp, Clock, Activity, CheckCircle, Target, AlertCircle, DollarSign } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import api from '../../api/axios';
 import { useSocket } from '../../contexts/SocketContext';
 import { Badge } from '../../components/ui/Badge';
 import { Card } from '../../components/ui/Card';
 
+const COLORS = ['#ef4444', '#f59e0b', '#3b82f6', '#8b5cf6', '#10b981', '#64748b'];
+
 export default function OEEPage() {
   const [stats, setStats] = useState(null);
+  const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const socket = useSocket();
 
   const loadStats = async () => {
     try {
-      const r = await api.get('/oee'); // Use the new specialized OEE route
-      const results = r.data.results || [];
+      const [oeeRes, summaryRes] = await Promise.all([
+        api.get('/oee'),
+        api.get('/analytics/summary')
+      ]);
+      
+      const results = oeeRes.data.results || [];
+      setSummary(summaryRes.data);
       
       // Calculate global averages
       let totalA = 0, totalP = 0, totalQ = 0, totalO = 0;
@@ -90,7 +98,7 @@ export default function OEEPage() {
         <header className="mb-10">
           <Badge className="mb-4">OEE Engine v2.0</Badge>
           <h1 className="font-display text-4xl text-foreground">Overall Equipment <span className="gradient-text">Effectiveness</span></h1>
-          <p className="text-muted-foreground mt-2">Monitorizare în timp real a performanței utilajelor și a fluxului de lucru.</p>
+          <p className="text-muted-foreground mt-2">Monitorizare în timp real a performanței utilajelor și a abaterilor de proces.</p>
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -152,6 +160,75 @@ export default function OEEPage() {
               </ResponsiveContainer>
             </div>
           </Card>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+           <Card>
+             <div className="flex justify-between items-center mb-6">
+                <h3 className="font-semibold text-foreground flex items-center gap-2"><AlertCircle size={18} className="text-red-500"/> Cauze Întârzieri (Pareto)</h3>
+                <span className="text-[10px] font-bold text-muted-foreground uppercase">Top Minute</span>
+             </div>
+             <div className="h-72 w-full">
+               <ResponsiveContainer>
+                 <PieChart>
+                    <Pie
+                      data={summary?.delays || []}
+                      dataKey="total_minutes"
+                      nameKey="reason"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={80}
+                      paddingAngle={5}
+                    >
+                      {(summary?.delays || []).map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                    <Legend verticalAlign="bottom" height={36}/>
+                 </PieChart>
+               </ResponsiveContainer>
+             </div>
+           </Card>
+
+           <Card className="p-0 overflow-hidden">
+              <div className="p-6 border-b border-border bg-muted/5 flex justify-between items-center">
+                <h3 className="font-semibold text-foreground flex items-center gap-2"><DollarSign size={18} className="text-green-600"/> Abateri de Cost (Real vs Std)</h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="bg-muted/30 border-b border-border">
+                      <th className="px-6 py-4 text-[10px] font-bold uppercase text-muted-foreground">Comandă</th>
+                      <th className="px-6 py-4 text-[10px] font-bold uppercase text-muted-foreground">Cost Std.</th>
+                      <th className="px-6 py-4 text-[10px] font-bold uppercase text-muted-foreground">Cost Real</th>
+                      <th className="px-6 py-4 text-[10px] font-bold uppercase text-muted-foreground text-right">Variație</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/50">
+                    {summary?.costs.map(c => (
+                      <tr key={c.order_id}>
+                        <td className="px-6 py-4">
+                           <div className="text-sm font-bold">{c.product}</div>
+                           <div className="text-[10px] text-muted-foreground">ID: #{c.order_id}</div>
+                        </td>
+                        <td className="px-6 py-4 font-mono text-sm">{c.standard_cost.toFixed(2)}</td>
+                        <td className="px-6 py-4 font-mono text-sm">{c.real_cost.toFixed(2)}</td>
+                        <td className="px-6 py-4 text-right">
+                           <span className={`text-xs font-black px-2 py-0.5 rounded-full ${c.variance <= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                             {c.variance > 0 ? '+' : ''}{c.variance_percent.toFixed(1)}%
+                           </span>
+                        </td>
+                      </tr>
+                    ))}
+                    {(!summary || summary.costs.length === 0) && (
+                      <tr><td colSpan="4" className="p-8 text-center text-muted-foreground italic">Nicio dată de cost disponibilă.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+           </Card>
         </div>
 
         <Card className="p-0 overflow-hidden">

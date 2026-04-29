@@ -120,14 +120,23 @@ export default function GanttTimeline({ orders = [], machines = [], viewDate = n
                         const left = toPercent(order.planned_start);
                         const width = widthPercent(order.planned_start, order.planned_end);
                         const delays = (order.delays || []).filter(d => d.applied);
+                        const isMaintenance = order.order_type === 'maintenance';
+                        
                         return (
                           <div key={`p-${order.id}`}>
-                            <div className="gantt-segment planner cursor-pointer" 
-                              style={{ left:`${left}%`, width:`${width}%` }}
+                            <div 
+                              className={`gantt-segment planner cursor-pointer ${isMaintenance ? 'maintenance-block' : ''}`}
+                              style={{ 
+                                left:`${left}%`, 
+                                width:`${width}%`,
+                                backgroundColor: isMaintenance ? '#f97316' : 'var(--planner-color)',
+                                backgroundImage: isMaintenance ? 'linear-gradient(45deg, rgba(255,255,255,.1) 25%, transparent 25%, transparent 50%, rgba(255,255,255,.1) 50%, rgba(255,255,255,.1) 75%, transparent 75%, transparent)' : 'none',
+                                backgroundSize: '10px 10px'
+                              }}
                               onClick={() => onBlockClick?.(order)}
                             />
                             {/* Product Name as simple text */}
-                            <div className="gantt-block-tag" style={{ left: `${left}%`, width: `${width}%` }}>
+                            <div className={`gantt-block-tag ${isMaintenance ? 'text-orange-950 font-black' : ''}`} style={{ left: `${left}%`, width: `${width}%` }}>
                               {order.product_name}
                             </div>
                             {delays.map(d => {
@@ -206,6 +215,7 @@ export default function GanttTimeline({ orders = [], machines = [], viewDate = n
       <div className="flex flex-wrap gap-8 px-6 py-3 no-print bg-white border border-border rounded-2xl w-fit shadow-sm">
         {[
           { label:'Planificat', color:'bg-slate-300 opacity-40 border border-dashed border-slate-500' },
+          { label:'Mentenanță', color:'bg-orange-500' },
           { label:'Setup (Actual)', color:'bg-blue-500 shadow-blue-200' },
           { label:'Producție (Actual)', color:'bg-green-500 shadow-green-200' },
           { label:'Întârziere (Delay)', color:'bg-red-500 animate-pulse shadow-red-200' }

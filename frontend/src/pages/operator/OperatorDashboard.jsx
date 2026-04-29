@@ -15,15 +15,35 @@ export default function OperatorDashboard() {
   const [showResultModal, setShowResultModal] = useState(false);
   const [showLotModal, setShowLotModal] = useState(false);
   const [activePhase, setActivePhase] = useState(null);
+  const [shifts, setShifts] = useState([]);
 
   const loadAllocations = useCallback(async () => {
     try {
-      const r = await api.get(`/production/operator/${user.id}`);
-      setAllocations(r.data);
+      const [allocRes, shiftsRes] = await Promise.all([
+        api.get(`/production/operator/${user.id}`),
+        api.get('/shifts')
+      ]);
+      setAllocations(allocRes.data);
+      setShifts(shiftsRes.data);
     } catch {}
   }, [user.id]);
 
   useEffect(() => { loadAllocations(); }, [loadAllocations]);
+
+  const getCurrentShift = () => {
+    const now = new Date();
+    const time = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+    return shifts.find(s => {
+      if (s.start_time < s.end_time) {
+        return time >= s.start_time && time < s.end_time;
+      } else {
+        // Night shift
+        return time >= s.start_time || time < s.end_time;
+      }
+    });
+  };
+
+  const currentShift = getCurrentShift();
 
   const loadActions = async (alloc) => {
     try {
@@ -74,8 +94,21 @@ export default function OperatorDashboard() {
       <Sidebar items={navItems} />
       <div className="main-content">
         <header className="page-header">
-          <h1>Sistem de Control Operator</h1>
-          <p>Bun venit, {user?.first_name}! Gestionează producția în timp real.</p>
+          <div className="flex justify-between items-center w-full">
+            <div>
+              <h1>Sistem de Control Operator</h1>
+              <p>Bun venit, {user?.first_name}! Gestionează producția în timp real.</p>
+            </div>
+            {currentShift && (
+              <div className="flex items-center gap-3 bg-accent/10 px-4 py-2 rounded-2xl border border-accent/20">
+                <Clock size={20} className="text-accent"/>
+                <div className="text-right">
+                  <div className="text-[10px] font-bold uppercase text-accent leading-none">Schimb Curent</div>
+                  <div className="text-sm font-bold text-foreground">{currentShift.name} ({currentShift.start_time} - {currentShift.end_time})</div>
+                </div>
+              </div>
+            )}
+          </div>
         </header>
 
         <div className="page-content">
@@ -208,7 +241,18 @@ export default function OperatorDashboard() {
 }
 
 function OperatorDelayModal({ alloc, onClose, onSave }) {
-  const [form, setForm] = useState({ delay_start:'', delay_end:'', reason:'' });
+  const [form, setForm] = useState({ delay_start:'', delay_end:'', reason:'', delay_reason_id:'', corrective_action:'' });
+  const [reasons, setReasons] = useState([]);
+
+  useEffect(() => {
+    api.get('/orders/delay-reasons').then(r => setReasons(r.data));
+    // Pre-fill delay_start with current time
+    const now = new Date();
+    const offset = now.getTimezoneOffset() * 60000;
+    const localNow = new Date(now - offset).toISOString().slice(0, 16);
+    setForm(p => ({ ...p, delay_start: localNow, delay_end: localNow }));
+  }, []);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     const start = new Date(form.delay_start);
@@ -217,7 +261,13 @@ function OperatorDelayModal({ alloc, onClose, onSave }) {
     if (delayMin <= 0) return toast.error('Intervalul orar este invalid.');
 
     try {
-      await api.post(`/orders/${alloc.order_id}/delay`, { delay_minutes: delayMin, reason: form.reason, source:'operator' });
+      await api.post(`/orders/${alloc.order_id}/delay`, { 
+        delay_minutes: delayMin, 
+        reason: form.reason,
+        delay_reason_id: form.delay_reason_id,
+        corrective_action: form.corrective_action,
+        source:'operator' 
+      });
       await api.post('/production/actions', { allocation_id: alloc.id, action_type:'delay_start', notes: form.reason });
       toast.success('Întârzierea a fost raportată.');
       onSave();
@@ -228,27 +278,47 @@ function OperatorDelayModal({ alloc, onClose, onSave }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-border">
         <div className="px-8 py-6 border-b border-border flex justify-between items-center">
-          <h3 className="font-display text-2xl">Raportare Întârziere</h3>
+          <h3 className="font-display text-2xl text-red-600">Raportare Întârziere</h3>
           <button className="p-2 hover:bg-muted rounded-full" onClick={onClose}><X size={24}/></button>
         </div>
-        <form onSubmit={handleSubmit} className="p-8 space-y-6">
+        <form onSubmit={handleSubmit} className="p-8 space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-muted-foreground uppercase">De la ora</label>
-              <input className="w-full h-12 rounded-xl border border-border px-4" type="datetime-local" value={form.delay_start} onChange={e=>setForm(p=>({...p,delay_start:e.target.value}))} required/>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">De la ora</label>
+              <input className="w-full h-12 rounded-xl border border-border px-4 focus:ring-2 ring-red-100 outline-none" type="datetime-local" value={form.delay_start} onChange={e=>setForm(p=>({...p,delay_start:e.target.value}))} required/>
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-muted-foreground uppercase">Până la ora</label>
-              <input className="w-full h-12 rounded-xl border border-border px-4" type="datetime-local" value={form.delay_end} onChange={e=>setForm(p=>({...p,delay_end:e.target.value}))} required/>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Până la ora</label>
+              <input className="w-full h-12 rounded-xl border border-border px-4 focus:ring-2 ring-red-100 outline-none" type="datetime-local" value={form.delay_end} onChange={e=>setForm(p=>({...p,delay_end:e.target.value}))} required/>
             </div>
           </div>
-          <div className="space-y-2">
-            <label className="text-sm font-bold text-muted-foreground uppercase">Motivul Întârzierii</label>
-            <textarea className="w-full rounded-xl border border-border p-4 min-h-[100px]" value={form.reason} onChange={e=>setForm(p=>({...p,reason:e.target.value}))} placeholder="Descrieți pe scurt cauza..." required/>
+          
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Cauza (Cod Defecțiune)</label>
+            <select 
+              className="w-full h-12 rounded-xl border border-border px-4 focus:ring-2 ring-red-100 outline-none appearance-none bg-slate-50"
+              value={form.delay_reason_id}
+              onChange={e=>setForm(p=>({...p,delay_reason_id:e.target.value}))}
+              required
+            >
+              <option value="">Selectați o cauză...</option>
+              {reasons.map(r => <option key={r.id} value={r.id}>{r.name} ({r.category})</option>)}
+            </select>
           </div>
-          <div className="flex gap-3">
-            <button type="button" className="btn btn-secondary flex-1" onClick={onClose}>Anulare</button>
-            <button type="submit" className="btn btn-primary bg-red-600 flex-1">Raportează</button>
+
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Descriere Problemă</label>
+            <textarea className="w-full rounded-xl border border-border p-4 min-h-[80px] focus:ring-2 ring-red-100 outline-none" value={form.reason} onChange={e=>setForm(p=>({...p,reason:e.target.value}))} placeholder="Ce s-a întâmplat?" required/>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Măsuri Corective Luate</label>
+            <textarea className="w-full rounded-xl border border-border p-4 min-h-[80px] focus:ring-2 ring-green-100 outline-none bg-green-50/20" value={form.corrective_action} onChange={e=>setForm(p=>({...p,corrective_action:e.target.value}))} placeholder="Cum s-a remediat situația?" required/>
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <button type="button" className="btn btn-secondary flex-1 h-14" onClick={onClose}>Anulare</button>
+            <button type="submit" className="btn btn-primary bg-red-600 flex-1 h-14">Raportează</button>
           </div>
         </form>
       </div>
@@ -274,7 +344,7 @@ function ResultModal({ alloc, onClose, onSave }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-border">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-lg overflow-hidden border border-border">
         <div className="px-8 py-6 border-b border-border flex justify-between items-center">
           <h3 className="font-display text-2xl">Înregistrare Producție</h3>
           <button className="p-2 hover:bg-muted rounded-full" onClick={onClose}><X size={24}/></button>

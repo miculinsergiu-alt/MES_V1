@@ -3,6 +3,12 @@ const { ordersDb, machinesDb } = require('../db/init');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 const router = express.Router();
 
+// GET /api/orders/delay-reasons
+router.get('/delay-reasons', authenticateToken, (req, res) => {
+  const reasons = ordersDb.prepare('SELECT * FROM delay_reasons ORDER BY name ASC').all();
+  res.json(reasons);
+});
+
 // ─── Helper: propagate delay to subsequent orders on same machine ───────────
 function propagateDelay(machineId, fromOrderId, delayMinutes) {
   // 1. Get the order where delay started
@@ -43,11 +49,12 @@ function addMinutes(dateStr, minutes) {
 
 // GET /api/orders — all orders (optionally filtered by machine)
 router.get('/', authenticateToken, (req, res) => {
-  const { machine_id, status, date_from, date_to } = req.query;
+  const { machine_id, status, date_from, date_to, order_type } = req.query;
   let sql = 'SELECT * FROM orders WHERE 1=1';
   const params = [];
   if (machine_id) { sql += ' AND machine_id = ?'; params.push(machine_id); }
   if (status) { sql += ' AND status = ?'; params.push(status); }
+  if (order_type) { sql += ' AND order_type = ?'; params.push(order_type); }
   if (date_from) { sql += ' AND planned_start >= ?'; params.push(date_from); }
   if (date_to) { sql += ' AND planned_end <= ?'; params.push(date_to); }
   sql += ' ORDER BY planned_start ASC';
@@ -69,7 +76,13 @@ router.get('/gantt', authenticateToken, (req, res) => {
 
   // Attach delays and current_phase
   const result = orders.map(order => {
-    const delays = ordersDb.prepare('SELECT * FROM order_delays WHERE order_id = ? ORDER BY created_at').all(order.id);
+    const delays = ordersDb.prepare(`
+      SELECT od.*, dr.name as reason_name, dr.category as reason_category
+      FROM order_delays od
+      LEFT JOIN delay_reasons dr ON od.delay_reason_id = dr.id
+      WHERE od.order_id = ? 
+      ORDER BY od.created_at
+    `).all(order.id);
 
     const allocations = productionDb.prepare(`
       SELECT * FROM machine_allocations WHERE order_id = ? ORDER BY start_time ASC
@@ -114,12 +127,12 @@ router.post('/', authenticateToken, requireRole('planner', 'administrator'), (re
 
   const created = [];
   const stmt = ordersDb.prepare(`
-    INSERT INTO orders (machine_id, product_name, item_id, bom_id, quantity, planned_start, planned_end, status, created_by)
-    VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)
+    INSERT INTO orders (machine_id, product_name, item_id, bom_id, quantity, planned_start, planned_end, status, order_type, created_by)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
   `);
 
   for (const o of orders) {
-    const { machine_id, product_name, item_id, bom_id, quantity, planned_start, planned_end } = o;
+    const { machine_id, product_name, item_id, bom_id, quantity, planned_start, planned_end, order_type } = o;
     if (!machine_id || !product_name || !quantity || !planned_start || !planned_end) {
       return res.status(400).json({ error: 'Toate câmpurile comenzii sunt obligatorii' });
     }
@@ -128,8 +141,8 @@ router.post('/', authenticateToken, requireRole('planner', 'administrator'), (re
     const machine = machinesDb.prepare('SELECT * FROM machines WHERE id = ?').get(machine_id);
     if (!machine) return res.status(404).json({ error: `Utilajul ${machine_id} nu există` });
 
-    const result = stmt.run(machine_id, product_name, item_id || null, bom_id || null, quantity, planned_start, planned_end, req.user.id);
-    created.push({ id: result.lastInsertRowid, machine_id, product_name, item_id, bom_id, quantity, planned_start, planned_end });
+    const result = stmt.run(machine_id, product_name, item_id || null, bom_id || null, quantity, planned_start, planned_end, order_type || 'production', req.user.id);
+    created.push({ id: result.lastInsertRowid, machine_id, product_name, item_id, bom_id, quantity, planned_start, planned_end, order_type: order_type || 'production' });
   }
 
   res.status(201).json({ created, message: `${created.length} comandă/comenzi create cu succes` });
@@ -137,12 +150,12 @@ router.post('/', authenticateToken, requireRole('planner', 'administrator'), (re
 
 // PUT /api/orders/:id
 router.put('/:id', authenticateToken, requireRole('planner', 'administrator'), (req, res) => {
-  const { machine_id, product_name, item_id, bom_id, quantity, planned_start, planned_end, status } = req.body;
+  const { machine_id, product_name, item_id, bom_id, quantity, planned_start, planned_end, status, order_type } = req.body;
   const order = ordersDb.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
   if (!order) return res.status(404).json({ error: 'Comanda nu a fost găsită' });
 
   ordersDb.prepare(`
-    UPDATE orders SET machine_id=?, product_name=?, item_id=?, bom_id=?, quantity=?, planned_start=?, planned_end=?, status=? WHERE id=?
+    UPDATE orders SET machine_id=?, product_name=?, item_id=?, bom_id=?, quantity=?, planned_start=?, planned_end=?, status=?, order_type=? WHERE id=?
   `).run(
     machine_id || order.machine_id,
     product_name || order.product_name,
@@ -152,6 +165,7 @@ router.put('/:id', authenticateToken, requireRole('planner', 'administrator'), (
     planned_start || order.planned_start,
     planned_end || order.planned_end,
     status || order.status,
+    order_type || order.order_type,
     req.params.id
   );
   res.json({ message: 'Comanda actualizată' });
@@ -167,7 +181,7 @@ router.delete('/:id', authenticateToken, requireRole('planner', 'administrator')
 
 // POST /api/orders/:id/delay — add delay to order and propagate
 router.post('/:id/delay', authenticateToken, (req, res) => {
-  const { delay_minutes, reason, source } = req.body;
+  const { delay_minutes, reason, delay_reason_id, corrective_action, source } = req.body;
   if (!delay_minutes || delay_minutes <= 0) return res.status(400).json({ error: 'Minutele de întârziere trebuie să fie pozitive' });
 
   const order = ordersDb.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
@@ -178,15 +192,15 @@ router.post('/:id/delay', authenticateToken, (req, res) => {
     const alreadyLogged = ordersDb.prepare("SELECT id FROM order_delays WHERE order_id = ? AND source = 'operator'").get(order.id);
     if (alreadyLogged) {
       // Log it but mark as not applied (anti-duplicate)
-      ordersDb.prepare('INSERT INTO order_delays (order_id, delay_minutes, reason, reported_by, source, applied) VALUES (?,?,?,?,?,0)')
-        .run(order.id, delay_minutes, reason || '', req.user.id, source);
+      ordersDb.prepare('INSERT INTO order_delays (order_id, delay_minutes, reason, delay_reason_id, corrective_action, reported_by, source, applied) VALUES (?,?,?,?,?,?,?,0)')
+        .run(order.id, delay_minutes, reason || '', delay_reason_id || null, corrective_action || '', req.user.id, source);
       return res.json({ message: 'Delay înregistrat (nu aplicat — deja logat de operator)', applied: false });
     }
   }
 
   // Insert delay record
-  ordersDb.prepare('INSERT INTO order_delays (order_id, delay_minutes, reason, reported_by, source, applied) VALUES (?,?,?,?,?,1)')
-    .run(order.id, delay_minutes, reason || '', req.user.id, source || 'system');
+  ordersDb.prepare('INSERT INTO order_delays (order_id, delay_minutes, reason, delay_reason_id, corrective_action, reported_by, source, applied) VALUES (?,?,?,?,?,?,?,1)')
+    .run(order.id, delay_minutes, reason || '', delay_reason_id || null, corrective_action || '', req.user.id, source || 'system');
 
   // Propagate to current order + subsequent orders on same machine
   propagateDelay(order.machine_id, order.id, delay_minutes);
