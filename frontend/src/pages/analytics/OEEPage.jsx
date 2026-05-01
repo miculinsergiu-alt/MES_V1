@@ -81,7 +81,7 @@ export default function OEEPage() {
       <div className="flex min-h-screen bg-background items-center justify-center">
         <div className="flex flex-col items-center gap-4 text-accent">
           <div className="w-8 h-8 border-4 border-dashed border-current animate-spin-slow rounded-full"></div>
-          <span className="font-mono text-sm tracking-widest uppercase font-bold">Calculare OEE...</span>
+          <span className="font-mono text-sm tracking-widest uppercase font-bold">{t('analytics.calculating_oee')}</span>
         </div>
       </div>
     );
@@ -167,8 +167,8 @@ export default function OEEPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
            <Card>
              <div className="flex justify-between items-center mb-6">
-                <h3 className="font-semibold text-foreground flex items-center gap-2"><AlertCircle size={18} className="text-red-500"/> Cauze Întârzieri (Pareto)</h3>
-                <span className="text-[10px] font-bold text-muted-foreground uppercase">Top Minute</span>
+                <h3 className="font-semibold text-foreground flex items-center gap-2"><AlertCircle size={18} className="text-red-500"/> {t('analytics.delay_causes_pareto')}</h3>
+                <span className="text-[10px] font-bold text-muted-foreground uppercase">{t('analytics.top_minutes')}</span>
              </div>
              <div className="h-72 w-full">
                <ResponsiveContainer>
@@ -196,16 +196,16 @@ export default function OEEPage() {
 
            <Card className="p-0 overflow-hidden">
               <div className="p-6 border-b border-border bg-muted/5 flex justify-between items-center">
-                <h3 className="font-semibold text-foreground flex items-center gap-2"><DollarSign size={18} className="text-green-600"/> Abateri de Cost (Real vs Std)</h3>
+                <h3 className="font-semibold text-foreground flex items-center gap-2"><DollarSign size={18} className="text-green-600"/> {t('analytics.cost_deviations')}</h3>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
                   <thead>
                     <tr className="bg-muted/30 border-b border-border">
-                      <th className="px-6 py-4 text-[10px] font-bold uppercase text-muted-foreground">Comandă</th>
-                      <th className="px-6 py-4 text-[10px] font-bold uppercase text-muted-foreground">Cost Std.</th>
-                      <th className="px-6 py-4 text-[10px] font-bold uppercase text-muted-foreground">Cost Real</th>
-                      <th className="px-6 py-4 text-[10px] font-bold uppercase text-muted-foreground text-right">Variație</th>
+                      <th className="px-6 py-4 text-[10px] font-bold uppercase text-muted-foreground">{t('analytics.command')}</th>
+                      <th className="px-6 py-4 text-[10px] font-bold uppercase text-muted-foreground">{t('analytics.cost_std_label')}</th>
+                      <th className="px-6 py-4 text-[10px] font-bold uppercase text-muted-foreground">{t('analytics.cost_real_label')}</th>
+                      <th className="px-6 py-4 text-[10px] font-bold uppercase text-muted-foreground text-right">{t('analytics.variation')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/50">
@@ -225,7 +225,7 @@ export default function OEEPage() {
                       </tr>
                     ))}
                     {(!summary || summary.costs.length === 0) && (
-                      <tr><td colSpan="4" className="p-8 text-center text-muted-foreground italic">Nicio dată de cost disponibilă.</td></tr>
+                      <tr><td colSpan="4" className="p-8 text-center text-muted-foreground italic">{t('analytics.no_cost_data')}</td></tr>
                     )}
                   </tbody>
                 </table>

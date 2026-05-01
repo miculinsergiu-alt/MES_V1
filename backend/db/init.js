@@ -329,6 +329,8 @@ addColumnIfNotExists('orders', 'order_type', "TEXT DEFAULT 'production' CHECK(or
 addColumnIfNotExists('order_delays', 'delay_reason_id', 'INTEGER REFERENCES delay_reasons(id)');
 addColumnIfNotExists('order_delays', 'corrective_action', 'TEXT');
 addColumnIfNotExists('items', 'unit_price', 'REAL DEFAULT 0');
+addColumnIfNotExists('orders', 'parent_order_id', 'INTEGER REFERENCES orders(id) ON DELETE CASCADE');
+addColumnIfNotExists('orders', 'routing_sequence', 'INTEGER DEFAULT 0');
 
 // ─── BOM MULTI-NIVEL MIGRATIONS ──────────────────────────────────────────────
 addColumnIfNotExists('bom_positions', 'parent_position_id', 'INTEGER REFERENCES bom_positions(id) ON DELETE CASCADE');

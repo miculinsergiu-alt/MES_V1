@@ -29,14 +29,28 @@ function deductStock(orderId, producedQty, userId) {
   const order = db.prepare('SELECT bom_id FROM orders WHERE id = ?').get(orderId);
   if (!order || !order.bom_id) return;
 
-  const positions = db.prepare('SELECT item_id, quantity FROM bom_positions WHERE bom_id = ?').all(order.bom_id);
+  // We only deduct items that are components (not departments/phantoms)
+  // and we only deduct leaf nodes or specific raw materials to avoid double-deduction 
+  // in a multi-level BOM where a semi-finished might also be in stock.
+  // For this implementation, we deduct all components that have an item_id.
+  const positions = db.prepare(`
+    SELECT item_id, quantity 
+    FROM bom_positions 
+    WHERE bom_id = ? AND node_type = 'component' AND item_id IS NOT NULL
+  `).all(order.bom_id);
   
   for (const pos of positions) {
     const requiredTotal = pos.quantity * producedQty;
     
-    // Update stock level
-    db.prepare('UPDATE stock_levels SET quantity = quantity - ?, last_updated = datetime("now") WHERE item_id = ?')
-      .run(requiredTotal, pos.item_id);
+    // Update stock level (Upsert style to ensure record exists)
+    const stockExists = db.prepare('SELECT id FROM stock_levels WHERE item_id = ?').get(pos.item_id);
+    if (!stockExists) {
+      db.prepare('INSERT INTO stock_levels (item_id, quantity, last_updated) VALUES (?, ?, datetime("now"))')
+        .run(pos.item_id, -requiredTotal);
+    } else {
+      db.prepare('UPDATE stock_levels SET quantity = quantity - ?, last_updated = datetime("now") WHERE item_id = ?')
+        .run(requiredTotal, pos.item_id);
+    }
       
     // Log transaction
     db.prepare(`

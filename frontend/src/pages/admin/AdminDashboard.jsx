@@ -133,7 +133,7 @@ export default function AdminDashboard() {
                 <div className="p-6 border-b border-border bg-muted/5 flex justify-between items-center">
                   <h3 className="font-semibold text-foreground flex items-center gap-2">
                     <Users size={18} className="text-accent" />
-                    Utilizatori Sistem
+                    {t('admin.system_users')}
                   </h3>
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={14} />
@@ -214,7 +214,7 @@ export default function AdminDashboard() {
                     </div>
                     <div className="p-2 space-y-1">
                       {(area.machines||[]).length === 0 ? (
-                        <div className="p-8 text-center text-muted-foreground text-sm italic">Niciun utilaj configurat.</div>
+                        <div className="p-8 text-center text-muted-foreground text-sm italic">{t('admin.no_machines_config')}</div>
                       ) : (
                         (area.machines||[]).map(m => (
                           <div key={m.id} className="group flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors border border-transparent hover:border-border/50">
@@ -259,7 +259,7 @@ export default function AdminDashboard() {
                          </div>
                          <div className="p-5 space-y-4">
                             <div className="space-y-1">
-                               <span className="text-[10px] font-black uppercase text-muted-foreground tracking-tighter">Responsabil Schimb</span>
+                               <span className="text-[10px] font-black uppercase text-muted-foreground tracking-tighter">{t('roles.shift_responsible')}</span>
                                <div className="flex items-center gap-2">
                                   <div className="w-6 h-6 rounded-full bg-accent flex items-center justify-center text-[10px] text-white font-bold">
                                      {s.first_name?.[0]}{s.last_name?.[0]}
@@ -459,8 +459,8 @@ function ShiftDefinitionModal({ shift, users, onClose, onSave }) {
         </div>
 
         <div className="pt-4 flex justify-end gap-3 border-t border-border">
-          <Button variant="secondary" onClick={onClose} type="button">Anulare</Button>
-          <Button type="submit">Finalizare Schimb</Button>
+          <Button variant="secondary" onClick={onClose} type="button">{t('common.cancel')}</Button>
+          <Button type="submit">{t('admin.finish_shift')}</Button>
         </div>
       </form>
     </ModalWrapper>
@@ -476,7 +476,7 @@ function ScheduleModal({ users, machines, shifts, onClose, onSave }) {
       await api.post('/shifts/schedule', form);
       toast.success(t('messages.save_success'));
       onSave();
-    } catch(err) { toast.error(err.response?.data?.error || 'Eroare'); }
+    } catch(err) { toast.error(err.response?.data?.error || t('common.error')); }
   };
   return (
     <ModalWrapper title={t('admin.allocation_modal_title')} onClose={onClose}>
@@ -560,7 +560,7 @@ function SkillModal({ user, areas, onClose }) {
       toast.success(t('admin.skills_success'));
       onClose();
     } catch (err) { 
-      toast.error('Eroare la salvarea skill-urilor'); 
+      toast.error(t('admin.skills_error')); 
     }
   };
 
@@ -596,7 +596,7 @@ function SkillModal({ user, areas, onClose }) {
                         onChange={(e) => updateSkillAttr(m.id, 'skill_level', e.target.value)}
                       >
                         <option value="trainee">{t('admin.trainee')}</option>
-                        <option value="independent">Independent</option>
+                        <option value="independent">{t('admin.independent')}</option>
                         <option value="expert">Expert / Trainer</option>
                         </select>
                         <input 
@@ -634,9 +634,9 @@ function UserModal({ user, onClose, onSave }) {
     try {
       if (user) await api.put(`/users/${user.id}`, form);
       else await api.post('/users', form);
-      toast.success(user ? 'Utilizator actualizat' : 'Utilizator creat');
+      toast.success(user ? t('admin.user_updated') : t('admin.user_created'));
       onSave();
-    } catch(err) { toast.error('Eroare la procesare date'); }
+    } catch(err) { toast.error(t('admin.processing_error')); }
     finally { setLoading(false); }
   };
 

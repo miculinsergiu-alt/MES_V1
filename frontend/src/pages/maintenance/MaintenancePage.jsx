@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Clock, LayoutDashboard, TrendingUp, AlertTriangle, CheckCircle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import Sidebar from '../../components/Sidebar';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
 
 export default function MaintenancePage() {
+  const { t } = useTranslation();
   const [machines, setMachines] = useState([]);
   const [showLogModal, setShowLogModal] = useState(false);
   const [selectedMachine, setSelectedMachine] = useState(null);
@@ -34,8 +36,8 @@ export default function MaintenancePage() {
       <Sidebar items={navItems} />
       <div className="main-content">
         <div className="page-header">
-          <h1>Planificare Mentenanță</h1>
-          <p>Urmărirea orelor de funcționare și a intervențiilor tehnice.</p>
+          <h1>{t('maintenance.title')}</h1>
+          <p>{t('sidebar.maintenance')}</p>
         </div>
 
         <div className="page-content">
@@ -53,8 +55,8 @@ export default function MaintenancePage() {
                   
                   <div className="mb-4">
                     <div className="flex justify-between text-sm mb-1">
-                      <span className="text-muted">Utilizare de la ultima mentenanță</span>
-                      <span style={{ fontWeight: 600, color }}>{Math.round(m.hoursSinceLast)} / {m.interval_hours || '∞'} ore</span>
+                      <span className="text-muted">{t('maintenance.usage_since_last')}</span>
+                      <span style={{ fontWeight: 600, color }}>{Math.round(m.hoursSinceLast)} / {m.interval_hours || '∞'} {i18n.language === 'ro' ? 'ore' : 'hours'}</span>
                     </div>
                     <div className="progress-bar">
                       <div className="progress-fill" style={{ width: `${Math.min(100, progress)}%`, background: color }} />
@@ -62,12 +64,12 @@ export default function MaintenancePage() {
                   </div>
 
                   <div className="flex justify-between text-xs text-muted mb-4">
-                    <span>Total Ore Funcționare: <strong>{Math.round(m.total_running_hours)}h</strong></span>
-                    <span>Interval: <strong>{m.interval_hours}h</strong></span>
+                    <span>{t('maintenance.total_hours')}: <strong>{Math.round(m.total_running_hours)}h</strong></span>
+                    <span>{t('maintenance.interval')}: <strong>{m.interval_hours}h</strong></span>
                   </div>
 
                   <button className="btn btn-primary btn-block" onClick={() => openLog(m)}>
-                    <CheckCircle size={14}/> Înregistrează Mentenanță
+                    <CheckCircle size={14}/> {t('maintenance.register')}
                   </button>
                 </div>
               );
@@ -84,30 +86,31 @@ export default function MaintenancePage() {
 }
 
 function MaintenanceLogModal({ machine, onClose, onSave }) {
+  const { t } = useTranslation();
   const [notes, setNotes] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       await api.post('/maintenance/log', { machine_id: machine.id, notes });
-      toast.success('Mentenanță înregistrată cu succes');
+      toast.success(t('messages.save_success'));
       onSave();
-    } catch (err) { toast.error('Eroare la salvarea log-ului'); }
+    } catch (err) { toast.error(t('messages.save_error')); }
   };
 
   return (
     <div className="modal-overlay">
       <div className="modal">
-        <div className="modal-header"><h3>Log Mentenanță: {machine.name}</h3></div>
+        <div className="modal-header"><h3>{t('maintenance.register')}: {machine.name}</h3></div>
         <form onSubmit={handleSubmit}>
-          <div className="alert alert-info">Înregistrarea mentenanței va reseta contorul de ore pentru acest utilaj la zero (relativ la ora curentă).</div>
+          <div className="alert alert-info">{t('maintenance.reset_alert')}</div>
           <div className="form-group">
-            <label className="form-label">Note Intervenție</label>
-            <textarea className="form-textarea" rows={4} value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Descrieți lucrările efectuate (ex: schimbat filtre, gresat axe)..." required />
+            <label className="form-label">{t('maintenance.notes')}</label>
+            <textarea className="form-textarea" rows={4} value={notes} onChange={e=>setNotes(e.target.value)} placeholder={t('maintenance.placeholder_notes')} required />
           </div>
           <div className="modal-footer">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>Anulare</button>
-            <button type="submit" className="btn btn-success">Confirmă Finalizare Mentenanță</button>
+            <button type="button" className="btn btn-ghost" onClick={onClose}>{t('common.cancel')}</button>
+            <button type="submit" className="btn btn-success">{t('maintenance.confirm_complete')}</button>
           </div>
         </form>
       </div>

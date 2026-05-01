@@ -23,6 +23,9 @@ backend/db/smartfactory.db
 Thumbs.db
 .DS_Store
 
+# Project Context (Confidential)
+GEMINI.md
+
 # Logs
 *.log
 npm-debug.log*

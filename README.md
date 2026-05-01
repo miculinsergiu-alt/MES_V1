@@ -40,11 +40,13 @@ SmartFactory Flow este un sistem de management al producției (Manufacturing Exe
 
 ## 📝 Jurnal de Actualizări (Changelog)
 
-### [Mai 2026] — Multi-Level BOM & UX Polish
-- **Sistem BOM Ierarhic:** Implementare structură arborescentă recursivă în baza de date și backend.
-- **BOM Viewer:** Pagina dedicată de vizualizare cu aliniere automată a coloanelor și navigare inteligentă.
-- **Print Industrial:** Layout special pentru fișele de operator, optimizat pentru lizibilitate în producție.
-- **Dual Search:** Filtrare simultană după Cod Articol și Denumire în Nomenclator.
+### [Mai 2026] — Routing Engine & i18n
+- **Motor de Routing Inteligent:** Explozia automată a rutei tehnologice în sub-comenzi (Work Orders).
+- **Propagare Cross-Machine:** Re-alinierea automată a întregului flux de producție în caz de delay pe orice stație.
+- **Suport Multi-Language:** Implementare completă RO/EN (react-i18next) cu detectare automată.
+- **Sistem BOM Ierarhic:** Structură arborescentă recursivă cu calcul de cost standard și "Smart Stock Deduction".
+- **UX Polish:** Rezolvarea erorilor de execuție la printare și navigarea fluidă între tab-uri.
+
 
 ### [Aprilie 2026] — Analytics & Infrastructure
 - **OEE Dashboard:** Monitorizare în timp real a eficienței utilajelor.

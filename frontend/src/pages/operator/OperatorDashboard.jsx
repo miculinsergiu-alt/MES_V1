@@ -129,10 +129,9 @@ export default function OperatorDashboard() {
                     </div>
                   </div>
                   <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
-                    <div className="flex items-center gap-1.5"><Clock size={14}/> {alloc.quantity} buc</div>
-                    <div className="flex items-center gap-1.5"><CheckCircle size={14}/> {alloc.phase}</div>
-                  </div>
-                  <button className="btn btn-primary w-full">{t('operator.open_control')}</button>
+                  <div className="flex items-center gap-1.5"><Clock size={14}/> {alloc.quantity} {t('inventory.uom')}</div>
+                  <div className="flex items-center gap-1.5"><CheckCircle size={14}/> {t(`status.${alloc.status}`)}</div>
+                  </div>                  <button className="btn btn-primary w-full">{t('operator.open_control')}</button>
                 </div>
               ))}
             </div>

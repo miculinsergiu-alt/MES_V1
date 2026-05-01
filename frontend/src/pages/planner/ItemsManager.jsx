@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Box, Plus, Search, Edit2, Trash2, X, Factory, Clock, DollarSign, List, FileText, ChevronRight, Printer, TrendingUp, Zap, GitBranch } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { Box, Plus, Search, Edit2, Trash2, X, Clock, DollarSign, List, FileText, TrendingUp, Zap, GitBranch, Printer } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
@@ -13,6 +14,7 @@ import { Badge } from '../../components/ui/Badge';
 import BOMEditor, { serverToClient, clientToServer } from './BOMEditor';
 
 export default function ItemsManager() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const [activeTab, setActiveTab] = useState('items'); // 'items' or 'boms'
@@ -38,11 +40,11 @@ export default function ItemsManager() {
       setItems(itemsRes.data);
       setMachines(machinesRes.data);
     } catch (err) {
-      toast.error('Eroare la încărcarea datelor');
+      toast.error(t('items.loading_error'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -71,8 +73,8 @@ export default function ItemsManager() {
         <header className="mb-10 flex justify-between items-end">
           <div>
             <Badge className="mb-4">Resource Planning</Badge>
-            <h1 className="font-display text-4xl text-foreground">Gestiune <span className="gradient-text">Nomenclator & BOM</span></h1>
-            <p className="text-muted-foreground mt-2">Administrare articole, rute de producție și rețete de fabricație.</p>
+            <h1 className="font-display text-4xl text-foreground">{t('items.title')}</h1>
+            <p className="text-muted-foreground mt-2">{t('items.subtitle')}</p>
           </div>
           <div className="flex gap-3">
           <div className="flex gap-2">
@@ -80,7 +82,7 @@ export default function ItemsManager() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
                 <Input 
                   className="pl-10 w-48 bg-white" 
-                  placeholder="Cod articol..." 
+                  placeholder={t('items.search_placeholder')} 
                   value={searchCode}
                   onChange={(e) => setSearchCode(e.target.value)}
                 />
@@ -89,7 +91,7 @@ export default function ItemsManager() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
                 <Input 
                   className="pl-10 w-64 bg-white" 
-                  placeholder="Denumire / Descriere..." 
+                  placeholder={t('items.search_placeholder')} 
                   value={searchName}
                   onChange={(e) => setSearchName(e.target.value)}
                 />
@@ -97,11 +99,11 @@ export default function ItemsManager() {
           </div>
              {activeTab === 'items' ? (
                 <Button onClick={() => { setEditingItem(null); setShowItemModal(true); }}>
-                  <Plus size={16} className="mr-2" /> Articol Nou
+                  <Plus size={16} className="mr-2" /> {t('items.new_item')}
                 </Button>
               ) : (
                 <Button onClick={() => { setEditingBOM(null); setShowBOMModal(true); }}>
-                  <Plus size={16} className="mr-2" /> BOM Nou
+                  <Plus size={16} className="mr-2" /> {t('items.new_bom')}
                 </Button>
               )}
           </div>
@@ -109,20 +111,20 @@ export default function ItemsManager() {
 
         <div className="flex gap-1 mb-8 bg-muted/30 p-1 rounded-xl w-fit border border-border/50">
           {[
-            { id: 'items', label: 'Nomenclator Articole', icon: <List size={14}/> },
-            { id: 'boms', label: 'Bill of Materials (BOM)', icon: <Box size={14}/> }
-          ].map((t) => (
+            { id: 'items', label: t('items.list_title'), icon: <List size={14}/> },
+            { id: 'boms', label: t('items.bom_list_title'), icon: <Box size={14}/> }
+          ].map((t_tab) => (
             <button
-              key={t.id}
-              onClick={() => setActiveTab(t.id)}
+              key={t_tab.id}
+              onClick={() => setActiveTab(t_tab.id)}
               className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                activeTab === t.id 
+                activeTab === t_tab.id 
                   ? 'bg-white text-accent shadow-sm ring-1 ring-border/50' 
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              {t.icon}
-              {t.label}
+              {t_tab.icon}
+              {t_tab.label}
             </button>
           ))}
         </div>
@@ -208,21 +210,22 @@ function ModalWrapper({ title, children, onClose, maxWidth = "max-w-3xl" }) {
 }
 
 function ItemsList({ items, onEdit, loading }) {
-  if (loading) return <div className="p-20 text-center italic text-muted-foreground animate-pulse">Se încarcă nomenclatorul...</div>;
+  const { t } = useTranslation();
+  if (loading) return <div className="p-20 text-center italic text-muted-foreground animate-pulse">{t('items.loading')}</div>;
   
   return (
     <Card className="p-0 overflow-hidden">
       <table className="w-full text-left">
         <thead>
           <tr className="bg-muted/30 border-b border-border">
-            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Articol</th>
-            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Tip</th>
-            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">UM</th>
-            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Cost Achiziție</th>
-            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Cost Producție</th>
-            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Preț Vânzare</th>
-            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground text-center">Marjă</th>
-            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground text-right">Acțiuni</th>
+            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('common.item')}</th>
+            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('inventory.type')}</th>
+            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('inventory.uom')}</th>
+            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('items.purchase_cost')}</th>
+            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('items.production_cost')}</th>
+            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('items.sale_price')}</th>
+            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground text-center">{t('items.margin')}</th>
+            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground text-right">{t('common.actions')}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border/50">
@@ -237,7 +240,7 @@ function ItemsList({ items, onEdit, loading }) {
                 </td>
                 <td className="px-6 py-4">
                   <Badge variant="outline" className={item.type === 'finished_good' ? 'border-green-200 text-green-700 bg-green-50' : 'text-muted-foreground'}>
-                    {item.type === 'raw_material' ? 'Materie Primă' : item.type === 'semi_finished' ? 'Semifabricat' : 'Produs Finit'}
+                    {t(`items.${item.type}`)}
                   </Badge>
                 </td>
                 <td className="px-6 py-4 text-sm font-medium">{item.uom}</td>
@@ -266,6 +269,7 @@ function ItemsList({ items, onEdit, loading }) {
 }
 
 function ItemModal({ item, machines, onClose, onSave }) {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     item_code: '',
     name: '',
@@ -285,19 +289,19 @@ function ItemModal({ item, machines, onClose, onSave }) {
           ...res.data,
           routes: res.data.routes || [] // Ensure routes is always an array to prevent crashes
         });
-      }).catch(() => toast.error("Eroare la încărcarea detaliilor articolului"));
+      }).catch(() => toast.error(t('items.loading_details_error')));
     }
-  }, [item]);
+  }, [item, t]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       if (item) await api.put(`/items/${item.id}`, formData);
       else await api.post('/items', formData);
-      toast.success('Salvat cu succes');
+      toast.success(t('messages.save_success'));
       onSave();
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Eroare la salvare');
+      toast.error(err.response?.data?.error || t('messages.save_error'));
     }
   };
 
@@ -306,58 +310,58 @@ function ItemModal({ item, machines, onClose, onSave }) {
   };
 
   return (
-    <ModalWrapper title={item ? 'Editare Articol' : 'Articol Nou'} onClose={onClose}>
+    <ModalWrapper title={item ? t('items.edit_item') : t('items.new_item')} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-8">
         <div className="grid grid-cols-2 gap-6">
           <div className="space-y-2">
-            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Cod Articol</label>
+            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">{t('items.item_code')}</label>
             <Input value={formData.item_code} disabled={!!item} onChange={e => setFormData({...formData, item_code: e.target.value.toUpperCase()})} required />
           </div>
           <div className="space-y-2">
-            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Denumire Articol</label>
+            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">{t('items.item_name')}</label>
             <Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required />
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-6">
           <div className="space-y-2">
-            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Tip Articol</label>
+            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">{t('items.item_type')}</label>
             <select className="w-full h-12 rounded-xl border border-border bg-white px-4 focus:ring-2 focus:ring-accent outline-none" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})}>
-              <option value="raw_material">Materie Primă</option>
-              <option value="semi_finished">Semifabricat</option>
-              <option value="finished_good">Produs Finit</option>
+              <option value="raw_material">{t('items.raw_material')}</option>
+              <option value="semi_finished">{t('items.semi_finished')}</option>
+              <option value="finished_good">{t('items.finished_good')}</option>
             </select>
           </div>
           <div className="space-y-2">
-            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Unitate de Măsură</label>
+            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">{t('inventory.uom')}</label>
             <Input value={formData.uom} onChange={e => setFormData({...formData, uom: e.target.value})} />
           </div>
         </div>
 
         <div className="grid grid-cols-4 gap-4 bg-muted/20 p-6 rounded-2xl border border-border/50">
           <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase text-muted-foreground">Cost Achiziție</label>
+            <label className="text-[10px] font-black uppercase text-muted-foreground">{t('items.purchase_cost')}</label>
             <div className="relative">
               <DollarSign size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input type="number" step="0.01" className="pl-8 h-10" value={formData.acquisition_cost} onChange={e => setFormData({...formData, acquisition_cost: parseFloat(e.target.value)})} />
             </div>
           </div>
           <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase text-muted-foreground">Cost Producție</label>
+            <label className="text-[10px] font-black uppercase text-muted-foreground">{t('items.production_cost')}</label>
             <div className="relative">
               <DollarSign size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input type="number" step="0.01" className="pl-8 h-10" value={formData.production_cost} onChange={e => setFormData({...formData, production_cost: parseFloat(e.target.value)})} />
             </div>
           </div>
           <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase text-accent">Preț Vânzare</label>
+            <label className="text-[10px] font-black uppercase text-accent">{t('items.sale_price')}</label>
             <div className="relative">
               <TrendingUp size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-accent" />
               <Input type="number" step="0.01" className="pl-8 h-10 border-accent/30 text-accent font-bold" value={formData.unit_price} onChange={e => setFormData({...formData, unit_price: parseFloat(e.target.value)})} />
             </div>
           </div>
           <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase text-muted-foreground">Timp (min)</label>
+            <label className="text-[10px] font-black uppercase text-muted-foreground">{t('items.production_time')}</label>
             <div className="relative">
               <Clock size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input type="number" className="pl-8 h-10" value={formData.production_time_min} onChange={e => setFormData({...formData, production_time_min: parseInt(e.target.value)})} />
@@ -368,14 +372,14 @@ function ItemModal({ item, machines, onClose, onSave }) {
         {formData.type !== 'raw_material' && (
           <div className="space-y-4">
             <div className="flex justify-between items-center border-b border-border pb-2">
-              <h4 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2"><Zap size={16} className="text-yellow-500"/> Rută Producție</h4>
-              <Button type="button" variant="secondary" size="sm" onClick={addRoute}><Plus size={14} className="mr-1"/> Adaugă Pas</Button>
+              <h4 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2"><Zap size={16} className="text-yellow-500"/> {t('items.production_route')}</h4>
+              <Button type="button" variant="secondary" size="sm" onClick={addRoute}><Plus size={14} className="mr-1"/> {t('items.add_step')}</Button>
             </div>
             <div className="space-y-3 max-h-48 overflow-y-auto pr-2">
               {formData.routes.map((r, i) => (
                 <div key={i} className="flex gap-3 items-end bg-white p-4 rounded-xl border border-border shadow-sm">
                   <div className="flex-1 space-y-1">
-                    <label className="text-[10px] font-bold text-muted-foreground uppercase">Utilaj</label>
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase">{t('admin.machine_name')}</label>
                     <select className="w-full h-10 rounded-lg border border-border px-3 text-sm outline-none focus:ring-1 ring-accent" value={r.machine_id} onChange={e => {
                       const newRoutes = [...formData.routes];
                       newRoutes[i].machine_id = parseInt(e.target.value);
@@ -385,7 +389,7 @@ function ItemModal({ item, machines, onClose, onSave }) {
                     </select>
                   </div>
                   <div className="w-24 space-y-1">
-                    <label className="text-[10px] font-bold text-muted-foreground uppercase">Timp (min)</label>
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase">{t('items.production_time')}</label>
                     <Input type="number" className="h-10" value={r.process_time_min} onChange={e => {
                       const newRoutes = [...formData.routes];
                       newRoutes[i].process_time_min = parseInt(e.target.value);
@@ -393,7 +397,7 @@ function ItemModal({ item, machines, onClose, onSave }) {
                     }}/>
                   </div>
                   <div className="flex-1 space-y-1">
-                    <label className="text-[10px] font-bold text-muted-foreground uppercase">Note Operare</label>
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase">{t('items.op_notes')}</label>
                     <Input className="h-10" value={r.notes} onChange={e => {
                       const newRoutes = [...formData.routes];
                       newRoutes[i].notes = e.target.value;
@@ -408,14 +412,14 @@ function ItemModal({ item, machines, onClose, onSave }) {
                   </Button>
                 </div>
               ))}
-              {formData.routes.length === 0 && <div className="text-center py-4 text-xs text-muted-foreground italic">Nicio rută definită. Se va folosi fluxul standard.</div>}
+              {formData.routes.length === 0 && <div className="text-center py-4 text-xs text-muted-foreground italic">{t('items.no_route')}</div>}
             </div>
           </div>
         )}
 
         <div className="pt-4 flex justify-end gap-3 border-t border-border">
-          <Button variant="secondary" onClick={onClose} type="button">Anulare</Button>
-          <Button type="submit">Salvare Articol</Button>
+          <Button variant="secondary" onClick={onClose} type="button">{t('common.cancel')}</Button>
+          <Button type="submit">{t('items.save_item')}</Button>
         </div>
       </form>
     </ModalWrapper>
@@ -423,6 +427,7 @@ function ItemModal({ item, machines, onClose, onSave }) {
 }
 
 function BOMList({ searchCode, searchName, onEdit, onPrint, items, refreshKey, navigate }) {
+  const { t } = useTranslation();
   const [boms, setBoms] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -432,11 +437,11 @@ function BOMList({ searchCode, searchName, onEdit, onPrint, items, refreshKey, n
       const res = await api.get('/boms');
       setBoms(res.data);
     } catch (err) {
-      toast.error('Eroare la încărcarea BOM-urilor');
+      toast.error(t('items.loading_bom_error'));
     } finally {
       setLoading(false);
     }
-  }, [refreshKey]);
+  }, [refreshKey, t]);
 
   useEffect(() => { loadBoms(); }, [loadBoms]);
 
@@ -445,18 +450,18 @@ function BOMList({ searchCode, searchName, onEdit, onPrint, items, refreshKey, n
     (b.parent_code?.toLowerCase().includes(searchCode.toLowerCase()))
   );
 
-  if (loading) return <div className="p-20 text-center italic text-muted-foreground animate-pulse">Se încarcă listele BOM...</div>;
+  if (loading) return <div className="p-20 text-center italic text-muted-foreground animate-pulse">{t('items.loading_bom')}</div>;
 
   return (
     <Card className="p-0 overflow-hidden">
       <table className="w-full text-left">
         <thead>
           <tr className="bg-muted/30 border-b border-border">
-            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Nume BOM</th>
-            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Produs Finit</th>
-            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Descriere</th>
-            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Acțiuni
-              <span className="ml-2 text-[9px] normal-case font-normal opacity-50">(dublu-click pe rând = deschide)</span>
+            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('items.bom_name')}</th>
+            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('items.finished_product')}</th>
+            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('items.general_desc')}</th>
+            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('common.actions')}
+              <span className="ml-2 text-[9px] normal-case font-normal opacity-50">({t('items.double_click_open')})</span>
             </th>
           </tr>
         </thead>
@@ -466,13 +471,13 @@ function BOMList({ searchCode, searchName, onEdit, onPrint, items, refreshKey, n
               key={bom.id}
               className="hover:bg-accent/[0.04] group cursor-pointer select-none transition-colors"
               onDoubleClick={() => navigate(`/planner/boms/${bom.id}`)}
-              title="Dublu-click pentru a deschide BOM-ul"
+              title={t('items.double_click_hint')}
             >
               <td className="px-6 py-4">
                 <div className="font-bold text-foreground">{bom.name}</div>
                 {bom.max_level > 1 && (
                   <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 mt-1">
-                    <GitBranch size={10}/> {bom.max_level} nivele · {bom.total_positions} poz.
+                    <GitBranch size={10}/> {bom.max_level} {t('items.levels')} · {bom.total_positions} {t('items.pos')}
                   </span>
                 )}
               </td>
@@ -482,7 +487,7 @@ function BOMList({ searchCode, searchName, onEdit, onPrint, items, refreshKey, n
                     <span className="font-mono text-[10px] font-black text-accent">{bom.parent_code}</span>
                     <span className="text-sm font-medium">{bom.parent_name}</span>
                   </div>
-                ) : <span className="text-muted-foreground italic text-xs">Nespecificat</span>}
+                ) : <span className="text-muted-foreground italic text-xs">{t('items.unspecified')}</span>}
               </td>
               <td className="px-6 py-4 text-sm text-muted-foreground">{bom.description || '-'}</td>
               <td className="px-6 py-4 text-right">
@@ -490,16 +495,16 @@ function BOMList({ searchCode, searchName, onEdit, onPrint, items, refreshKey, n
                   <Button variant="ghost" size="sm" onClick={() => onEdit(bom)}><Edit2 size={14}/></Button>
                   <Button variant="ghost" size="sm" onClick={() => onPrint(bom)}><Printer size={14}/></Button>
                   <Button variant="ghost" size="sm" className="text-red-500 hover:bg-red-50" onClick={async () => {
-                    if (!window.confirm(`Ștergi BOM-ul "${bom.name}"?`)) return;
-                    try { await api.delete(`/boms/${bom.id}`); toast.success('BOM șters'); loadBoms(); }
-                    catch { toast.error('Eroare la ștergere'); }
+                    if (!window.confirm(t('items.delete_bom_confirm', { name: bom.name }))) return;
+                    try { await api.delete(`/boms/${bom.id}`); toast.success(t('items.bom_deleted')); loadBoms(); }
+                    catch { toast.error(t('messages.delete_error')); }
                   }}><Trash2 size={14}/></Button>
                 </div>
               </td>
             </tr>
           ))}
           {filtered.length === 0 && (
-            <tr><td colSpan={4} className="px-6 py-16 text-center text-muted-foreground italic text-sm">Niciun BOM găsit. Creează primul BOM multi-nivel.</td></tr>
+            <tr><td colSpan={4} className="px-6 py-16 text-center text-muted-foreground italic text-sm">{t('items.no_bom_found')}</td></tr>
           )}
         </tbody>
       </table>
@@ -508,6 +513,7 @@ function BOMList({ searchCode, searchName, onEdit, onPrint, items, refreshKey, n
 }
 
 function BOMModal({ bom, items, onClose, onSave }) {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({ name: '', parent_item_id: '', description: '' });
   const [tree, setTree] = useState([]);
   const [saving, setSaving] = useState(false);
@@ -536,10 +542,10 @@ function BOMModal({ bom, items, onClose, onSave }) {
       const payload = { ...formData, parent_item_id: formData.parent_item_id || null, tree: clientToServer(tree) };
       if (bom?.id) await api.put(`/boms/${bom.id}`, payload);
       else await api.post('/boms', payload);
-      toast.success('BOM salvat cu succes!');
+      toast.success(t('messages.save_success'));
       onSave();
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Eroare la salvare BOM');
+      toast.error(err.response?.data?.error || t('messages.save_error'));
     } finally {
       setSaving(false);
     }
@@ -548,36 +554,36 @@ function BOMModal({ bom, items, onClose, onSave }) {
   const finishedGoods = items.filter(i => i.type === 'finished_good');
 
   return (
-    <ModalWrapper title={bom ? 'Editare BOM Multi-Nivel' : 'Creare BOM Multi-Nivel'} onClose={onClose} maxWidth="max-w-5xl">
+    <ModalWrapper title={bom ? t('items.edit_bom') : t('items.create_bom')} onClose={onClose} maxWidth="max-w-5xl">
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Header fields */}
         <div className="grid grid-cols-3 gap-4">
           <div className="space-y-1">
-            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Produs Finit</label>
+            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t('items.finished_good')}</label>
             <select className="w-full h-11 rounded-xl border border-border bg-white px-3 text-sm focus:ring-2 focus:ring-accent outline-none" value={formData.parent_item_id || ''} onChange={e => setFormData({...formData, parent_item_id: e.target.value})}>
-              <option value="">— Selectează produs finit —</option>
+              <option value="">{t('items.select_finished_good')}</option>
               {finishedGoods.map(i => <option key={i.id} value={i.id}>{i.item_code} — {i.name}</option>)}
             </select>
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Nume BOM</label>
+            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t('items.bom_name')}</label>
             <Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required placeholder="ex: BOM CABIN 767 Rev.A"/>
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Descriere</label>
-            <Input value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} placeholder="Opțional"/>
+            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t('items.general_desc')}</label>
+            <Input value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} placeholder={t('common.optional')}/>
           </div>
         </div>
 
         {/* Legend */}
         <div className="flex items-center gap-3 text-[10px] font-bold flex-wrap">
-          <span className="text-muted-foreground uppercase tracking-wider">Legendă:</span>
+          <span className="text-muted-foreground uppercase tracking-wider">{t('items.legend')}:</span>
           <span className="px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">L1 — Phantom / Departament</span>
           <span className="px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">L2 — Semifabricat</span>
           <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">L3 — Materie Primă</span>
           <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">L4 — Sub-componentă</span>
           <span className="ml-auto px-2 py-1 rounded-lg bg-accent/10 border border-accent/20 text-accent font-mono">
-            Cost Std: {calcCost(tree).toFixed(2)}
+            {t('items.cost_std')}: {calcCost(tree).toFixed(2)}
           </span>
         </div>
 
@@ -587,8 +593,8 @@ function BOMModal({ bom, items, onClose, onSave }) {
         </div>
 
         <div className="pt-4 flex justify-end gap-3 border-t border-border">
-          <Button variant="secondary" onClick={onClose} type="button">Anulare</Button>
-          <Button type="submit" disabled={saving}>{saving ? 'Se salvează...' : 'Salvare BOM'}</Button>
+          <Button variant="secondary" onClick={onClose} type="button">{t('common.cancel')}</Button>
+          <Button type="submit" disabled={saving}>{saving ? t('admin.saving') : t('items.new_bom')}</Button>
         </div>
       </form>
     </ModalWrapper>
@@ -596,6 +602,7 @@ function BOMModal({ bom, items, onClose, onSave }) {
 }
 
 function PrintPreview({ bom, onClose }) {
+  const { t } = useTranslation();
   const [details, setDetails] = useState(null);
 
   useEffect(() => {
@@ -605,27 +612,27 @@ function PrintPreview({ bom, onClose }) {
   if (!details) return null;
 
   return (
-    <ModalWrapper title="Previzualizare BOM" onClose={onClose} maxWidth="max-w-4xl">
+    <ModalWrapper title={t('common.preview_bom')} onClose={onClose} maxWidth="max-w-4xl">
       <div className="space-y-8 no-print p-4">
          <div className="flex justify-between items-start bg-slate-50 p-6 rounded-2xl border border-border">
             <div className="space-y-1">
                <h4 className="text-xl font-display text-accent">SmartFactory MES</h4>
-               <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Document Tehnic de Fabricație</p>
+               <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{t('items.tech_doc')}</p>
             </div>
-            <Button onClick={() => window.print()}><Printer size={16} className="mr-2"/> Printează Fișa</Button>
+            <Button onClick={() => window.print()}><Printer size={16} className="mr-2"/> {t('items.print_sheet')}</Button>
          </div>
          
          <div className="grid grid-cols-3 gap-6">
             <div className="space-y-1">
-               <label className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter">Nume Rețetă</label>
+               <label className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter">{t('items.recipe_name')}</label>
                <p className="font-bold">{details.name}</p>
             </div>
             <div className="space-y-1">
-               <label className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter">Articol Părinte</label>
+               <label className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter">{t('items.parent_item')}</label>
                <p className="font-bold text-accent">{details.parent_code} - {details.parent_name}</p>
             </div>
             <div className="space-y-1">
-               <label className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter">Data Emitere</label>
+               <label className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter">{t('items.issue_date')}</label>
                <p className="font-bold">{format(new Date(), 'dd.MM.yyyy')}</p>
             </div>
          </div>
@@ -634,11 +641,11 @@ function PrintPreview({ bom, onClose }) {
             <table className="w-full text-left text-sm">
                <thead className="bg-muted/50 border-b border-border">
                   <tr>
-                     <th className="px-4 py-3 font-bold text-xs">POZ</th>
-                     <th className="px-4 py-3 font-bold text-xs">COD ARTICOL</th>
-                     <th className="px-4 py-3 font-bold text-xs">DENUMIRE COMPONENTĂ</th>
-                     <th className="px-4 py-3 font-bold text-xs text-center">CANTITATE</th>
-                     <th className="px-4 py-3 font-bold text-xs">LOCAȚIE</th>
+                     <th className="px-4 py-3 font-bold text-xs">{t('items.poz')}</th>
+                     <th className="px-4 py-3 font-bold text-xs">{t('items.item_code')}</th>
+                     <th className="px-4 py-3 font-bold text-xs">{t('items.component_name')}</th>
+                     <th className="px-4 py-3 font-bold text-xs text-center">{t('inventory.quantity')}</th>
+                     <th className="px-4 py-3 font-bold text-xs">{t('items.location')}</th>
                   </tr>
                </thead>
                <tbody className="divide-y divide-border">
@@ -664,17 +671,17 @@ function PrintPreview({ bom, onClose }) {
               </div>
               <div className="text-right text-xs">
                   <p className="font-bold">SmartFactory Flow</p>
-                  <p>Data: {format(new Date(), 'dd.MM.yyyy HH:mm')}</p>
+                  <p>{t('common.date')}: {format(new Date(), 'dd.MM.yyyy HH:mm')}</p>
               </div>
           </div>
           <table className="w-full border-collapse border border-black mb-10">
               <thead>
                   <tr className="bg-gray-100">
-                      <th className="border border-black p-2 text-xs">Poz</th>
-                      <th className="border border-black p-2 text-xs">Cod</th>
-                      <th className="border border-black p-2 text-xs">Componentă</th>
-                      <th className="border border-black p-2 text-xs">Cant</th>
-                      <th className="border border-black p-2 text-xs">Loc</th>
+                      <th className="border border-black p-2 text-xs">{t('items.poz')}</th>
+                      <th className="border border-black p-2 text-xs">{t('items.item_code')}</th>
+                      <th className="border border-black p-2 text-xs">{t('items.component_name')}</th>
+                      <th className="border border-black p-2 text-xs">{t('inventory.quantity')}</th>
+                      <th className="border border-black p-2 text-xs">{t('items.location')}</th>
                   </tr>
               </thead>
               <tbody>
@@ -690,8 +697,8 @@ function PrintPreview({ bom, onClose }) {
               </tbody>
           </table>
           <div className="grid grid-cols-2 gap-20 mt-20">
-              <div className="border-t border-black pt-2 text-center text-xs">Întocmit de</div>
-              <div className="border-t border-black pt-2 text-center text-xs">Aprobat de</div>
+              <div className="border-t border-black pt-2 text-center text-xs">{t('items.prepared_by')}</div>
+              <div className="border-t border-black pt-2 text-center text-xs">{t('items.approved_by')}</div>
           </div>
       </div>
     </ModalWrapper>

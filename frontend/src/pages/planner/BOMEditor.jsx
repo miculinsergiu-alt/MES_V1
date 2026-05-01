@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Plus, Trash2, ChevronRight, ChevronDown, Zap, Package, Layers } from 'lucide-react';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
@@ -76,6 +77,7 @@ export function clientToServer(nodes) {
 
 // ─── Main export ─────────────────────────────────────────────────────────────
 export default function BOMEditor({ tree, onChange, items, warehouses = [] }) {
+  const { t } = useTranslation();
   const addDepartment = () => {
     onChange([...tree, makeNode(1)]);
   };
@@ -100,7 +102,7 @@ export default function BOMEditor({ tree, onChange, items, warehouses = [] }) {
         onClick={addDepartment}
         className="w-full mt-3 py-2.5 rounded-xl border-2 border-dashed border-orange-300 text-orange-500 text-sm font-semibold hover:bg-orange-50 transition-colors flex items-center justify-center gap-2"
       >
-        <Plus size={16} /> Adaugă Departament (Phantom Code)
+        <Plus size={16} /> {t('items.add_phantom')}
       </button>
     </div>
   );
@@ -108,6 +110,7 @@ export default function BOMEditor({ tree, onChange, items, warehouses = [] }) {
 
 // ─── Single tree node (recursive) ────────────────────────────────────────────
 function TreeNode({ node, items, warehouses, onUpdate, onRemove, onTreeChange, fullTree }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(true);
   const [expanding, setExpanding] = useState(false);
   const style = LEVEL_STYLES[node.level] || LEVEL_STYLES[4];
@@ -132,12 +135,12 @@ function TreeNode({ node, items, warehouses, onUpdate, onRemove, onTreeChange, f
 
   // Auto-expand SF BOM
   const expandFromBOM = useCallback(async () => {
-    if (!node.item_id) return toast.error('Selectează mai întâi un articol');
+    if (!node.item_id) return toast.error(t('items.select_article_first'));
     setExpanding(true);
     try {
       const res = await api.get('/boms');
       const bom = res.data.find(b => b.parent_item_id === node.item_id);
-      if (!bom) { toast.error('Nu există BOM definit pentru acest articol'); return; }
+      if (!bom) { toast.error(t('items.no_bom_for_item')); return; }
       const treeRes = await api.get(`/boms/${bom.id}/tree`);
       const childNodes = serverToClient(treeRes.data.tree).map(n => ({
         ...n,
@@ -146,15 +149,15 @@ function TreeNode({ node, items, warehouses, onUpdate, onRemove, onTreeChange, f
       }));
       onUpdate({ ...node, children: [...(node.children || []), ...childNodes] });
       setExpanded(true);
-      toast.success(`BOM expandat: ${treeRes.data.tree.length} componente adăugate`);
+      toast.success(t('items.bom_exploded', { count: treeRes.data.tree.length }));
     } catch (err) {
-      toast.error('Eroare la expandarea BOM-ului');
+      toast.error(t('items.bom_explode_error'));
     } finally {
       setExpanding(false);
     }
-  }, [node, onUpdate]);
+  }, [node, onUpdate, t]);
 
-  const childLabelMap = { 1: 'Componentă', 2: 'Sub-componentă', 3: 'Sub-nivel' };
+  const childLabelMap = { 1: t('items.component'), 2: t('items.sub_component'), 3: t('items.sub_level') };
 
   return (
     <div className={`rounded-xl border ${style.border} ${style.bg} overflow-hidden`}>
@@ -183,7 +186,7 @@ function TreeNode({ node, items, warehouses, onUpdate, onRemove, onTreeChange, f
           value={node.item_id || ''}
           onChange={e => update('item_id', e.target.value ? parseInt(e.target.value) : null)}
         >
-          <option value="">— Selectează articol —</option>
+          <option value="">— {t('items.select_article')} —</option>
           {items.map(i => (
             <option key={i.id} value={i.id}>
               {i.item_code} — {i.name} ({i.type === 'raw_material' ? 'MP' : i.type === 'semi_finished' ? 'SF' : i.type === 'finished_good' ? 'PF' : 'Phantom'})
@@ -210,7 +213,7 @@ function TreeNode({ node, items, warehouses, onUpdate, onRemove, onTreeChange, f
         {/* Warehouse/Dept for level 1 */}
         {node.level === 1 && (
           <Input
-            placeholder="Cod Magazie (ex: SF04)"
+            placeholder={t('items.warehouse_placeholder')}
             className="h-8 w-32 text-xs flex-shrink-0"
             value={node.department || ''}
             onChange={e => update('department', e.target.value.toUpperCase())}
@@ -219,7 +222,7 @@ function TreeNode({ node, items, warehouses, onUpdate, onRemove, onTreeChange, f
 
         {/* Position code */}
         <Input
-          placeholder="Poz."
+          placeholder={t('items.poz')}
           className="h-8 w-16 text-xs font-mono flex-shrink-0"
           value={node.position_code || ''}
           onChange={e => update('position_code', e.target.value)}
@@ -233,7 +236,7 @@ function TreeNode({ node, items, warehouses, onUpdate, onRemove, onTreeChange, f
               type="button"
               onClick={expandFromBOM}
               disabled={expanding}
-              title="Expandează din BOM-ul SF-ului"
+              title={t('items.expand_bom_title')}
               className="h-8 px-2 text-[10px] font-bold rounded-lg bg-purple-100 text-purple-700 hover:bg-purple-200 transition-colors disabled:opacity-50"
             >
               {expanding ? '...' : '⤵ BOM'}
@@ -245,7 +248,7 @@ function TreeNode({ node, items, warehouses, onUpdate, onRemove, onTreeChange, f
             <button
               type="button"
               onClick={addChild}
-              title={`Adaugă ${childLabelMap[node.level] || 'componentă'}`}
+              title={`${t('common.add')} ${childLabelMap[node.level] || t('items.component')}`}
               className="h-8 px-2 rounded-lg bg-white border border-border hover:bg-muted/40 transition-colors"
             >
               <Plus size={12}/>

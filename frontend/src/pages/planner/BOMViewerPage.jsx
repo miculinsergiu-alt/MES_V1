@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft, Edit2, Printer, ChevronRight, ChevronDown,
   Layers, Package, Zap, GitBranch, DollarSign, Box
@@ -24,7 +25,12 @@ const L = {
 // ─── Recursive cost calculation ───────────────────────────────────────────────
 function calcCost(nodes) {
   return nodes.reduce((sum, n) => {
-    const self = (n.acquisition_cost || 0) * (n.quantity || 1);
+    const hasChildren = n.children && n.children.length > 0;
+    // We only sum the cost of leaf components (raw materials) to avoid double counting
+    // semi-finished items and their sub-components.
+    const self = (!hasChildren && n.node_type === 'component') 
+      ? (n.acquisition_cost || 0) * (n.quantity || 1) 
+      : 0;
     return sum + self + calcCost(n.children || []);
   }, 0);
 }
@@ -35,6 +41,7 @@ function countNodes(nodes) {
 
 // ─── Tree Node ────────────────────────────────────────────────────────────────
 function ViewerNode({ node, depth = 0 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(true);
   const style = L[node.level] || L[4];
   const hasChildren = node.children?.length > 0;
@@ -72,12 +79,12 @@ function ViewerNode({ node, depth = 0 }) {
                   {node.item_code || '---'}
                 </span>
                 <span className="font-bold text-sm text-foreground truncate">
-                  {node.item_name || node.department || 'Nedefinit'}
+                  {node.item_name || node.department || t('items.undefined')}
                 </span>
               </div>
               {node.level === 1 && node.department && (
                 <span className="text-[10px] text-orange-600 font-bold uppercase tracking-tighter">
-                  Departament / Magazie: {node.department}
+                  {t('items.dept_wh')}: {node.department}
                 </span>
               )}
             </div>
@@ -148,6 +155,7 @@ function flattenForPrint(nodes, depth = 0, result = []) {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function BOMViewerPage() {
+  const { t } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
   const [bom, setBom] = useState(null);
@@ -229,7 +237,7 @@ export default function BOMViewerPage() {
             </div>
             {bom?.parent_code && (
               <div className="bg-muted/30 rounded-2xl px-6 py-4 border border-border text-right">
-                <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Produs Finit</div>
+                <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{t('items.finished_good')}</div>
                 <div className="font-mono font-black text-accent text-lg">{bom.parent_code}</div>
                 <div className="font-semibold text-sm">{bom.parent_name}</div>
               </div>
@@ -239,10 +247,10 @@ export default function BOMViewerPage() {
           {/* Stats bar */}
           <div className="grid grid-cols-4 gap-4 mt-6 pt-6 border-t border-border">
             {[
-              { label: 'Departamente',  value: deptCount,             icon: <Layers size={16} className="text-orange-500"/> },
-              { label: 'Total Noduri',  value: totalNodes,            icon: <GitBranch size={16} className="text-purple-500"/> },
-              { label: 'Cost Standard', value: `${totalCost.toFixed(2)} RON`, icon: <DollarSign size={16} className="text-green-500"/> },
-              { label: 'Data emitere',  value: format(new Date(), 'dd.MM.yyyy'), icon: <Box size={16} className="text-blue-500"/> },
+              { label: t('sidebar.manage_shifts'),  value: deptCount,             icon: <Layers size={16} className="text-orange-500"/> },
+              { label: t('items.total_nodes'),  value: totalNodes,            icon: <GitBranch size={16} className="text-purple-500"/> },
+              { label: t('items.cost_std'), value: `${totalCost.toFixed(2)} RON`, icon: <DollarSign size={16} className="text-green-500"/> },
+              { label: t('items.issue_date'),  value: format(new Date(), 'dd.MM.yyyy'), icon: <Box size={16} className="text-blue-500"/> },
             ].map(stat => (
               <div key={stat.label} className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-muted/40">{stat.icon}</div>
@@ -257,10 +265,10 @@ export default function BOMViewerPage() {
 
         {/* ── Legend ── */}
         <div className="flex items-center gap-3 mb-4 flex-wrap print:hidden">
-          <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Legendă:</span>
+          <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">{t('items.legend')}:</span>
           {Object.entries(L).map(([lvl, s]) => (
             <span key={lvl} className={`flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full ${s.badge}`}>
-              {s.icon} L{lvl} — {s.label}
+              {s.icon} L{lvl} — {t(`items.${lvl === '1' ? 'phantom' : lvl === '2' ? 'semi_finished' : lvl === '3' ? 'raw_material' : 'sub_level'}`)}
             </span>
           ))}
         </div>
@@ -269,21 +277,21 @@ export default function BOMViewerPage() {
         <Card className="p-6 print:hidden">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-bold text-sm uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-              <GitBranch size={14}/> Structură BOM
+              <GitBranch size={14}/> {t('gantt.header_label')}
             </h2>
             <div className="flex gap-2">
               <button
                 className="text-[10px] font-bold text-muted-foreground hover:text-foreground px-2 py-1 rounded-lg hover:bg-muted/40 transition-colors"
-                onClick={() => { /* expand all — handled by default open state */ toast('Click pe noduri pentru a le extinde/restrânge', { icon: '💡' }); }}
+                onClick={() => { /* expand all — handled by default open state */ toast(t('items.expand_hint'), { icon: '💡' }); }}
               >
-                Extinde tot / Restrânge
+                {t('items.expand_all')}
               </button>
             </div>
           </div>
 
           {tree.length === 0 ? (
             <div className="py-20 text-center text-muted-foreground italic text-sm">
-              BOM-ul nu are structură definită. Apasă "Editează BOM" pentru a adăuga componente.
+              {t('items.no_bom_found')}
             </div>
           ) : (
             <div className="space-y-1">
@@ -299,12 +307,12 @@ export default function BOMViewerPage() {
           {/* Header Print */}
           <div className="flex justify-between items-center border-b-4 border-black pb-4 mb-6">
             <div>
-              <h1 className="text-3xl font-black uppercase tracking-tighter">Fișă de Fabricație (BOM)</h1>
+              <h1 className="text-3xl font-black uppercase tracking-tighter">{t('items.tech_doc')}</h1>
               <p className="text-lg font-bold">{bom?.name}</p>
             </div>
             <div className="text-right">
               <h2 className="text-4xl font-black text-gray-300">V1.0</h2>
-              <p className="text-xs font-mono">Generat: {format(new Date(), 'dd.MM.yyyy HH:mm')}</p>
+              <p className="text-xs font-mono">{t('common.date')}: {format(new Date(), 'dd.MM.yyyy HH:mm')}</p>
             </div>
           </div>
 
@@ -312,13 +320,13 @@ export default function BOMViewerPage() {
           <table className="w-full border-collapse border-2 border-black mb-8">
             <tbody>
               <tr>
-                <td className="border border-black p-3 bg-gray-100 font-bold w-1/4">PRODUS FINIT:</td>
+                <td className="border border-black p-3 bg-gray-100 font-bold w-1/4 uppercase">{t('items.finished_good')}:</td>
                 <td className="border border-black p-3 text-xl font-black">{bom?.parent_code} - {bom?.parent_name}</td>
-                <td className="border border-black p-3 bg-gray-100 font-bold w-1/4">COST STANDARD:</td>
+                <td className="border border-black p-3 bg-gray-100 font-bold w-1/4 uppercase">{t('items.cost_std')}:</td>
                 <td className="border border-black p-3 font-mono">{totalCost.toFixed(2)} RON</td>
               </tr>
               <tr>
-                <td className="border border-black p-3 bg-gray-100 font-bold">DESCRIERE:</td>
+                <td className="border border-black p-3 bg-gray-100 font-bold uppercase">{t('items.general_desc')}:</td>
                 <td className="border border-black p-3" colSpan={3}>{bom?.description || '---'}</td>
               </tr>
             </tbody>
@@ -328,12 +336,12 @@ export default function BOMViewerPage() {
           <table className="w-full border-collapse border-2 border-black text-sm">
             <thead>
               <tr className="bg-gray-200">
-                <th className="border border-black p-2 text-left">NIVEL</th>
-                <th className="border border-black p-2 text-left">POZ.</th>
-                <th className="border border-black p-2 text-left">COD ARTICOL</th>
-                <th className="border border-black p-2 text-left">DENUMIRE COMPONENTĂ</th>
-                <th className="border border-black p-2 text-center">CANT.</th>
-                <th className="border border-black p-2 text-left">DEPT. / LOCAȚIE</th>
+                <th className="border border-black p-2 text-left uppercase text-[10px]">{t('items.level')}</th>
+                <th className="border border-black p-2 text-left uppercase text-[10px]">{t('items.poz')}</th>
+                <th className="border border-black p-2 text-left uppercase text-[10px]">{t('items.item_code')}</th>
+                <th className="border border-black p-2 text-left uppercase text-[10px]">{t('items.component_name')}</th>
+                <th className="border border-black p-2 text-center uppercase text-[10px]">{t('inventory.quantity')}</th>
+                <th className="border border-black p-2 text-left uppercase text-[10px]">{t('items.dept_wh')}</th>
               </tr>
             </thead>
             <tbody>
@@ -363,16 +371,16 @@ export default function BOMViewerPage() {
           {/* Footer Print */}
           <div className="mt-12 grid grid-cols-3 gap-8">
             <div className="border-t border-black pt-2 text-center">
-              <p className="text-xs uppercase font-bold">Întocmit Planner</p>
+              <p className="text-xs uppercase font-bold">{t('items.prepared_by')} Planner</p>
               <div className="h-16"></div>
-              <p className="text-[10px] font-mono">Semnătură / Ștampilă</p>
+              <p className="text-[10px] font-mono">{t('items.signature')}</p>
             </div>
             <div className="border-t border-black pt-2 text-center">
-              <p className="text-xs uppercase font-bold">Verificat Supervizor</p>
+              <p className="text-xs uppercase font-bold">{t('items.verified_by')} Supervisor</p>
               <div className="h-16"></div>
             </div>
             <div className="border-t border-black pt-2 text-center">
-              <p className="text-xs uppercase font-bold">Primit Producție</p>
+              <p className="text-xs uppercase font-bold">{t('items.received_prod')}</p>
               <div className="h-16"></div>
             </div>
           </div>

@@ -115,7 +115,7 @@ export default function SupervisorDashboard() {
                 <span className="card-title">{t('supervisor.production_plan', { date: format(viewDate, 'EEEE, dd MMMM yyyy', { locale: dateLocale }) })}</span>
                 <div className="flex gap-2 items-center">
                   <button className="btn btn-ghost btn-sm" onClick={() => setViewDate(d => subDays(d,1))}><ChevronLeft size={14}/></button>
-                  <button className="btn btn-ghost btn-sm" onClick={() => setViewDate(new Date())}>{i18n.language === 'ro' ? 'Azi' : 'Today'}</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setViewDate(new Date())}>{t('common.today')}</button>
                   <input 
                     type="date" 
                     className="form-input" 
