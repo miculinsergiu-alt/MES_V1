@@ -1,6 +1,6 @@
 const puppeteer = require('puppeteer');
 
-const BASE_URL = 'http://localhost:5174';
+const BASE_URL = 'http://localhost:5173';
 
 async function verifyUser(role, badge, password, dashboardText) {
   const browser = await puppeteer.launch({ 
@@ -52,6 +52,7 @@ async function run() {
     { role: 'admin', badge: 'ADMIN001', pass: 'admin123', text: 'Admin' },
     { role: 'planner', badge: 'PLN001', pass: 'pass123', text: 'Planner' },
     { role: 'supervisor', badge: 'SPV001', pass: 'pass123', text: 'Supervisor' },
+    { role: 'shift', badge: 'SHR001', pass: 'pass123', text: 'Dashboard' },
     { role: 'operator', badge: 'OPR001', pass: 'pass123', text: 'Mele' }
   ];
 

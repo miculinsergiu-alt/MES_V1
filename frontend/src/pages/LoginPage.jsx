@@ -86,6 +86,7 @@ export default function LoginPage() {
                 <div className="relative group">
                   <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-accent transition-colors" size={18} />
                   <Input 
+                    id="badge-input"
                     className="pl-12" 
                     placeholder="ADMIN001" 
                     value={badge} 
@@ -100,6 +101,7 @@ export default function LoginPage() {
                 <div className="relative group">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-accent transition-colors" size={18} />
                   <Input 
+                    id="password-input"
                     className="pl-12" 
                     type="password" 
                     placeholder="••••••••" 

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { LayoutDashboard, Users, FileText, Printer, Plus, X, AlertTriangle, ChevronLeft, ChevronRight, Zap, CheckCircle, UserPlus, Clock } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import GanttTimeline from '../../components/GanttTimeline';

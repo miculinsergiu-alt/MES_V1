@@ -9,5 +9,10 @@
   "scripts": {
     "build": "npm run build --workspace=frontend",
     "start": "npm start --workspace=backend"
+  },
+  "dependencies": {
+    "axios": "^1.15.2",
+    "puppeteer": "^24.42.0",
+    "socket.io-client": "^4.8.3"
   }
 }
