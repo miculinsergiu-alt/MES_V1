@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: smartfactory-mes
+    env: node
+    plan: free
+    buildCommand: npm install && npm run build --workspace=frontend
+    startCommand: npm start --workspace=backend
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: PORT
+        value: 3001
+      - key: JWT_SECRET
+        generateValue: true
+      - key: NODE_ENV
+        value: production
