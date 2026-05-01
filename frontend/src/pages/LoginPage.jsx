@@ -128,15 +128,26 @@ export default function LoginPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  [t('roles.administrator'), 'ADMIN001'],
-                  [t('roles.planner'), 'PLN001'],
-                  [t('roles.area_supervisor'), 'SPV001'],
-                  [t('roles.operator'), 'OPR001']
-                ].map(([role, b]) => (
-                  <div key={b} className="flex flex-col p-3 rounded-xl bg-muted/50 border border-border/50 hover:border-accent/30 transition-colors">
-                    <span className="text-[10px] uppercase text-muted-foreground font-semibold">{role}</span>
-                    <span className="text-sm font-medium text-foreground">{b}</span>
-                  </div>
+                  { role: t('roles.administrator'), badge: 'ADMIN001', pass: 'admin123' },
+                  { role: t('roles.planner'), badge: 'PLN001', pass: 'pass123' },
+                  { role: t('roles.area_supervisor'), badge: 'SPV001', pass: 'pass123' },
+                  { role: t('roles.operator'), badge: 'OPR001', pass: 'pass123' }
+                ].map((cred) => (
+                  <button
+                    key={cred.badge}
+                    type="button"
+                    onClick={() => {
+                      setBadge(cred.badge);
+                      setPassword(cred.pass);
+                    }}
+                    className="flex flex-col items-start p-3 rounded-xl bg-muted/30 border border-border/50 hover:border-accent/50 hover:bg-accent/5 transition-all duration-200 group/item text-left"
+                  >
+                    <span className="text-[9px] uppercase text-muted-foreground font-bold tracking-tighter mb-1 group-hover/item:text-accent transition-colors">{cred.role}</span>
+                    <div className="flex flex-col">
+                      <span className="text-xs font-mono font-bold text-foreground">{cred.badge}</span>
+                      <span className="text-[10px] font-mono text-muted-foreground/70 group-hover/item:text-muted-foreground transition-colors">{cred.pass}</span>
+                    </div>
+                  </button>
                 ))}
               </div>
             </div>
