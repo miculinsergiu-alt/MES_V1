@@ -9,6 +9,7 @@ import SupervisorDashboard from './pages/supervisor/SupervisorDashboard';
 import ShiftDashboard from './pages/shift/ShiftDashboard';
 import OperatorDashboard from './pages/operator/OperatorDashboard';
 import ItemsManager from './pages/planner/ItemsManager';
+import BOMViewerPage from './pages/planner/BOMViewerPage';
 import OEEPage from './pages/analytics/OEEPage';
 import InventoryPage from './pages/inventory/InventoryPage';
 import MaintenancePage from './pages/maintenance/MaintenancePage';
@@ -51,6 +52,7 @@ export default function App() {
             {/* Planner */}
             <Route path="/planner/*" element={<PrivateRoute roles={['planner','administrator']}><PlannerDashboard /></PrivateRoute>} />
             <Route path="/planner/items" element={<PrivateRoute roles={['planner','administrator']}><ItemsManager /></PrivateRoute>} />
+            <Route path="/planner/boms/:id" element={<PrivateRoute roles={['planner','administrator']}><BOMViewerPage /></PrivateRoute>} />
             <Route path="/planner/inventory" element={<PrivateRoute roles={['planner','administrator']}><InventoryPage /></PrivateRoute>} />
             
             {/* Supervisor */}

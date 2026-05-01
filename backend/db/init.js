@@ -330,6 +330,13 @@ addColumnIfNotExists('order_delays', 'delay_reason_id', 'INTEGER REFERENCES dela
 addColumnIfNotExists('order_delays', 'corrective_action', 'TEXT');
 addColumnIfNotExists('items', 'unit_price', 'REAL DEFAULT 0');
 
+// ─── BOM MULTI-NIVEL MIGRATIONS ──────────────────────────────────────────────
+addColumnIfNotExists('bom_positions', 'parent_position_id', 'INTEGER REFERENCES bom_positions(id) ON DELETE CASCADE');
+addColumnIfNotExists('bom_positions', 'level', 'INTEGER DEFAULT 1');
+addColumnIfNotExists('bom_positions', 'sort_order', 'INTEGER DEFAULT 0');
+addColumnIfNotExists('bom_positions', 'department', 'TEXT'); // e.g. "SF02", "SF04"
+addColumnIfNotExists('bom_positions', 'node_type', "TEXT DEFAULT 'component' CHECK(node_type IN ('department','component'))");
+
 // ─── SEED DATA ─────────────────────────────────────────────────────────────
 function seedIfNeeded() {
   const admin = db.prepare('SELECT id FROM users WHERE badge_number = ?').get('ADMIN001');

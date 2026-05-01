@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { LayoutDashboard, BarChart2, Users, FileText, Plus, X, ChevronLeft, ChevronRight, Factory, Clock, ShieldCheck } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import Sidebar from '../../components/Sidebar';
 import GanttTimeline from '../../components/GanttTimeline';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { format, addDays, subDays } from 'date-fns';
-import { ro } from 'date-fns/locale';
+import { ro, enUS } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -14,6 +15,8 @@ import { Input } from '../../components/ui/Input';
 import { Badge } from '../../components/ui/Badge';
 
 export default function SupervisorDashboard() {
+  const { t, i18n } = useTranslation();
+  const dateLocale = i18n.language === 'ro' ? ro : enUS;
   const [tab, setTab] = useState('gantt');
   const [orders, setOrders] = useState([]);
   const [machines, setMachines] = useState([]);
@@ -70,20 +73,20 @@ export default function SupervisorDashboard() {
   }, [location]);
 
   const navItems = [
-    { path:'/supervisor/gantt', label:'Gantt Producție', icon:<LayoutDashboard size={16}/> },
-    { path:'/supervisor/machines', label:'Status Utilaje', icon:<Factory size={16}/> },
-    { path:'/supervisor/reports', label:'Performanță', icon:<BarChart2 size={16}/> },
-    { path:'/supervisor/shifts', label:'Gestiune Schimburi', icon:<Users size={16}/> },
-    { path:'/supervisor/shift-reports', label:'Istoric Rapoarte', icon:<FileText size={16}/> },
+    { path:'/supervisor/gantt', labelKey:'sidebar.gantt_production', icon:<LayoutDashboard size={16}/> },
+    { path:'/supervisor/machines', labelKey:'sidebar.machine_status', icon:<Factory size={16}/> },
+    { path:'/supervisor/reports', labelKey:'sidebar.performance', icon:<BarChart2 size={16}/> },
+    { path:'/supervisor/shifts', labelKey:'sidebar.manage_shifts', icon:<Users size={16}/> },
+    { path:'/supervisor/shift-reports', labelKey:'sidebar.shift_history', icon:<FileText size={16}/> },
   ];
 
   const handleDeleteShift = async (id) => {
-    if (!window.confirm('Ștergeți acest schimb?')) return;
+    if (!window.confirm(t('supervisor.delete_shift_confirm'))) return;
     try {
       await api.delete(`/shifts/${id}`);
-      toast.success('Schimb șters');
+      toast.success(t('supervisor.shift_deleted'));
       loadData();
-    } catch { toast.error('Eroare la ștergere'); }
+    } catch { toast.error(t('messages.delete_error')); }
   };
 
   return (
@@ -93,12 +96,12 @@ export default function SupervisorDashboard() {
         <header className="page-header">
            <div className="flex justify-between items-end w-full">
               <div>
-                <h1>Dashboard Area Supervisor</h1>
-                <p>Monitorizare producție, rapoarte și gestionare schimburi</p>
+                <h1>{t('supervisor.title')}</h1>
+                <p>{t('supervisor.subtitle')}</p>
               </div>
               {tab === 'shifts' && (
                 <Button onClick={() => { setEditShift(null); setShowShiftModal(true); }}>
-                  <Plus size={16} className="mr-2" /> Crează schimb nou
+                  <Plus size={16} className="mr-2" /> {t('admin.new_shift')}
                 </Button>
               )}
            </div>
@@ -109,10 +112,10 @@ export default function SupervisorDashboard() {
           {tab === 'gantt' && (
             <div className="card">
               <div className="flex justify-between items-center mb-4">
-                <span className="card-title">Plan Producție — {format(viewDate,'EEEE, dd MMMM yyyy',{locale:ro})}</span>
+                <span className="card-title">{t('supervisor.production_plan', { date: format(viewDate, 'EEEE, dd MMMM yyyy', { locale: dateLocale }) })}</span>
                 <div className="flex gap-2 items-center">
                   <button className="btn btn-ghost btn-sm" onClick={() => setViewDate(d => subDays(d,1))}><ChevronLeft size={14}/></button>
-                  <button className="btn btn-ghost btn-sm" onClick={() => setViewDate(new Date())}>Azi</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setViewDate(new Date())}>{i18n.language === 'ro' ? 'Azi' : 'Today'}</button>
                   <input 
                     type="date" 
                     className="form-input" 
@@ -147,13 +150,13 @@ export default function SupervisorDashboard() {
                     {isActive ? (
                       <div className="space-y-4">
                         <div>
-                          <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Comandă Activă</p>
+                          <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">{t('supervisor.active_order')}</p>
                           <p className="text-sm font-semibold text-foreground truncate">{st.activeOrder.product_name}</p>
                         </div>
                         
                         <div className="space-y-1.5">
                           <div className="flex justify-between text-[10px] font-bold uppercase">
-                            <span className="text-muted-foreground">Progres Producție</span>
+                            <span className="text-muted-foreground">{t('supervisor.production_progress')}</span>
                             <span className={hasDelay ? 'text-red-600' : 'text-green-600'}>{st.progress}%</span>
                           </div>
                           <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
@@ -167,11 +170,11 @@ export default function SupervisorDashboard() {
                         <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/50">
                           <div className="text-center">
                             <p className="text-lg font-display text-green-600 leading-none">{st.totalOk}</p>
-                            <p className="text-[9px] font-bold text-muted-foreground uppercase">Conform</p>
+                            <p className="text-[9px] font-bold text-muted-foreground uppercase">{t('operator.conform')}</p>
                           </div>
                           <div className="text-center">
                             <p className="text-lg font-display text-red-600 leading-none">{st.totalFail}</p>
-                            <p className="text-[9px] font-bold text-muted-foreground uppercase">Defect</p>
+                            <p className="text-[9px] font-bold text-muted-foreground uppercase">{t('operator.defect')}</p>
                           </div>
                         </div>
 
@@ -188,7 +191,7 @@ export default function SupervisorDashboard() {
                       </div>
                     ) : (
                       <div className="py-10 text-center">
-                        <p className="text-sm italic text-muted-foreground">Utilaj disponibil</p>
+                        <p className="text-sm italic text-muted-foreground">{t('supervisor.machine_available')}</p>
                       </div>
                     )}
                   </div>
@@ -219,7 +222,7 @@ export default function SupervisorDashboard() {
                    </div>
                    <div className="p-5">
                       <div className="space-y-1">
-                         <span className="text-[10px] font-black uppercase text-muted-foreground tracking-tighter">Responsabil Schimb</span>
+                         <span className="text-[10px] font-black uppercase text-muted-foreground tracking-tighter">{t('roles.shift_responsible')}</span>
                          <div className="flex items-center gap-2">
                             <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-xs text-white font-bold">
                                {s.first_name?.[0]}{s.last_name?.[0]}
@@ -230,7 +233,7 @@ export default function SupervisorDashboard() {
                    </div>
                 </Card>
               ))}
-              {shifts.length === 0 && <div className="card col-span-full py-20 text-center italic text-muted-foreground">Niciun schimb configurat.</div>}
+              {shifts.length === 0 && <div className="card col-span-full py-20 text-center italic text-muted-foreground">{t('sidebar.no_data')}</div>}
             </div>
           )}
 
@@ -238,15 +241,15 @@ export default function SupervisorDashboard() {
 
           {tab === 'shift-reports' && (
             <div className="space-y-4">
-              {reports.length === 0 && <div className="card py-20 text-center italic text-muted-foreground">Niciun raport de schimb disponibil</div>}
+              {reports.length === 0 && <div className="card py-20 text-center italic text-muted-foreground">{t('sidebar.no_data')}</div>}
               {reports.map(r => (
                 <Card key={r.id} className="p-6">
                   <div className="flex justify-between items-center mb-4 pb-4 border-b border-border">
                     <div>
-                      <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Raport Data:</span>
-                      <p className="font-bold text-lg">{r.report_date} — Schimb #{r.shift_id}</p>
+                      <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{i18n.language === 'ro' ? 'Raport Data:' : 'Report Date:'}</span>
+                      <p className="font-bold text-lg">{r.report_date} — {t('sidebar.manage_shifts')} #{r.shift_id}</p>
                     </div>
-                    <Badge variant="outline" className="border-accent text-accent bg-accent/5">{r.issues?.length || 0} Probleme Raportate</Badge>
+                    <Badge variant="outline" className="border-accent text-accent bg-accent/5">{r.issues?.length || 0} {i18n.language === 'ro' ? 'Probleme Raportate' : 'Issues Reported'}</Badge>
                   </div>
                   {r.general_notes && <p className="text-sm text-muted-foreground bg-muted/20 p-4 rounded-xl mb-4 italic">"{r.general_notes}"</p>}
                   <div className="space-y-2">
@@ -299,6 +302,7 @@ function ModalWrapper({ title, children, onClose, maxWidth = "max-w-xl" }) {
 }
 
 function ShiftDefinitionModal({ shift, users, onClose, onSave }) {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     name: shift?.name || '',
     shift_responsible_id: shift?.shift_responsible_id || '',
@@ -320,13 +324,13 @@ function ShiftDefinitionModal({ shift, users, onClose, onSave }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.shift_responsible_id) return toast.error("Selectați un responsabil de schimb");
+    if (!formData.shift_responsible_id) return toast.error(t('admin.select_responsible'));
     try {
       if (shift) await api.put(`/shifts/${shift.id}`, formData);
       else await api.post('/shifts', formData);
-      toast.success('Schimb salvat cu succes');
+      toast.success(t('messages.save_success'));
       onSave();
-    } catch(err) { toast.error(err.response?.data?.error || 'Eroare la salvare'); }
+    } catch(err) { toast.error(err.response?.data?.error || t('messages.save_error')); }
   };
 
   const toggleMember = (userId) => {
@@ -339,30 +343,30 @@ function ShiftDefinitionModal({ shift, users, onClose, onSave }) {
   };
 
   return (
-    <ModalWrapper title={shift ? 'Editare Schimb' : 'Creare Schimb Nou'} onClose={onClose} maxWidth="max-w-2xl">
+    <ModalWrapper title={shift ? `${t('common.edit')} ${t('sidebar.manage_shifts')}` : t('admin.new_shift')} onClose={onClose} maxWidth="max-w-2xl">
       <form onSubmit={handleSubmit} className="space-y-8">
         <div className="space-y-2">
-          <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Denumire Schimb</label>
+          <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">{t('sidebar.manage_shifts')}</label>
           <Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="ex: Schimbul A" required />
         </div>
 
         <div className="grid grid-cols-2 gap-6">
            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Ora Start</label>
+              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">{t('operator.delay.from_hour')}</label>
               <Input type="time" value={formData.start_time} onChange={e => setFormData({...formData, start_time: e.target.value})} required />
            </div>
            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Ora Sfârșit</label>
+              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">{t('admin.end_time')}</label>
               <Input type="time" value={formData.end_time} onChange={e => setFormData({...formData, end_time: e.target.value})} required />
            </div>
         </div>
 
         <div className="space-y-2">
           <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1 flex items-center gap-2">
-            <ShieldCheck size={14} className="text-accent"/> Responsabil Schimb
+            <ShieldCheck size={14} className="text-accent"/> {t('roles.shift_responsible')}
           </label>
           <select className="w-full h-12 rounded-xl border border-border bg-white px-4 focus:ring-2 focus:ring-accent outline-none appearance-none" value={formData.shift_responsible_id} onChange={e => setFormData({...formData, shift_responsible_id: e.target.value})} required>
-            <option value="">Selectați responsabilul...</option>
+            <option value="">{t('admin.select_responsible_placeholder')}</option>
             {users.filter(u => u.role === 'shift_responsible').map(u => (
               <option key={u.id} value={u.id}>{u.first_name} {u.last_name} ({u.badge_number})</option>
             ))}
@@ -372,7 +376,7 @@ function ShiftDefinitionModal({ shift, users, onClose, onSave }) {
         <div className="space-y-4">
           <div className="flex justify-between items-center border-b border-border pb-2">
              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-               <Users size={14}/> Operatori în Schimb ({formData.members.length})
+               <Users size={14}/> {t('admin.operators_in_shift', { count: formData.members.length })}
              </label>
           </div>
           <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-2">
@@ -399,8 +403,8 @@ function ShiftDefinitionModal({ shift, users, onClose, onSave }) {
         </div>
 
         <div className="pt-4 flex justify-end gap-3 border-t border-border">
-          <Button variant="secondary" onClick={onClose} type="button">Anulare</Button>
-          <Button type="submit">Finalizare Schimb</Button>
+          <Button variant="secondary" onClick={onClose} type="button">{t('common.cancel')}</Button>
+          <Button type="submit">{t('common.confirm')}</Button>
         </div>
       </form>
     </ModalWrapper>
@@ -408,6 +412,7 @@ function ShiftDefinitionModal({ shift, users, onClose, onSave }) {
 }
 
 function PerformanceTab({ orders, machines, users }) {
+  const { t } = useTranslation();
   const byMachine = machines.map(m => {
     const mOrders = orders.filter(o => o.machine_id === m.id);
     const done = mOrders.filter(o => o.status === 'done').length;
@@ -419,9 +424,9 @@ function PerformanceTab({ orders, machines, users }) {
     <div className="space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {[
-          { label: 'Total Comenzi', val: orders.length, color: 'text-accent' },
-          { label: 'Finalizate', val: orders.filter(o=>o.status==='done').length, color: 'text-green-600' },
-          { label: 'Cu Delay', val: orders.filter(o=>(o.delays||[]).some(d=>d.applied)).length, color: 'text-red-600' }
+          { label: t('supervisor.performance.total_orders'), val: orders.length, color: 'text-accent' },
+          { label: t('supervisor.performance.finalized'), val: orders.filter(o=>o.status==='done').length, color: 'text-green-600' },
+          { label: t('supervisor.performance.with_delay'), val: orders.filter(o=>(o.delays||[]).some(d=>d.applied)).length, color: 'text-red-600' }
         ].map((s, i) => (
           <div key={i} className="card text-center py-10">
             <div className={`text-4xl font-display ${s.color} mb-1`}>{s.val}</div>
@@ -434,12 +439,12 @@ function PerformanceTab({ orders, machines, users }) {
         <table>
           <thead>
             <tr>
-              <th>Utilaj</th>
-              <th className="text-center">Total Comenzi</th>
-              <th className="text-center">Finalizate</th>
-              <th className="text-center">La Timp</th>
-              <th className="text-center">Cu Delay</th>
-              <th>Rată Succes</th>
+              <th>{t('analytics.machine')}</th>
+              <th className="text-center">{t('supervisor.performance.total_orders')}</th>
+              <th className="text-center">{t('supervisor.performance.finalized')}</th>
+              <th className="text-center">{t('supervisor.performance.on_time')}</th>
+              <th className="text-center">{t('supervisor.performance.with_delay')}</th>
+              <th>{t('supervisor.performance.success_rate')}</th>
             </tr>
           </thead>
           <tbody>

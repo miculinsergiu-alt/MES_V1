@@ -1,10 +1,12 @@
 import { useMemo, useRef, useEffect } from 'react';
 import { format, addHours, startOfDay, differenceInMinutes } from 'date-fns';
+import { useTranslation } from 'react-i18next';
 
 export default function GanttTimeline({ orders = [], machines = [], viewDate = new Date(), hoursToShow = 24, onBlockClick }) {
   const containerRef = useRef(null);
   const dayStart = startOfDay(viewDate);
   const totalMinutes = hoursToShow * 60;
+  const { t } = useTranslation();
 
   const scrollToNow = () => {
     if (containerRef.current) {
@@ -63,13 +65,13 @@ export default function GanttTimeline({ orders = [], machines = [], viewDate = n
     return map;
   }, [orders, machines]);
 
-  if (machines.length === 0) return <div className="card py-20 text-center italic text-muted-foreground">Niciun utilaj configurat în sistem</div>;
+  if (machines.length === 0) return <div className="card py-20 text-center italic text-muted-foreground">{t('gantt.no_machines')}</div>;
 
   return (
     <div className="space-y-4">
       <div className="flex justify-end no-print">
         <button className="btn btn-secondary btn-sm gap-2 shadow-sm" onClick={scrollToNow}>
-          <span className="text-red-500 font-black">📍</span> SARI LA ACUM
+          <span className="text-red-500 font-black">📍</span> {t('gantt.jump_to_now')}
         </button>
       </div>
 
@@ -78,7 +80,7 @@ export default function GanttTimeline({ orders = [], machines = [], viewDate = n
           {/* Header */}
           <div className="gantt-time-header">
             <div className="w-[220px] border-r border-border flex items-center px-4">
-              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Utilaj / Flux de Lucru</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">{t('gantt.header_label')}</span>
             </div>
             <div className="flex-1 relative">
               {timeLabels.map(({ hour, label }) => (
@@ -99,8 +101,8 @@ export default function GanttTimeline({ orders = [], machines = [], viewDate = n
                   <div className="gantt-label-col">
                     <div className="gantt-machine-name">{machine.name}</div>
                     <div className="gantt-row-markers">
-                      <div className="gantt-marker">PLAN</div>
-                      <div className="gantt-marker">EXEC</div>
+                      <div className="gantt-marker">{t('gantt.marker_plan')}</div>
+                      <div className="gantt-marker">{t('gantt.marker_exec')}</div>
                     </div>
                   </div>
 
@@ -200,7 +202,7 @@ export default function GanttTimeline({ orders = [], machines = [], viewDate = n
 
                     {machineOrders.length === 0 && (
                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
-                        <span className="text-[10px] font-black uppercase tracking-[0.4em] text-muted-foreground">Disponibil</span>
+                        <span className="text-[10px] font-black uppercase tracking-[0.4em] text-muted-foreground">{t('gantt.available')}</span>
                       </div>
                     )}
                   </div>
@@ -214,11 +216,11 @@ export default function GanttTimeline({ orders = [], machines = [], viewDate = n
       {/* Legend */}
       <div className="flex flex-wrap gap-8 px-6 py-3 no-print bg-white border border-border rounded-2xl w-fit shadow-sm">
         {[
-          { label:'Planificat', color:'bg-slate-300 opacity-40 border border-dashed border-slate-500' },
-          { label:'Mentenanță', color:'bg-orange-500' },
-          { label:'Setup (Actual)', color:'bg-blue-500 shadow-blue-200' },
-          { label:'Producție (Actual)', color:'bg-green-500 shadow-green-200' },
-          { label:'Întârziere (Delay)', color:'bg-red-500 animate-pulse shadow-red-200' }
+          { label: t('gantt.legend_planned'), color:'bg-slate-300 opacity-40 border border-dashed border-slate-500' },
+          { label: t('gantt.legend_maintenance'), color:'bg-orange-500' },
+          { label: t('gantt.legend_setup'), color:'bg-blue-500 shadow-blue-200' },
+          { label: t('gantt.legend_production'), color:'bg-green-500 shadow-green-200' },
+          { label: t('gantt.legend_delay'), color:'bg-red-500 animate-pulse shadow-red-200' }
         ].map((item, i) => (
           <div key={i} className="flex items-center gap-2.5">
             <div className={`w-4 h-4 rounded-md shadow-sm ${item.color}`} />

@@ -24,9 +24,9 @@ export default function MaintenancePage() {
   };
 
   const navItems = [
-    { path: '/supervisor', label: 'Dashboard', icon: <LayoutDashboard size={16}/> },
-    { path: '/supervisor/oee', label: 'Analitice OEE', icon: <TrendingUp size={16}/> },
-    { path: '/supervisor/maintenance', label: 'Mentenanță', icon: <Clock size={16}/> }
+    { path: '/supervisor', labelKey: 'sidebar.dashboard', icon: <LayoutDashboard size={16}/> },
+    { path: '/supervisor/oee', labelKey: 'sidebar.oee_analytics', icon: <TrendingUp size={16}/> },
+    { path: '/supervisor/maintenance', labelKey: 'sidebar.maintenance', icon: <Clock size={16}/> }
   ];
 
   return (

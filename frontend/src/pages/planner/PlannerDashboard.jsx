@@ -1,13 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import { LayoutDashboard, FileText, Plus, X, Search, ChevronLeft, ChevronRight, Box, AlertCircle, Trash2, Edit2, Wrench, Settings } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import Sidebar from '../../components/Sidebar';
 import GanttTimeline from '../../components/GanttTimeline';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { format, addDays, subDays } from 'date-fns';
-import { ro } from 'date-fns/locale';
+import { ro, enUS } from 'date-fns/locale';
 
 export default function PlannerDashboard() {
+  const { t, i18n } = useTranslation();
+  const dateLocale = i18n.language === 'ro' ? ro : enUS;
   const [tab, setTab] = useState('gantt');
   const [orders, setOrders] = useState([]);
   const [machines, setMachines] = useState([]);
@@ -25,27 +28,26 @@ export default function PlannerDashboard() {
   }, []);
 
   const handleDeleteOrder = async (orderId) => {
-    if (!window.confirm('Sunteți sigur că doriți să ștergeți această comandă? Această acțiune este ireversibilă.')) return;
+    if (!window.confirm(t('planner.delete_confirm'))) return;
     try {
       await api.delete(`/orders/${orderId}`);
-      toast.success('Comanda a fost ștearsă.');
+      toast.success(t('messages.delete_success'));
       setSelectedOrder(null);
       loadData();
     } catch (err) {
-      toast.error('Eroare la ștergerea comenzii.');
+      toast.error(t('messages.delete_error'));
     }
   };
 
   useEffect(() => { loadData(); const i = setInterval(loadData, 15000); return () => clearInterval(i); }, [loadData]);
 
   const navItems = [
-    { path:'/planner/gantt', label:'Plan Producție', icon:<LayoutDashboard size={16}/> },
-    { path:'/planner/orders', label:'Gestionare Comenzi', icon:<FileText size={16}/> },
-    { path:'/planner/items', label:'Nomenclator & BOM', icon:<Box size={16}/> },
+    { path:'/planner/gantt', labelKey:'sidebar.production_plan', icon:<LayoutDashboard size={16}/> },
+    { path:'/planner/orders', labelKey:'sidebar.manage_orders', icon:<FileText size={16}/> },
+    { path:'/planner/items', labelKey:'sidebar.items_bom', icon:<Box size={16}/> },
   ];
 
   const statusBadge = (s) => ({ pending:'badge-gray', active:'badge-green', done:'badge-blue', cancelled:'badge-red' })[s] || 'badge-gray';
-  const statusRo = { pending:'În așteptare', active:'Activ', done:'Finalizat', cancelled:'Anulat' };
 
   return (
     <div className="app-layout">
@@ -53,13 +55,13 @@ export default function PlannerDashboard() {
       <div className="main-content">
         <div className="page-header">
           <div className="flex justify-between items-center">
-            <div><h1>Dashboard Planner</h1><p>Planificare și monitorizare comenzi de producție</p></div>
-            <button className="btn btn-primary" onClick={() => setShowOrderModal(true)}><Plus size={16}/> Comandă Nouă</button>
+            <div><h1>{t('planner.title')}</h1><p>{t('planner.subtitle')}</p></div>
+            <button className="btn btn-primary" onClick={() => setShowOrderModal(true)}><Plus size={16}/> {t('planner.new_order')}</button>
           </div>
         </div>
         <div className="page-content">
           <div className="tabs">
-            {[['gantt','📊 Gantt Timeline'],['list','📋 Lista Comenzi']].map(([k,l]) => (
+            {[['gantt', t('planner.gantt_view')],['list', t('planner.list_view')]].map(([k,l]) => (
               <button key={k} className={`tab-btn ${tab===k?'active':''}`} onClick={()=>setTab(k)}>{l}</button>
             ))}
           </div>
@@ -67,10 +69,10 @@ export default function PlannerDashboard() {
           {tab === 'gantt' && (
             <div className="card">
               <div className="flex justify-between items-center mb-4">
-                <span className="card-title">Plan Producție — {format(viewDate, 'EEEE, dd MMMM yyyy', { locale: ro })}</span>
+                <span className="card-title">{t('supervisor.production_plan', { date: format(viewDate, 'EEEE, dd MMMM yyyy', { locale: dateLocale }) })}</span>
                 <div className="flex gap-2 items-center">
                   <button className="btn btn-ghost btn-sm" onClick={() => setViewDate(d => subDays(d,1))}><ChevronLeft size={14}/></button>
-                  <button className="btn btn-ghost btn-sm" onClick={() => setViewDate(new Date())}>Azi</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setViewDate(new Date())}>{i18n.language === 'ro' ? 'Azi' : 'Today'}</button>
                   <input 
                     type="date" 
                     className="form-input" 

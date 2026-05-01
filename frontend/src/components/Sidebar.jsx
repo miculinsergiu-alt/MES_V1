@@ -1,24 +1,19 @@
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { LogOut, Factory } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
+import { LanguageSwitcher } from './LanguageSwitcher';
 
 export default function Sidebar({ items }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useTranslation();
 
   const handleLogout = () => { logout(); navigate('/login'); };
-
-  const roleLabel = {
-    administrator: 'Administrator',
-    planner: 'Planner',
-    area_supervisor: 'Supervisor',
-    shift_responsible: 'Șef Schimb',
-    operator: 'Operator',
-  };
 
   return (
     <div className="w-72 h-screen bg-card border-r border-border flex flex-col z-20 sticky top-0">
@@ -48,7 +43,7 @@ export default function Sidebar({ items }) {
               <div className={`${isActive ? 'text-accent' : 'text-muted-foreground group-hover:text-foreground'} transition-colors`}>
                 {item.icon}
               </div>
-              <span className="text-sm">{item.label}</span>
+              <span className="text-sm">{t(item.labelKey || item.label)}</span>
               {isActive && (
                 <motion.div 
                   layoutId="active-pill"
@@ -61,15 +56,16 @@ export default function Sidebar({ items }) {
       </nav>
 
       <div className="p-6 mt-auto border-t border-border bg-muted/30">
-        <div className="mb-6 px-2">
+        <div className="mb-6 px-2 flex items-center justify-between">
           <div className="flex flex-col">
             <span className="text-sm font-bold text-foreground">{user?.first_name} {user?.last_name}</span>
             <div className="flex items-center gap-2 mt-1">
-              <span className="text-[11px] font-medium text-muted-foreground">{roleLabel[user?.role]}</span>
+              <span className="text-[11px] font-medium text-muted-foreground">{t(`roles.${user?.role}`)}</span>
               <span className="h-1 w-1 rounded-full bg-border" />
               <span className="font-mono text-[10px] text-accent font-bold">#{user?.badge_number}</span>
             </div>
           </div>
+          <LanguageSwitcher />
         </div>
         <Button 
           variant="secondary" 
@@ -78,7 +74,7 @@ export default function Sidebar({ items }) {
           onClick={handleLogout}
         >
           <LogOut size={16} className="text-muted-foreground" />
-          <span>Deconectare</span>
+          <span>{t('sidebar.logout')}</span>
         </Button>
       </div>
     </div>

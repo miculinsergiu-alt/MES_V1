@@ -24,9 +24,9 @@ export default function InventoryPage() {
   };
 
   const navItems = [
-    { path: '/planner', label: 'Dashboard', icon: <Package size={16}/> },
-    { path: '/planner/items', label: 'Articole & BOM', icon: <Package size={16}/> },
-    { path: '/planner/inventory', label: 'Stocuri', icon: <ArrowDownUp size={16}/> }
+    { path: '/planner', labelKey: 'sidebar.dashboard', icon: <Package size={16}/> },
+    { path: '/planner/items', labelKey: 'sidebar.articles_bom', icon: <Package size={16}/> },
+    { path: '/planner/inventory', labelKey: 'sidebar.stocks', icon: <ArrowDownUp size={16}/> }
   ];
 
   return (

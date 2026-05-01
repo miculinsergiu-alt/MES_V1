@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Users, Settings, Factory, Plus, Edit2, Trash2, X, ChevronDown, ChevronRight, Box, Award, CheckCircle, Search, Calendar, Clock, UserCheck, ShieldCheck } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import Sidebar from '../../components/Sidebar';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
@@ -9,14 +10,13 @@ import { Input } from '../../components/ui/Input';
 import { Badge } from '../../components/ui/Badge';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const ROLES_RO = { administrator:'Administrator', planner:'Planner', area_supervisor:'Supervisor', shift_responsible:'Șef Schimb', operator:'Operator' };
-
 const fadeInUp = {
   hidden: { opacity: 0, y: 10 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.4 } }
 };
 
 export default function AdminDashboard() {
+  const { t } = useTranslation();
   const [tab, setTab] = useState('users');
   const [users, setUsers] = useState([]);
   const [areas, setAreas] = useState([]);
@@ -46,27 +46,27 @@ export default function AdminDashboard() {
   useEffect(() => { loadUsers(); loadAreas(); loadShifts(); loadSchedules(); }, []);
 
   const navItems = [
-    { path:'/admin/users', label:'Utilizatori', icon:<Users size={18}/> },
-    { path:'/admin/machines', label:'Arii & Utilaje', icon:<Factory size={18}/> },
-    { path:'/admin/items', label:'BOM System', icon:<Box size={18}/> },
+    { path:'/admin/users', labelKey:'sidebar.users', icon:<Users size={18}/> },
+    { path:'/admin/machines', labelKey:'sidebar.areas_machines', icon:<Factory size={18}/> },
+    { path:'/admin/items', labelKey:'sidebar.bom_system', icon:<Box size={18}/> },
   ];
 
   const handleDeleteSchedule = async (id) => {
-    if (!window.confirm('Ștergeți programarea?')) return;
+    if (!window.confirm(t('admin.delete_schedule_confirm'))) return;
     try {
       await api.delete(`/shifts/schedule/${id}`);
-      toast.success('Programare ștearsă');
+      toast.success(t('messages.delete_success'));
       loadSchedules();
-    } catch { toast.error('Eroare la ștergere'); }
+    } catch { toast.error(t('messages.delete_error')); }
   };
 
   const handleDeleteShift = async (id) => {
-    if (!window.confirm('Atenție: Ștergerea schimbului va anula și legăturile cu operatorii. Confirmați?')) return;
+    if (!window.confirm(t('admin.delete_shift_warning'))) return;
     try {
       await api.delete(`/shifts/${id}`);
-      toast.success('Schimb șters');
+      toast.success(t('messages.delete_success'));
       loadShifts();
-    } catch { toast.error('Eroare la ștergere'); }
+    } catch { toast.error(t('messages.delete_error')); }
   };
 
   return (
@@ -77,27 +77,27 @@ export default function AdminDashboard() {
         <header className="mb-10 flex justify-between items-end">
           <div>
             <Badge className="mb-4">Administrative Suite</Badge>
-            <h1 className="font-display text-4xl text-foreground">Panou <span className="gradient-text">Administrator</span></h1>
-            <p className="text-muted-foreground mt-2">Gestionare utilizatori, arii de producție și configuraări schimburi.</p>
+            <h1 className="font-display text-4xl text-foreground">{t('sidebar.admin')}</h1>
+            <p className="text-muted-foreground mt-2">{t('admin.subtitle')}</p>
           </div>
           <div className="flex gap-3">
              {tab === 'users' && (
                 <Button size="sm" onClick={() => { setEditUser(null); setShowUserModal(true); }}>
-                  <Plus size={16} className="mr-2" /> Utilizator Nou
+                  <Plus size={16} className="mr-2" /> {t('common.edit')} {t('roles.operator')}
                 </Button>
              )}
              {tab === 'machines' && (
                 <Button size="sm" onClick={() => setShowAreaModal(true)}>
-                  <Plus size={16} className="mr-2" /> Arie Nouă
+                  <Plus size={16} className="mr-2" /> {t('admin.new_area')}
                 </Button>
              )}
              {tab === 'shifts' && (
                 <div className="flex gap-2">
                   <Button size="sm" variant="secondary" onClick={() => setShowScheduleModal(true)}>
-                    <Calendar size={16} className="mr-2" /> Alocare Zilnică
+                    <Calendar size={16} className="mr-2" /> {t('admin.daily_allocation')}
                   </Button>
                   <Button size="sm" onClick={() => { setEditShift(null); setShowShiftModal(true); }}>
-                    <Plus size={16} className="mr-2" /> Crează schimb nou
+                    <Plus size={16} className="mr-2" /> {t('admin.new_shift')}
                   </Button>
                 </div>
              )}
@@ -106,23 +106,24 @@ export default function AdminDashboard() {
 
         <div className="flex gap-1 mb-8 bg-muted/30 p-1 rounded-xl w-fit border border-border/50">
           {[
-            { id: 'users', label: 'Utilizatori', icon: <Users size={14}/> },
-            { id: 'machines', label: 'Arii & Utilaje', icon: <Factory size={14}/> },
-            { id: 'shifts', label: 'Management Schimburi', icon: <Calendar size={14}/> }
-          ].map((t) => (
+            { id: 'users', label: t('sidebar.users'), icon: <Users size={14}/> },
+            { id: 'machines', label: t('sidebar.areas_machines'), icon: <Factory size={14}/> },
+            { id: 'shifts', label: t('sidebar.manage_shifts'), icon: <Calendar size={14}/> }
+          ].map((item) => (
             <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
+              key={item.id}
+              onClick={() => setTab(item.id)}
               className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                tab === t.id 
-                  ? 'bg-white text-accent shadow-sm ring-1 ring-border/50' 
+                tab === item.id 
+                  ? 'bg-white text-accent shadow-sm' 
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              {t.icon}
-              {t.label}
+              {item.icon}
+              {item.label}
             </button>
           ))}
+
         </div>
 
         <AnimatePresence mode="wait">
@@ -136,18 +137,18 @@ export default function AdminDashboard() {
                   </h3>
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={14} />
-                    <Input className="h-9 py-0 pl-9 w-64 text-sm bg-white" placeholder="Caută utilizator..." />
+                    <Input className="h-9 py-0 pl-9 w-64 text-sm bg-white" placeholder={t('admin.search_user')} />
                   </div>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="bg-muted/30 border-b border-border">
-                        <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Nume Complet</th>
-                        <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Legitimație</th>
-                        <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Rol</th>
-                        <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Skills</th>
-                        <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground text-right">Acțiuni</th>
+                        <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('admin.full_name')}</th>
+                        <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('admin.badge')}</th>
+                        <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('admin.role')}</th>
+                        <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('admin.skills')}</th>
+                        <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground text-right">{t('common.actions')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/50">
@@ -163,7 +164,7 @@ export default function AdminDashboard() {
                           </td>
                           <td className="px-6 py-4">
                             <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-muted text-muted-foreground border border-border">
-                              {ROLES_RO[u.role]}
+                              {t(`roles.${u.role}`)}
                             </span>
                           </td>
                           <td className="px-6 py-4">
@@ -172,7 +173,7 @@ export default function AdminDashboard() {
                                 className="flex items-center gap-1.5 text-xs font-bold text-accent hover:underline"
                                 onClick={() => { setSelectedUserForSkills(u); setShowSkillModal(true); }}
                               >
-                                <Award size={14}/> Gestionează Skills
+                                <Award size={14}/> {t('admin.manage_skills')}
                               </button>
                             )}
                           </td>
@@ -181,7 +182,7 @@ export default function AdminDashboard() {
                               <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => { setEditUser(u); setShowUserModal(true); }}>
                                 <Edit2 size={14}/>
                               </Button>
-                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50" onClick={async () => { if(window.confirm('Dezactivați utilizatorul?')) { await api.delete(`/users/${u.id}`); loadUsers(); } }}>
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50" onClick={async () => { if(window.confirm(t('admin.disable_user_confirm'))) { await api.delete(`/users/${u.id}`); loadUsers(); } }}>
                                 <Trash2 size={14}/>
                               </Button>
                             </div>
@@ -275,7 +276,7 @@ export default function AdminDashboard() {
                     <div className="p-6 border-b border-border bg-muted/5 flex justify-between items-center">
                       <h3 className="font-semibold text-foreground flex items-center gap-2">
                         <Calendar size={18} className="text-accent" />
-                        Programări Zilnice Operatori
+                        {t('admin.daily_schedules')}
                       </h3>
                       <Input className="h-9 py-0 w-48 text-sm bg-white" type="date" value={new Date().toISOString().split('T')[0]} readOnly />
                     </div>
@@ -283,15 +284,15 @@ export default function AdminDashboard() {
                       <table className="w-full text-left border-collapse">
                         <thead>
                           <tr className="bg-muted/30 border-b border-border">
-                            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Dată</th>
-                            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Schimb</th>
-                            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Operator</th>
-                            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Utilaj</th>
-                            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground text-right">Acțiuni</th>
+                            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('admin.date')}</th>
+                            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('sidebar.manage_shifts')}</th>
+                            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('roles.operator')}</th>
+                            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('sidebar.areas_machines')}</th>
+                            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground text-right">{t('common.actions')}</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-border/50">
-                          {schedules.length === 0 && <tr><td colSpan={5} className="p-10 text-center italic text-muted-foreground">Nicio alocare zilnică activă.</td></tr>}
+                          {schedules.length === 0 && <tr><td colSpan={5} className="p-10 text-center italic text-muted-foreground">{t('admin.no_schedules')}</td></tr>}
                           {schedules.map(sch => (
                             <tr key={sch.id} className="hover:bg-accent/[0.02]">
                               <td className="px-6 py-4 font-medium">{sch.work_date}</td>
@@ -357,6 +358,7 @@ function ModalWrapper({ title, children, onClose, maxWidth = "max-w-xl" }) {
 }
 
 function ShiftDefinitionModal({ shift, users, onClose, onSave }) {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     name: shift?.name || '',
     shift_responsible_id: shift?.shift_responsible_id || '',
@@ -378,13 +380,13 @@ function ShiftDefinitionModal({ shift, users, onClose, onSave }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.shift_responsible_id) return toast.error("Selectați un responsabil de schimb");
+    if (!formData.shift_responsible_id) return toast.error(t('admin.select_responsible'));
     try {
       if (shift) await api.put(`/shifts/${shift.id}`, formData);
       else await api.post('/shifts', formData);
-      toast.success('Schimb salvat cu succes');
+      toast.success(t('messages.save_success'));
       onSave();
-    } catch(err) { toast.error(err.response?.data?.error || 'Eroare la salvare'); }
+    } catch(err) { toast.error(err.response?.data?.error || t('messages.save_error')); }
   };
 
   const toggleMember = (userId) => {
@@ -397,30 +399,30 @@ function ShiftDefinitionModal({ shift, users, onClose, onSave }) {
   };
 
   return (
-    <ModalWrapper title={shift ? 'Editare Schimb' : 'Creare Schimb Nou'} onClose={onClose} maxWidth="max-w-2xl">
+    <ModalWrapper title={shift ? `${t('common.edit')} ${t('sidebar.manage_shifts')}` : t('admin.new_shift')} onClose={onClose} maxWidth="max-w-2xl">
       <form onSubmit={handleSubmit} className="space-y-8">
         <div className="space-y-2">
-          <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Denumire Schimb</label>
+          <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">{t('sidebar.manage_shifts')}</label>
           <Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="ex: Schimbul A" required />
         </div>
 
         <div className="grid grid-cols-2 gap-6">
            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Ora Start</label>
+              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">{t('operator.delay.from_hour')}</label>
               <Input type="time" value={formData.start_time} onChange={e => setFormData({...formData, start_time: e.target.value})} required />
            </div>
            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Ora Sfârșit</label>
+              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">{t('admin.end_time')}</label>
               <Input type="time" value={formData.end_time} onChange={e => setFormData({...formData, end_time: e.target.value})} required />
            </div>
         </div>
 
         <div className="space-y-2">
           <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1 flex items-center gap-2">
-            <ShieldCheck size={14} className="text-accent"/> Responsabil Schimb
+            <ShieldCheck size={14} className="text-accent"/> {t('roles.shift_responsible')}
           </label>
           <select className="w-full h-12 rounded-xl border border-border bg-white px-4 focus:ring-2 focus:ring-accent outline-none" value={formData.shift_responsible_id} onChange={e => setFormData({...formData, shift_responsible_id: e.target.value})} required>
-            <option value="">Selectați responsabilul...</option>
+            <option value="">{t('admin.select_responsible_placeholder')}</option>
             {users.filter(u => u.role === 'shift_responsible').map(u => (
               <option key={u.id} value={u.id}>{u.first_name} {u.last_name} ({u.badge_number})</option>
             ))}
@@ -430,7 +432,7 @@ function ShiftDefinitionModal({ shift, users, onClose, onSave }) {
         <div className="space-y-4">
           <div className="flex justify-between items-center border-b border-border pb-2">
              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-               <Users size={14}/> Operatori în Schimb ({formData.members.length})
+               <Users size={14}/> {t('admin.operators_in_shift', { count: formData.members.length })}
              </label>
           </div>
           <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-2">
@@ -467,47 +469,48 @@ function ShiftDefinitionModal({ shift, users, onClose, onSave }) {
 
 function ScheduleModal({ users, machines, shifts, onClose, onSave }) {
   const [form, setForm] = useState({ user_id:'', machine_id:'', shift_id:'', work_date: new Date().toISOString().split('T')[0] });
+  const { t } = useTranslation();
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       await api.post('/shifts/schedule', form);
-      toast.success('Programare salvată');
+      toast.success(t('messages.save_success'));
       onSave();
     } catch(err) { toast.error(err.response?.data?.error || 'Eroare'); }
   };
   return (
-    <ModalWrapper title="Alocare Zilnică Operator" onClose={onClose}>
+    <ModalWrapper title={t('admin.allocation_modal_title')} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-2">
-          <label className="text-sm font-medium ml-1">Dată Lucru</label>
+          <label className="text-sm font-medium ml-1">{t('admin.work_date')}</label>
           <Input type="date" value={form.work_date} onChange={e=>setForm(p=>({...p,work_date:e.target.value}))} required />
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-medium ml-1">Schimb</label>
+          <label className="text-sm font-medium ml-1">{t('sidebar.manage_shifts')}</label>
           <select className="w-full h-12 rounded-xl border border-border bg-white px-4 focus:ring-2 focus:ring-accent outline-none" value={form.shift_id} onChange={e=>setForm(p=>({...p,shift_id:e.target.value}))} required>
-            <option value="">Selectează schimb...</option>
+            <option value="">{t('admin.select_shift')}</option>
             {shifts.map(s => <option key={s.id} value={s.id}>{s.name} ({s.start_time}-{s.end_time})</option>)}
           </select>
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium ml-1">Utilaj</label>
+            <label className="text-sm font-medium ml-1">{t('sidebar.areas_machines')}</label>
             <select className="w-full h-12 rounded-xl border border-border bg-white px-4 focus:ring-2 focus:ring-accent outline-none" value={form.machine_id} onChange={e=>setForm(p=>({...p,machine_id:e.target.value}))} required>
-              <option value="">Selectează utilaj...</option>
+              <option value="">{t('admin.select_machine')}</option>
               {machines.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
             </select>
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium ml-1">Operator</label>
+            <label className="text-sm font-medium ml-1">{t('roles.operator')}</label>
             <select className="w-full h-12 rounded-xl border border-border bg-white px-4 focus:ring-2 focus:ring-accent outline-none" value={form.user_id} onChange={e=>setForm(p=>({...p,user_id:e.target.value}))} required>
-              <option value="">Selectează operator...</option>
+              <option value="">{t('admin.select_operator')}</option>
               {users.filter(u=>u.role==='operator').map(u => <option key={u.id} value={u.id}>{u.first_name} {u.last_name}</option>)}
             </select>
           </div>
         </div>
         <div className="pt-4 flex justify-end gap-3">
-          <Button variant="secondary" onClick={onClose} type="button">Anulare</Button>
-          <Button type="submit">Salvare Alocare</Button>
+          <Button variant="secondary" onClick={onClose} type="button">{t('common.cancel')}</Button>
+          <Button type="submit">{t('common.save')}</Button>
         </div>
       </form>
     </ModalWrapper>
@@ -515,6 +518,7 @@ function ScheduleModal({ users, machines, shifts, onClose, onSave }) {
 }
 
 function SkillModal({ user, areas, onClose }) {
+  const { t } = useTranslation();
   const [userSkills, setUserSkills] = useState({}); // machine_id -> { skill_level, expiration_date }
   const [loading, setLoading] = useState(true);
 
@@ -553,7 +557,7 @@ function SkillModal({ user, areas, onClose }) {
         expiration_date: data.expiration_date
       }));
       await api.post(`/users/${user.id}/skills`, { skills: payload });
-      toast.success('Skill-uri și calificări actualizate cu succes!');
+      toast.success(t('admin.skills_success'));
       onClose();
     } catch (err) { 
       toast.error('Eroare la salvarea skill-urilor'); 
@@ -561,8 +565,8 @@ function SkillModal({ user, areas, onClose }) {
   };
 
   return (
-    <ModalWrapper title={`Skills Operator: ${user.first_name}`} onClose={onClose} maxWidth="max-w-3xl">
-      <p className="text-muted-foreground mb-6 text-sm">Selectați utilajele pe care acest operator este autorizat să le deservească.</p>
+    <ModalWrapper title={`${t('admin.skills')} Operator: ${user.first_name}`} onClose={onClose} maxWidth="max-w-3xl">
+      <p className="text-muted-foreground mb-6 text-sm">{t('admin.skills_prompt')}</p>
       <div className="max-h-[50vh] overflow-y-auto pr-2 space-y-6">
         {areas.map(area => (
           <div key={area.id}>
@@ -591,17 +595,18 @@ function SkillModal({ user, areas, onClose }) {
                         value={userSkills[m.id].skill_level}
                         onChange={(e) => updateSkillAttr(m.id, 'skill_level', e.target.value)}
                       >
-                        <option value="trainee">Începător (Trainee)</option>
+                        <option value="trainee">{t('admin.trainee')}</option>
                         <option value="independent">Independent</option>
                         <option value="expert">Expert / Trainer</option>
-                      </select>
-                      <input 
-                        type="date" 
+                        </select>
+                        <input 
+                        type="date"
                         className="w-full text-[10px] p-2 rounded-md border border-accent/30 bg-white outline-none"
-                        value={userSkills[m.id].expiration_date}
+                        value={userSkills[m.id].expiration_date || ''}
                         onChange={(e) => updateSkillAttr(m.id, 'expiration_date', e.target.value)}
-                        title="Data expirare calificare (opțional)"
-                      />
+                        title={t('admin.expiry_date_optional')}
+                        />
+
                     </div>
                   )}
                 </div>
@@ -611,14 +616,15 @@ function SkillModal({ user, areas, onClose }) {
         ))}
       </div>
       <div className="mt-8 flex justify-end gap-3">
-        <Button variant="secondary" onClick={onClose}>Anulare</Button>
-        <Button onClick={saveSkills}>Salvează Configurarea</Button>
+        <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
+        <Button onClick={saveSkills}>{t('admin.save_config')}</Button>
       </div>
     </ModalWrapper>
   );
 }
 
 function UserModal({ user, onClose, onSave }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState({ first_name:user?.first_name||'', last_name:user?.last_name||'', badge_number:user?.badge_number||'', role:user?.role||'operator', password:'' });
   const [loading, setLoading] = useState(false);
   
@@ -635,37 +641,37 @@ function UserModal({ user, onClose, onSave }) {
   };
 
   return (
-    <ModalWrapper title={user ? 'Editare Profil' : 'Utilizator Nou'} onClose={onClose}>
+    <ModalWrapper title={user ? `${t('common.edit')} ${t('sidebar.users')}` : t('admin.new_shift')} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium ml-1">Prenume</label>
+            <label className="text-sm font-medium ml-1">{t('admin.first_name')}</label>
             <Input value={form.first_name} onChange={e=>setForm(p=>({...p,first_name:e.target.value}))} required />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium ml-1">Nume de Familie</label>
+            <label className="text-sm font-medium ml-1">{t('admin.last_name')}</label>
             <Input value={form.last_name} onChange={e=>setForm(p=>({...p,last_name:e.target.value}))} required />
           </div>
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium ml-1">Număr Legitimație</label>
+            <label className="text-sm font-medium ml-1">{t('admin.badge')}</label>
             <Input value={form.badge_number} onChange={e=>setForm(p=>({...p,badge_number:e.target.value.toUpperCase()}))} required disabled={!!user} />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium ml-1">Rol Sistem</label>
+            <label className="text-sm font-medium ml-1">{t('admin.system_role')}</label>
             <select className="w-full h-12 rounded-xl border border-border bg-white px-4 focus:ring-2 focus:ring-accent outline-none" value={form.role} onChange={e=>setForm(p=>({...p,role:e.target.value}))}>
-              {Object.entries(ROLES_RO).map(([v,l]) => <option key={v} value={v}>{l}</option>)}
+              {['administrator', 'planner', 'area_supervisor', 'shift_responsible', 'operator'].map((v) => <option key={v} value={v}>{t(`roles.${v}`)}</option>)}
             </select>
           </div>
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-medium ml-1">Parolă {user && '(lăsați gol pentru neschimbată)'}</label>
+          <label className="text-sm font-medium ml-1">{t('admin.password')} {user && `(${t('admin.password_placeholder')})`}</label>
           <Input type="password" value={form.password} onChange={e=>setForm(p=>({...p,password:e.target.value}))} required={!user} />
         </div>
         <div className="pt-4 flex justify-end gap-3">
-          <Button variant="secondary" onClick={onClose} type="button">Anulare</Button>
-          <Button type="submit" disabled={loading}>{loading ? 'Se salvează...' : 'Salvare Profil'}</Button>
+          <Button variant="secondary" onClick={onClose} type="button">{t('common.cancel')}</Button>
+          <Button type="submit" disabled={loading}>{loading ? t('admin.saving') : t('admin.save_profile')}</Button>
         </div>
       </form>
     </ModalWrapper>
@@ -673,29 +679,30 @@ function UserModal({ user, onClose, onSave }) {
 }
 
 function AreaModal({ onClose, onSave }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState({ name:'', description:'' });
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       await api.post('/machines/areas', form);
-      toast.success('Arie creată cu succes');
+      toast.success(t('admin.area_success'));
       onSave();
-    } catch(err) { toast.error('Eroare la creare arie'); }
+    } catch(err) { toast.error(err.response?.data?.error || t('messages.save_error')); }
   };
   return (
-    <ModalWrapper title="Arie Nouă de Producție" onClose={onClose}>
+    <ModalWrapper title={t('admin.new_area_title')} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-2">
-          <label className="text-sm font-medium ml-1">Denumire Arie</label>
+          <label className="text-sm font-medium ml-1">{t('admin.area_name')}</label>
           <Input value={form.name} onChange={e=>setForm(p=>({...p,name:e.target.value}))} required placeholder="ex: Aria Debitari" />
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-medium ml-1">Descriere (Optional)</label>
-          <Input value={form.description} onChange={e=>setForm(p=>({...p,description:e.target.value}))} placeholder="Configurări speciale..." />
+          <label className="text-sm font-medium ml-1">{t('admin.description_optional')}</label>
+          <Input value={form.description} onChange={e=>setForm(p=>({...p,description:e.target.value}))} placeholder={t('admin.special_configs')} />
         </div>
         <div className="pt-4 flex justify-end gap-3">
-          <Button variant="secondary" onClick={onClose} type="button">Anulare</Button>
-          <Button type="submit">Creare Arie</Button>
+          <Button variant="secondary" onClick={onClose} type="button">{t('common.cancel')}</Button>
+          <Button type="submit">{t('admin.create_area')}</Button>
         </div>
       </form>
     </ModalWrapper>
@@ -703,6 +710,7 @@ function AreaModal({ onClose, onSave }) {
 }
 
 function MachineModal({ machine, area, onClose, onSave }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState({ name:machine?.name||'', setup_time_min:machine?.setup_time_min||30, working_time_min:machine?.working_time_min||480, supervision_time_min:machine?.supervision_time_min||30 });
   
   const handleSubmit = async (e) => {
@@ -710,31 +718,31 @@ function MachineModal({ machine, area, onClose, onSave }) {
     try {
       if (machine) await api.put(`/machines/${machine.id}`, form);
       else await api.post('/machines', { ...form, area_id: area.id });
-      toast.success(machine ? 'Utilaj actualizat' : 'Utilaj creat');
+      toast.success(machine ? t('admin.machine_updated') : t('admin.machine_created'));
       onSave();
-    } catch(err) { toast.error('Eroare la configurare utilaj'); }
+    } catch(err) { toast.error(t('messages.save_error')); }
   };
 
   return (
-    <ModalWrapper title={machine ? 'Editare Utilaj' : `Utilaj Nou — ${area?.name}`} onClose={onClose}>
+    <ModalWrapper title={machine ? t('admin.edit_machine') : `${t('admin.new_machine')} — ${area?.name}`} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-2">
-          <label className="text-sm font-medium ml-1">Denumire Utilaj</label>
+          <label className="text-sm font-medium ml-1">{t('admin.machine_name')}</label>
           <Input value={form.name} onChange={e=>setForm(p=>({...p,name:e.target.value}))} required />
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium ml-1">Timp Setup (min)</label>
+            <label className="text-sm font-medium ml-1">{t('admin.setup_time')}</label>
             <Input type="number" value={form.setup_time_min} onChange={e=>setForm(p=>({...p,setup_time_min:+e.target.value}))} />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium ml-1">Timp Operare (min)</label>
+            <label className="text-sm font-medium ml-1">{t('admin.working_time')}</label>
             <Input type="number" value={form.working_time_min} onChange={e=>setForm(p=>({...p,working_time_min:+e.target.value}))} />
           </div>
         </div>
         <div className="pt-4 flex justify-end gap-3">
-          <Button variant="secondary" onClick={onClose} type="button">Anulare</Button>
-          <Button type="submit">Salvează Configurări</Button>
+          <Button variant="secondary" onClick={onClose} type="button">{t('common.cancel')}</Button>
+          <Button type="submit">{t('admin.save_configs')}</Button>
         </div>
       </form>
     </ModalWrapper>

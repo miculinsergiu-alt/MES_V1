@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts';
 import { LayoutDashboard, TrendingUp, Clock, Activity, CheckCircle, Target, AlertCircle, DollarSign } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import Sidebar from '../../components/Sidebar';
 import api from '../../api/axios';
 import { useSocket } from '../../contexts/SocketContext';
@@ -10,6 +11,7 @@ import { Card } from '../../components/ui/Card';
 const COLORS = ['#ef4444', '#f59e0b', '#3b82f6', '#8b5cf6', '#10b981', '#64748b'];
 
 export default function OEEPage() {
+  const { t } = useTranslation();
   const [stats, setStats] = useState(null);
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -69,9 +71,9 @@ export default function OEEPage() {
   }, [socket]);
 
   const navItems = [
-    { path: '/supervisor', label: 'Dashboard', icon: <LayoutDashboard size={16}/> },
-    { path: '/supervisor/oee', label: 'Analitice OEE', icon: <TrendingUp size={16}/> },
-    { path: '/supervisor/maintenance', label: 'Mentenanță', icon: <Clock size={16}/> }
+    { path: '/supervisor', labelKey: 'sidebar.dashboard', icon: <LayoutDashboard size={16}/> },
+    { path: '/supervisor/oee', labelKey: 'sidebar.oee_analytics', icon: <TrendingUp size={16}/> },
+    { path: '/supervisor/maintenance', labelKey: 'sidebar.maintenance', icon: <Clock size={16}/> }
   ];
 
   if (loading || !stats) {
@@ -86,9 +88,9 @@ export default function OEEPage() {
   }
 
   const globalData = [
-    { name: 'Disponibilitate', value: stats.overall_availability, color: '#3b82f6' },
-    { name: 'Performanță', value: stats.overall_performance, color: '#10b981' },
-    { name: 'Calitate', value: stats.overall_quality, color: '#f59e0b' }
+    { name: t('analytics.availability'), value: stats.overall_availability, color: '#3b82f6' },
+    { name: t('analytics.performance'), value: stats.overall_performance, color: '#10b981' },
+    { name: t('analytics.quality'), value: stats.overall_quality, color: '#f59e0b' }
   ];
 
   return (
@@ -98,7 +100,7 @@ export default function OEEPage() {
         <header className="mb-10">
           <Badge className="mb-4">OEE Engine v2.0</Badge>
           <h1 className="font-display text-4xl text-foreground">Overall Equipment <span className="gradient-text">Effectiveness</span></h1>
-          <p className="text-muted-foreground mt-2">Monitorizare în timp real a performanței utilajelor și a abaterilor de proces.</p>
+          <p className="text-muted-foreground mt-2">{t('analytics.oee_subtitle')}</p>
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -106,31 +108,31 @@ export default function OEEPage() {
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-accent to-blue-400"></div>
             <Target size={24} className="text-accent mb-4 opacity-50" />
             <div className="text-5xl font-display text-accent mb-2">{stats.overall_oee}%</div>
-            <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">OEE GLOBAL</div>
+            <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t('analytics.global_oee')}</div>
           </Card>
           
           <Card className="flex flex-col justify-center items-center py-8">
             <Activity size={24} className="text-blue-500 mb-4 opacity-50" />
             <div className="text-4xl font-display text-foreground mb-2">{stats.overall_availability}%</div>
-            <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Disponibilitate</div>
+            <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t('analytics.availability')}</div>
           </Card>
           
           <Card className="flex flex-col justify-center items-center py-8">
             <TrendingUp size={24} className="text-green-500 mb-4 opacity-50" />
             <div className="text-4xl font-display text-foreground mb-2">{stats.overall_performance}%</div>
-            <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Performanță</div>
+            <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t('analytics.performance')}</div>
           </Card>
           
           <Card className="flex flex-col justify-center items-center py-8">
             <CheckCircle size={24} className="text-amber-500 mb-4 opacity-50" />
             <div className="text-4xl font-display text-foreground mb-2">{stats.overall_quality}%</div>
-            <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Calitate</div>
+            <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t('analytics.quality')}</div>
           </Card>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           <Card>
-            <h3 className="font-semibold text-foreground mb-6">Componente OEE (Global)</h3>
+            <h3 className="font-semibold text-foreground mb-6">{t('analytics.oee_components')}</h3>
             <div className="h-72 w-full">
               <ResponsiveContainer>
                 <BarChart data={globalData}>
@@ -147,7 +149,7 @@ export default function OEEPage() {
           </Card>
 
           <Card>
-            <h3 className="font-semibold text-foreground mb-6">OEE per Utilaj</h3>
+            <h3 className="font-semibold text-foreground mb-6">{t('analytics.oee_per_machine')}</h3>
             <div className="h-72 w-full">
               <ResponsiveContainer>
                 <BarChart data={stats.by_machine} layout="vertical">
@@ -233,17 +235,17 @@ export default function OEEPage() {
 
         <Card className="p-0 overflow-hidden">
           <div className="p-6 border-b border-border bg-muted/5">
-            <h3 className="font-semibold text-foreground">Analiză Detaliată per Stație</h3>
+            <h3 className="font-semibold text-foreground">{t('analytics.production_log')}</h3>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
                 <tr className="bg-muted/30 border-b border-border">
-                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Utilaj</th>
-                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Scor OEE</th>
-                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Disponibilitate</th>
-                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Performanță</th>
-                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Calitate</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('analytics.machine')}</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('analytics.oee')}</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('analytics.availability')}</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('analytics.performance')}</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('analytics.quality')}</th>
                   <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground text-right">Piese (OK/FAIL)</th>
                 </tr>
               </thead>
@@ -267,7 +269,7 @@ export default function OEEPage() {
                   </tr>
                 ))}
                 {stats.by_machine.length === 0 && (
-                  <tr><td colSpan="6" className="p-8 text-center text-muted-foreground italic">Nu există date de producție pentru calcularea OEE.</td></tr>
+                  <tr><td colSpan="6" className="p-8 text-center text-muted-foreground italic">{t('analytics.no_oee_data')}</td></tr>
                 )}
               </tbody>
             </table>

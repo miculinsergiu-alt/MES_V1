@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Box, Plus, Search, Edit2, Trash2, X, Factory, Clock, DollarSign, List, FileText, ChevronRight, Printer, TrendingUp, Zap } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Box, Plus, Search, Edit2, Trash2, X, Factory, Clock, DollarSign, List, FileText, ChevronRight, Printer, TrendingUp, Zap, GitBranch } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
@@ -9,13 +10,17 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { Badge } from '../../components/ui/Badge';
+import BOMEditor, { serverToClient, clientToServer } from './BOMEditor';
 
 export default function ItemsManager() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState('items'); // 'items' or 'boms'
   const [items, setItems] = useState([]);
   const [machines, setMachines] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchCode, setSearchCode] = useState('');
+  const [searchName, setSearchName] = useState('');
   
   // Modals
   const [showItemModal, setShowItemModal] = useState(false);
@@ -41,10 +46,22 @@ export default function ItemsManager() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  // Auto-open BOM editor when navigating back from BOMViewerPage
+  useEffect(() => {
+    const editBomId = location.state?.editBomId;
+    if (editBomId && items.length > 0) {
+      setActiveTab('boms');
+      setEditingBOM({ id: editBomId });
+      setShowBOMModal(true);
+      // Clear state to prevent re-opening on refresh
+      window.history.replaceState({}, '');
+    }
+  }, [location.state, items]);
+
   const navItems = [
-    { path:'/planner/gantt', label:'Plan Producție', icon:<Clock size={16}/> },
-    { path:'/planner/orders', label:'Gestionare Comenzi', icon:<FileText size={16}/> },
-    { path:'/planner/items', label:'Nomenclator & BOM', icon:<Box size={16}/> },
+    { path:'/planner/gantt', labelKey:'sidebar.production_plan', icon:<Clock size={16}/> },
+    { path:'/planner/orders', labelKey:'sidebar.manage_orders', icon:<FileText size={16}/> },
+    { path:'/planner/items', labelKey:'sidebar.items_bom', icon:<Box size={16}/> },
   ];
 
   return (
@@ -58,15 +75,26 @@ export default function ItemsManager() {
             <p className="text-muted-foreground mt-2">Administrare articole, rute de producție și rețete de fabricație.</p>
           </div>
           <div className="flex gap-3">
+          <div className="flex gap-2">
+             <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+                <Input 
+                  className="pl-10 w-48 bg-white" 
+                  placeholder="Cod articol..." 
+                  value={searchCode}
+                  onChange={(e) => setSearchCode(e.target.value)}
+                />
+             </div>
              <div className="relative mr-4">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
                 <Input 
                   className="pl-10 w-64 bg-white" 
-                  placeholder="Caută cod sau denumire..." 
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Denumire / Descriere..." 
+                  value={searchName}
+                  onChange={(e) => setSearchName(e.target.value)}
                 />
              </div>
+          </div>
              {activeTab === 'items' ? (
                 <Button onClick={() => { setEditingItem(null); setShowItemModal(true); }}>
                   <Plus size={16} className="mr-2" /> Articol Nou
@@ -103,7 +131,10 @@ export default function ItemsManager() {
           {activeTab === 'items' ? (
             <motion.div key="items" initial={{opacity:0, y:10}} animate={{opacity:1, y:0}} exit={{opacity:0, y:-10}}>
               <ItemsList 
-                items={items.filter(i => i.item_code.toLowerCase().includes(searchTerm.toLowerCase()) || i.name.toLowerCase().includes(searchTerm.toLowerCase()))} 
+                items={items.filter(i => 
+                  (i.item_code.toLowerCase().includes(searchCode.toLowerCase())) &&
+                  (i.name.toLowerCase().includes(searchName.toLowerCase()))
+                )} 
                 onEdit={(item) => { setEditingItem(item); setShowItemModal(true); }}
                 loading={loading}
               />
@@ -111,10 +142,13 @@ export default function ItemsManager() {
           ) : (
             <motion.div key="boms" initial={{opacity:0, y:10}} animate={{opacity:1, y:0}} exit={{opacity:0, y:-10}}>
               <BOMList 
-                searchTerm={searchTerm}
+                searchCode={searchCode}
+                searchName={searchName}
                 onEdit={(bom) => { setEditingBOM(bom); setShowBOMModal(true); }}
                 onPrint={(bom) => setShowPrintPreview(bom)}
                 items={items}
+                refreshKey={showBOMModal}
+                navigate={navigate}
               />
             </motion.div>
           )}
@@ -388,11 +422,12 @@ function ItemModal({ item, machines, onClose, onSave }) {
   );
 }
 
-function BOMList({ searchTerm, onEdit, onPrint, items }) {
+function BOMList({ searchCode, searchName, onEdit, onPrint, items, refreshKey, navigate }) {
   const [boms, setBoms] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const loadBoms = useCallback(async () => {
+    setLoading(true);
     try {
       const res = await api.get('/boms');
       setBoms(res.data);
@@ -401,14 +436,13 @@ function BOMList({ searchTerm, onEdit, onPrint, items }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [refreshKey]);
 
   useEffect(() => { loadBoms(); }, [loadBoms]);
 
-  const filtered = boms.filter(b => 
-    b.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    b.parent_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    b.parent_name?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filtered = boms.filter(b =>
+    (b.name.toLowerCase().includes(searchName.toLowerCase()) || b.description?.toLowerCase().includes(searchName.toLowerCase())) &&
+    (b.parent_code?.toLowerCase().includes(searchCode.toLowerCase()))
   );
 
   if (loading) return <div className="p-20 text-center italic text-muted-foreground animate-pulse">Se încarcă listele BOM...</div>;
@@ -419,32 +453,54 @@ function BOMList({ searchTerm, onEdit, onPrint, items }) {
         <thead>
           <tr className="bg-muted/30 border-b border-border">
             <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Nume BOM</th>
-            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Articol Părinte</th>
+            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Produs Finit</th>
             <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Descriere</th>
-            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground text-right">Acțiuni</th>
+            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Acțiuni
+              <span className="ml-2 text-[9px] normal-case font-normal opacity-50">(dublu-click pe rând = deschide)</span>
+            </th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border/50">
           {filtered.map(bom => (
-            <tr key={bom.id} className="hover:bg-accent/[0.02] group">
-              <td className="px-6 py-4 font-bold text-foreground">{bom.name}</td>
+            <tr
+              key={bom.id}
+              className="hover:bg-accent/[0.04] group cursor-pointer select-none transition-colors"
+              onDoubleClick={() => navigate(`/planner/boms/${bom.id}`)}
+              title="Dublu-click pentru a deschide BOM-ul"
+            >
+              <td className="px-6 py-4">
+                <div className="font-bold text-foreground">{bom.name}</div>
+                {bom.max_level > 1 && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 mt-1">
+                    <GitBranch size={10}/> {bom.max_level} nivele · {bom.total_positions} poz.
+                  </span>
+                )}
+              </td>
               <td className="px-6 py-4">
                 {bom.parent_code ? (
                   <div className="flex flex-col">
                     <span className="font-mono text-[10px] font-black text-accent">{bom.parent_code}</span>
                     <span className="text-sm font-medium">{bom.parent_name}</span>
                   </div>
-                ) : <span className="text-muted-foreground italic text-xs">Nespeficicat</span>}
+                ) : <span className="text-muted-foreground italic text-xs">Nespecificat</span>}
               </td>
               <td className="px-6 py-4 text-sm text-muted-foreground">{bom.description || '-'}</td>
               <td className="px-6 py-4 text-right">
                 <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <Button variant="ghost" size="sm" onClick={() => onEdit(bom)}><Edit2 size={14}/></Button>
                   <Button variant="ghost" size="sm" onClick={() => onPrint(bom)}><Printer size={14}/></Button>
+                  <Button variant="ghost" size="sm" className="text-red-500 hover:bg-red-50" onClick={async () => {
+                    if (!window.confirm(`Ștergi BOM-ul "${bom.name}"?`)) return;
+                    try { await api.delete(`/boms/${bom.id}`); toast.success('BOM șters'); loadBoms(); }
+                    catch { toast.error('Eroare la ștergere'); }
+                  }}><Trash2 size={14}/></Button>
                 </div>
               </td>
             </tr>
           ))}
+          {filtered.length === 0 && (
+            <tr><td colSpan={4} className="px-6 py-16 text-center text-muted-foreground italic text-sm">Niciun BOM găsit. Creează primul BOM multi-nivel.</td></tr>
+          )}
         </tbody>
       </table>
     </Card>
@@ -452,158 +508,87 @@ function BOMList({ searchTerm, onEdit, onPrint, items }) {
 }
 
 function BOMModal({ bom, items, onClose, onSave }) {
-  const [formData, setFormData] = useState({
-    name: '',
-    parent_item_id: '',
-    description: '',
-    positions: []
-  });
-  const [requirements, setRequirements] = useState([]);
+  const [formData, setFormData] = useState({ name: '', parent_item_id: '', description: '' });
+  const [tree, setTree] = useState([]);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    api.get('/boms/requirements').then(res => setRequirements(res.data));
     if (bom?.id) {
-      api.get(`/boms/${bom.id}`).then(res => setFormData(res.data));
+      api.get(`/boms/${bom.id}`).then(res => {
+        setFormData({ name: res.data.name, parent_item_id: res.data.parent_item_id || '', description: res.data.description || '' });
+      });
+      api.get(`/boms/${bom.id}/tree`).then(res => {
+        setTree(serverToClient(res.data.tree || []));
+      });
     }
   }, [bom]);
 
-  const addPosition = () => {
-    setFormData({
-      ...formData,
-      positions: [...formData.positions, {
-        item_id: items[0]?.id,
-        position_code: `${(formData.positions.length + 1) * 10}/1`,
-        quantity: 1,
-        start_date: '',
-        finish_date: '',
-        location: 'WH1',
-        requirement_id: null
-      }]
-    });
-  };
-
-  const calculateTotalStandardCost = () => {
-    return formData.positions.reduce((sum, pos) => {
-      const item = items.find(i => i.id === pos.item_id);
-      return sum + (item ? (item.acquisition_cost || 0) * pos.quantity : 0);
-    }, 0);
-  };
+  const calcCost = (nodes) => nodes.reduce((sum, n) => {
+    const item = items.find(i => i.id === n.item_id);
+    const self = item ? (item.acquisition_cost || 0) * (n.quantity || 1) : 0;
+    return sum + self + calcCost(n.children || []);
+  }, 0);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setSaving(true);
     try {
-      if (bom) await api.put(`/boms/${bom.id}`, formData);
-      else await api.post('/boms', formData);
-      toast.success('BOM salvat');
+      const payload = { ...formData, parent_item_id: formData.parent_item_id || null, tree: clientToServer(tree) };
+      if (bom?.id) await api.put(`/boms/${bom.id}`, payload);
+      else await api.post('/boms', payload);
+      toast.success('BOM salvat cu succes!');
       onSave();
     } catch (err) {
-      toast.error('Eroare la salvare BOM');
+      toast.error(err.response?.data?.error || 'Eroare la salvare BOM');
+    } finally {
+      setSaving(false);
     }
   };
 
+  const finishedGoods = items.filter(i => i.type === 'finished_good');
+
   return (
-    <ModalWrapper title={bom ? 'Editare BOM' : 'Creare BOM Nou'} onClose={onClose} maxWidth="max-w-5xl">
+    <ModalWrapper title={bom ? 'Editare BOM Multi-Nivel' : 'Creare BOM Multi-Nivel'} onClose={onClose} maxWidth="max-w-5xl">
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid grid-cols-2 gap-6">
-          <div className="space-y-2">
-            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Nume BOM</label>
-            <Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required />
-          </div>
-          <div className="space-y-2">
-            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Articol Părinte (opțional)</label>
-            <select className="w-full h-12 rounded-xl border border-border bg-white px-4 focus:ring-2 focus:ring-accent outline-none" value={formData.parent_item_id || ''} onChange={e => setFormData({...formData, parent_item_id: e.target.value})}>
-              <option value="">Nespecificat</option>
-              {items.map(i => <option key={i.id} value={i.id}>{i.item_code} - {i.name}</option>)}
+        {/* Header fields */}
+        <div className="grid grid-cols-3 gap-4">
+          <div className="space-y-1">
+            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Produs Finit</label>
+            <select className="w-full h-11 rounded-xl border border-border bg-white px-3 text-sm focus:ring-2 focus:ring-accent outline-none" value={formData.parent_item_id || ''} onChange={e => setFormData({...formData, parent_item_id: e.target.value})}>
+              <option value="">— Selectează produs finit —</option>
+              {finishedGoods.map(i => <option key={i.id} value={i.id}>{i.item_code} — {i.name}</option>)}
             </select>
           </div>
-        </div>
-        <div className="space-y-2">
-          <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Descriere Generală</label>
-          <Input value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} />
+          <div className="space-y-1">
+            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Nume BOM</label>
+            <Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required placeholder="ex: BOM CABIN 767 Rev.A"/>
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Descriere</label>
+            <Input value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} placeholder="Opțional"/>
+          </div>
         </div>
 
-        <div className="space-y-4">
-          <div className="flex justify-between items-center border-b border-border pb-2">
-            <h4 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2">Componente (Poziții)</h4>
-            <div className="flex items-center gap-4">
-               <div className="bg-accent/10 px-3 py-1 rounded-lg border border-accent/20 flex gap-2 items-baseline">
-                  <span className="text-[9px] font-black uppercase text-accent">Cost Std:</span>
-                  <span className="text-sm font-mono font-bold">{calculateTotalStandardCost().toFixed(2)}</span>
-               </div>
-               <Button type="button" variant="secondary" size="sm" onClick={addPosition}><Plus size={14} className="mr-1"/> Adaugă Poziție</Button>
-            </div>
-          </div>
-          <div className="overflow-x-auto max-h-96 pr-2">
-            <table className="w-full text-left">
-              <thead className="sticky top-0 bg-white z-10">
-                <tr className="border-b border-border bg-muted/10">
-                  <th className="px-4 py-2 text-[10px] font-bold uppercase text-muted-foreground">Poz.</th>
-                  <th className="px-4 py-2 text-[10px] font-bold uppercase text-muted-foreground">Articol</th>
-                  <th className="px-4 py-2 text-[10px] font-bold uppercase text-muted-foreground text-center">Cantitate</th>
-                  <th className="px-4 py-2 text-[10px] font-bold uppercase text-muted-foreground">Cost Std.</th>
-                  <th className="px-4 py-2 text-[10px] font-bold uppercase text-muted-foreground">Locație</th>
-                  <th className="px-4 py-2 text-[10px] font-bold uppercase text-muted-foreground">Requirement</th>
-                  <th className="px-4 py-2"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/50">
-                {formData.positions.map((p, i) => {
-                  const item = items.find(it => it.id === p.item_id);
-                  return (
-                  <tr key={i} className="hover:bg-accent/[0.01]">
-                    <td className="px-2 py-2"><Input className="h-9 font-mono text-xs w-20" value={p.position_code} onChange={e => {
-                      const newPos = [...formData.positions];
-                      newPos[i].position_code = e.target.value;
-                      setFormData({...formData, positions: newPos});
-                    }} /></td>
-                    <td className="px-2 py-2">
-                      <select className="h-9 w-48 rounded-lg border border-border px-2 text-xs outline-none focus:ring-1 ring-accent" value={p.item_id} onChange={e => {
-                        const newPos = [...formData.positions];
-                        newPos[i].item_id = parseInt(e.target.value);
-                        setFormData({...formData, positions: newPos});
-                      }}>
-                        {items.map(item => <option key={item.id} value={item.id}>{item.item_code} - {item.name}</option>)}
-                      </select>
-                    </td>
-                    <td className="px-2 py-2"><Input type="number" className="h-9 w-20 text-center text-xs" value={p.quantity} onChange={e => {
-                      const newPos = [...formData.positions];
-                      newPos[i].quantity = parseFloat(e.target.value);
-                      setFormData({...formData, positions: newPos});
-                    }} /></td>
-                    <td className="px-4 py-2 font-mono text-xs text-muted-foreground">
-                      {item ? ((item.acquisition_cost || 0) * p.quantity).toFixed(2) : '-'}
-                    </td>
-                    <td className="px-2 py-2"><Input className="h-9 w-24 text-xs" value={p.location || ''} onChange={e => {
-                      const newPos = [...formData.positions];
-                      newPos[i].location = e.target.value;
-                      setFormData({...formData, positions: newPos});
-                    }} /></td>
-                    <td className="px-2 py-2">
-                      <select className="h-9 w-32 rounded-lg border border-border px-2 text-xs outline-none" value={p.requirement_id || ''} onChange={e => {
-                        const newPos = [...formData.positions];
-                        newPos[i].requirement_id = e.target.value ? parseInt(e.target.value) : null;
-                        setFormData({...formData, positions: newPos});
-                      }}>
-                        <option value="">Niciunul</option>
-                        {requirements.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                      </select>
-                    </td>
-                    <td className="px-2 py-2 text-right">
-                      <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-500" onClick={() => {
-                        const newPos = formData.positions.filter((_, idx) => idx !== i);
-                        setFormData({...formData, positions: newPos});
-                      }}><Trash2 size={14}/></Button>
-                    </td>
-                  </tr>
-                )})}
-              </tbody>
-            </table>
-          </div>
+        {/* Legend */}
+        <div className="flex items-center gap-3 text-[10px] font-bold flex-wrap">
+          <span className="text-muted-foreground uppercase tracking-wider">Legendă:</span>
+          <span className="px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">L1 — Phantom / Departament</span>
+          <span className="px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">L2 — Semifabricat</span>
+          <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">L3 — Materie Primă</span>
+          <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">L4 — Sub-componentă</span>
+          <span className="ml-auto px-2 py-1 rounded-lg bg-accent/10 border border-accent/20 text-accent font-mono">
+            Cost Std: {calcCost(tree).toFixed(2)}
+          </span>
+        </div>
+
+        {/* Tree editor */}
+        <div className="border border-border rounded-2xl p-4 bg-muted/10 max-h-[55vh] overflow-y-auto">
+          <BOMEditor tree={tree} onChange={setTree} items={items} />
         </div>
 
         <div className="pt-4 flex justify-end gap-3 border-t border-border">
           <Button variant="secondary" onClick={onClose} type="button">Anulare</Button>
-          <Button type="submit">Salvare BOM</Button>
+          <Button type="submit" disabled={saving}>{saving ? 'Se salvează...' : 'Salvare BOM'}</Button>
         </div>
       </form>
     </ModalWrapper>

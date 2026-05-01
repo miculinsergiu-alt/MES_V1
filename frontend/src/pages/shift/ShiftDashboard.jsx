@@ -66,9 +66,9 @@ export default function ShiftDashboard() {
   };
 
   const navItems = [
-    { path:'/shift', label:'Comenzi Schimb', icon:<LayoutDashboard size={16}/> },
-    { path:'/shift/gantt', label:'Gantt', icon:<LayoutDashboard size={16}/> },
-    { path:'/shift/report', label:'Raport Schimb', icon:<FileText size={16}/> },
+    { path:'/shift', labelKey:'sidebar.shift_orders', icon:<LayoutDashboard size={16}/> },
+    { path:'/shift/gantt', labelKey:'sidebar.gantt', icon:<LayoutDashboard size={16}/> },
+    { path:'/shift/report', labelKey:'sidebar.shift_report', icon:<FileText size={16}/> },
   ];
 
   const myOrders = orders.filter(o => o.status !== 'cancelled');
