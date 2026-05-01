@@ -131,6 +131,7 @@ export default function LoginPage() {
                   { role: t('roles.administrator'), badge: 'ADMIN001', pass: 'admin123' },
                   { role: t('roles.planner'), badge: 'PLN001', pass: 'pass123' },
                   { role: t('roles.area_supervisor'), badge: 'SPV001', pass: 'pass123' },
+                  { role: t('roles.shift_responsible'), badge: 'SHR001', pass: 'pass123' },
                   { role: t('roles.operator'), badge: 'OPR001', pass: 'pass123' }
                 ].map((cred) => (
                   <button
