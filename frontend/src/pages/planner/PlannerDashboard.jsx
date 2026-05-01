@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { LayoutDashboard, FileText, Plus, X, Search, ChevronLeft, ChevronRight, Box, AlertCircle, Trash2, Edit2, Wrench, Settings } from 'lucide-react';
+import { LayoutDashboard, FileText, Plus, X, Search, ChevronLeft, ChevronRight, Box, AlertCircle, Trash2, Edit2, Wrench, Settings, Zap, GitBranch } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Sidebar from '../../components/Sidebar';
 import GanttTimeline from '../../components/GanttTimeline';
