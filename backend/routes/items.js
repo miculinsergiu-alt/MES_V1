@@ -25,14 +25,14 @@ router.get('/:id', authenticateToken, (req, res) => {
 
 // POST /api/items
 router.post('/', authenticateToken, requireRole('planner','administrator'), (req, res) => {
-  const { item_code, name, type, uom, acquisition_cost, production_cost, production_time_min, routes, sop_url, drawing_url } = req.body;
+  const { item_code, name, type, uom, acquisition_cost, production_cost, unit_price, production_time_min, supplier_name, lead_time_days, routes, sop_url, drawing_url } = req.body;
   if (!item_code || !name || !type) return res.status(400).json({ error: 'Codul, numele și tipul sunt obligatorii' });
 
   try {
     const result = db.prepare(`
-      INSERT INTO items (item_code, name, type, uom, acquisition_cost, production_cost, production_time_min, sop_url, drawing_url)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(item_code, name, type, uom || 'buc', acquisition_cost || 0, production_cost || 0, production_time_min || 0, sop_url || null, drawing_url || null);
+      INSERT INTO items (item_code, name, type, uom, acquisition_cost, production_cost, unit_price, production_time_min, supplier_name, lead_time_days, sop_url, drawing_url)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(item_code, name, type, uom || 'buc', acquisition_cost || 0, production_cost || 0, unit_price || 0, production_time_min || 0, supplier_name || null, lead_time_days || 0, sop_url || null, drawing_url || null);
 
     const itemId = result.lastInsertRowid;
 
@@ -50,19 +50,22 @@ router.post('/', authenticateToken, requireRole('planner','administrator'), (req
 
 // PUT /api/items/:id
 router.put('/:id', authenticateToken, requireRole('planner','administrator'), (req, res) => {
-  const { name, type, uom, acquisition_cost, production_cost, production_time_min, routes, sop_url, drawing_url } = req.body;
+  const { name, type, uom, acquisition_cost, production_cost, unit_price, production_time_min, supplier_name, lead_time_days, routes, sop_url, drawing_url } = req.body;
   const item = db.prepare('SELECT * FROM items WHERE id = ?').get(req.params.id);
   if (!item) return res.status(404).json({ error: 'Articolul nu a fost găsit' });
 
   db.prepare(`
-    UPDATE items SET name=?, type=?, uom=?, acquisition_cost=?, production_cost=?, production_time_min=?, sop_url=?, drawing_url=? WHERE id=?
+    UPDATE items SET name=?, type=?, uom=?, acquisition_cost=?, production_cost=?, unit_price=?, production_time_min=?, supplier_name=?, lead_time_days=?, sop_url=?, drawing_url=? WHERE id=?
   `).run(
     name || item.name, 
     type || item.type, 
     uom || item.uom, 
     acquisition_cost ?? item.acquisition_cost, 
     production_cost ?? item.production_cost, 
+    unit_price ?? item.unit_price,
     production_time_min ?? item.production_time_min,
+    supplier_name ?? item.supplier_name,
+    lead_time_days ?? item.lead_time_days,
     sop_url !== undefined ? sop_url : item.sop_url,
     drawing_url !== undefined ? drawing_url : item.drawing_url,
     req.params.id

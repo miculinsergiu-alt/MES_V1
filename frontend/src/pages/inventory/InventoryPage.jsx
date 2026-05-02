@@ -1,12 +1,22 @@
 import { useState, useEffect } from 'react';
-import { Package, ArrowDownUp, Edit, Plus } from 'lucide-react';
+import { Package, ArrowDownUp, Edit, Plus, Truck, Home, ShoppingCart, ShieldAlert, LogOut } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Sidebar from '../../components/Sidebar';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '../../contexts/AuthContext';
+
+// Import New Sub-Modules
+import WarehouseManager from './WarehouseManager';
+import ProcurementDashboard from './ProcurementDashboard';
+import QuarantineDashboard from './QuarantineDashboard';
+import InventoryTransfers from './InventoryTransfers';
 
 export default function InventoryPage() {
   const { t } = useTranslation();
+  const { user, logout } = useAuth();
+  const [activeTab, setActiveTab] = useState('stock'); // stock, transfers, warehousing, procurement, quality
   const [stock, setStock] = useState([]);
   const [showAdjustModal, setShowAdjustModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -25,63 +35,123 @@ export default function InventoryPage() {
     setShowAdjustModal(true);
   };
 
-  const navItems = [
+  const plannerNav = [
     { path: '/planner', labelKey: 'sidebar.dashboard', icon: <Package size={16}/> },
     { path: '/planner/items', labelKey: 'sidebar.articles_bom', icon: <Package size={16}/> },
     { path: '/planner/inventory', labelKey: 'sidebar.stocks', icon: <ArrowDownUp size={16}/> }
   ];
 
+  const whmNav = [
+    { path: '/inventory', labelKey: 'sidebar.inventory_hub', icon: <Package size={16}/> },
+    { path: '#logout', labelKey: 'common.logout', icon: <LogOut size={16}/>, onClick: logout }
+  ];
+
+  const tabs = [
+    { id: 'stock', label: 'Niveluri Stoc', icon: <Package size={16}/> },
+    { id: 'procurement', label: 'Recepție & PO', icon: <ShoppingCart size={16}/> },
+    { id: 'transfers', label: 'Transferuri', icon: <ArrowDownUp size={16}/> },
+    { id: 'quality', label: 'Carantină', icon: <ShieldAlert size={16}/> },
+    { id: 'warehousing', label: 'Magazii', icon: <Home size={16}/> }
+  ];
+
   return (
-    <div className="app-layout">
-      <Sidebar items={navItems} />
-      <div className="main-content">
-        <div className="page-header">
-          <h1>{t('inventory.title')}</h1>
-          <p>{t('sidebar.inventory')}</p>
+    <div className="flex min-h-screen bg-background">
+      <Sidebar items={user?.role === 'warehouse_manager' ? whmNav : plannerNav} />
+      <main className="flex-1 p-10 overflow-auto">
+        <div className="flex justify-between items-center mb-10">
+           <div>
+              <h1 className="font-display text-4xl text-foreground">WMS Enterprise</h1>
+              <p className="text-muted-foreground mt-2">Gestiune integrată a stocurilor și trasabilitate.</p>
+           </div>
+           <div className="flex gap-2 bg-muted/30 p-1 rounded-2xl border border-border/50">
+             {tabs.map(tab => (
+               <button
+                 key={tab.id}
+                 onClick={() => setActiveTab(tab.id)}
+                 className={`flex items-center gap-2 px-6 py-2 rounded-xl text-sm font-bold transition-all ${
+                   activeTab === tab.id ? 'bg-white text-accent shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                 }`}
+               >
+                 {tab.icon}
+                 {tab.label}
+               </button>
+             ))}
+           </div>
         </div>
 
-        <div className="page-content">
-          <div className="card">
-            <div className="card-title flex justify-between">
-              <span>{t('inventory.current_levels')}</span>
-            </div>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>{t('inventory.item_code')}</th>
-                  <th>{t('inventory.item_name')}</th>
-                  <th>{t('inventory.type')}</th>
-                  <th>{t('inventory.quantity')}</th>
-                  <th>{t('inventory.uom')}</th>
-                  <th>{t('inventory.location')}</th>
-                  <th>{t('inventory.last_updated')}</th>
-                  <th>{t('common.actions')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {stock.map(s => (
-                  <tr key={s.item_id}>
-                    <td style={{ fontWeight: 600 }}>{s.item_code}</td>
-                    <td>{s.item_name}</td>
-                    <td><span className={`badge ${s.type==='raw_material'?'badge-blue':s.type==='finished_good'?'badge-green':'badge-yellow'}`}>{t(`items.${s.type}`)}</span></td>
-                    <td style={{ fontWeight: 700, color: s.quantity < 10 ? 'var(--red-light)' : 'inherit' }}>{s.quantity}</td>
-                    <td>{s.uom}</td>
-                    <td>{s.location || '-'}</td>
-                    <td style={{ fontSize: 11, color: 'var(--text-muted)' }}>{s.last_updated?.substring(0, 16)}</td>
-                    <td>
-                      <button className="btn btn-ghost btn-sm" onClick={() => openAdjust(s)}><Edit size={14}/> {t('inventory.adjust')}</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        <div className="mt-8">
+           <AnimatePresence mode="wait">
+              {activeTab === 'stock' && (
+                <motion.div key="stock" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+                   <StockList stock={stock} onAdjust={openAdjust} t={t} />
+                </motion.div>
+              )}
+              {activeTab === 'procurement' && (
+                <motion.div key="procurement" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+                   <ProcurementDashboard />
+                </motion.div>
+              )}
+              {activeTab === 'transfers' && (
+                <motion.div key="transfers" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+                   <InventoryTransfers />
+                </motion.div>
+              )}
+              {activeTab === 'quality' && (
+                <motion.div key="quality" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+                   <QuarantineDashboard />
+                </motion.div>
+              )}
+              {activeTab === 'warehousing' && (
+                <motion.div key="warehousing" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+                   <WarehouseManager />
+                </motion.div>
+              )}
+           </AnimatePresence>
         </div>
-      </div>
+      </main>
 
       {showAdjustModal && selectedItem && (
         <AdjustStockModal item={selectedItem} onClose={() => setShowAdjustModal(false)} onSave={() => { setShowAdjustModal(false); loadStock(); }} />
       )}
+    </div>
+  );
+}
+
+function StockList({ stock, onAdjust, t }) {
+  return (
+    <div className="bg-white rounded-3xl border border-border overflow-hidden">
+      <table className="w-full text-left">
+        <thead className="bg-muted/30 border-b border-border">
+          <tr>
+            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('inventory.item_code')}</th>
+            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('inventory.item_name')}</th>
+            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('inventory.type')}</th>
+            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('inventory.quantity')}</th>
+            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('inventory.uom')}</th>
+            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('inventory.location')}</th>
+            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground text-right">{t('common.actions')}</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border/50">
+          {stock.map(s => (
+            <tr key={s.item_id} className="hover:bg-accent/[0.02] transition-colors">
+              <td className="px-6 py-4 font-mono text-[10px] font-black text-accent">{s.item_code}</td>
+              <td className="px-6 py-4 font-bold">{s.item_name}</td>
+              <td className="px-6 py-4">
+                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${s.type==='raw_material'?'bg-blue-100 text-blue-700':s.type==='finished_good'?'bg-green-100 text-green-700':'bg-yellow-100 text-yellow-700'}`}>
+                    {t(`items.${s.type}`)}
+                 </span>
+              </td>
+              <td className={`px-6 py-4 font-bold ${s.quantity < 10 ? 'text-red-500' : 'text-foreground'}`}>{s.quantity}</td>
+              <td className="px-6 py-4 text-sm text-muted-foreground">{s.uom}</td>
+              <td className="px-6 py-4 text-sm text-muted-foreground">{s.location || '-'}</td>
+              <td className="px-6 py-4 text-right">
+                <button className="p-2 hover:bg-accent/10 rounded-lg text-accent transition-colors" onClick={() => onAdjust(s)}><Edit size={16}/></button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -100,24 +170,24 @@ function AdjustStockModal({ item, onClose, onSave }) {
   };
 
   return (
-    <div className="modal-overlay">
-      <div className="modal">
-        <div className="modal-header"><h3>{t('inventory.adjust')}: {item.item_code}</h3></div>
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label className="form-label">{t('inventory.quantity')} ({item.uom})</label>
-            <input className="form-input" type="number" step="0.01" value={form.quantity} onChange={e=>setForm(p=>({...p, quantity: e.target.value}))} required />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm" onClick={onClose}>
+      <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-3xl p-8 w-full max-w-md border border-border shadow-2xl" onClick={e => e.stopPropagation()}>
+        <h3 className="font-display text-2xl mb-6">{t('inventory.adjust')}: {item.item_code}</h3>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1">
+            <label className="text-xs font-bold uppercase text-muted-foreground">{t('inventory.quantity')} ({item.uom})</label>
+            <input className="w-full h-11 rounded-xl border border-border px-4 focus:ring-2 focus:ring-accent outline-none" type="number" step="0.01" value={form.quantity} onChange={e=>setForm(p=>({...p, quantity: e.target.value}))} required />
           </div>
-          <div className="form-group">
-            <label className="form-label">{t('inventory.location')}</label>
-            <input className="form-input" type="text" value={form.location} onChange={e=>setForm(p=>({...p, location: e.target.value}))} placeholder="ex: Depozit A, Raft 4" />
+          <div className="space-y-1">
+            <label className="text-xs font-bold uppercase text-muted-foreground">{t('inventory.location')}</label>
+            <input className="w-full h-11 rounded-xl border border-border px-4 focus:ring-2 focus:ring-accent outline-none" type="text" value={form.location} onChange={e=>setForm(p=>({...p, location: e.target.value}))} placeholder="ex: Depozit A, Raft 4" />
           </div>
-          <div className="modal-footer">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>{t('common.cancel')}</button>
-            <button type="submit" className="btn btn-primary">{t('common.save')}</button>
+          <div className="pt-4 flex justify-end gap-3">
+            <button type="button" className="px-4 py-2 text-sm font-bold text-muted-foreground hover:text-foreground transition-colors" onClick={onClose}>{t('common.cancel')}</button>
+            <button type="submit" className="bg-accent text-white px-6 py-2 rounded-xl text-sm font-bold shadow-lg shadow-accent/20 hover:shadow-accent/40 transition-all">{t('common.save')}</button>
           </div>
         </form>
-      </div>
+      </motion.div>
     </div>
   );
 }

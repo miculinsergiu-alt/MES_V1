@@ -18,7 +18,7 @@ db.exec(`
     first_name TEXT NOT NULL,
     last_name TEXT NOT NULL,
     badge_number TEXT UNIQUE NOT NULL,
-    role TEXT NOT NULL CHECK(role IN ('administrator','planner','area_supervisor','shift_responsible','operator')),
+    role TEXT NOT NULL CHECK(role IN ('administrator','planner','area_supervisor','shift_responsible','operator','warehouse_manager')),
     password_hash TEXT NOT NULL,
     active INTEGER DEFAULT 1,
     created_at TEXT DEFAULT (datetime('now'))
@@ -79,9 +79,12 @@ db.exec(`
     uom TEXT DEFAULT 'buc',
     acquisition_cost REAL DEFAULT 0,
     production_cost REAL DEFAULT 0,
+    unit_price REAL DEFAULT 0,
     production_time_min INTEGER DEFAULT 0,
     sop_url TEXT,
     drawing_url TEXT,
+    supplier_name TEXT,
+    lead_time_days INTEGER DEFAULT 0,
     active INTEGER DEFAULT 1,
     created_at TEXT DEFAULT (datetime('now'))
   );
@@ -308,6 +311,128 @@ db.exec(`
     expiration_date TEXT,
     UNIQUE(user_id, machine_id)
   );
+
+  -- ─── ENTERPRISE MODULES (SUPPLIERS, WAREHOUSING, PROCUREMENT, QUALITY) ───
+
+  -- SUPPLIERS
+  CREATE TABLE IF NOT EXISTS suppliers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    contact_person TEXT,
+    email TEXT,
+    phone TEXT,
+    address TEXT,
+    active INTEGER DEFAULT 1,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS item_suppliers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    item_id INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+    supplier_id INTEGER NOT NULL REFERENCES suppliers(id) ON DELETE CASCADE,
+    purchase_price REAL DEFAULT 0,
+    currency TEXT DEFAULT 'RON',
+    lead_time_days INTEGER DEFAULT 0,
+    last_negotiation_date TEXT,
+    is_primary INTEGER DEFAULT 0,
+    UNIQUE(item_id, supplier_id)
+  );
+
+  -- WAREHOUSING
+  CREATE TABLE IF NOT EXISTS warehouses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    type TEXT CHECK(type IN ('central', 'production', 'quarantine', 'shipping')),
+    description TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS warehouse_locations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    warehouse_id INTEGER NOT NULL REFERENCES warehouses(id) ON DELETE CASCADE,
+    zone TEXT,
+    shelf TEXT,
+    bin TEXT,
+    barcode TEXT UNIQUE,
+    active INTEGER DEFAULT 1
+  );
+
+  -- PROCUREMENT (PURCHASE ORDERS & GOODS RECEIPT)
+  CREATE TABLE IF NOT EXISTS purchase_orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    supplier_id INTEGER NOT NULL REFERENCES suppliers(id),
+    status TEXT DEFAULT 'ordered' CHECK(status IN ('draft', 'ordered', 'partial', 'received', 'cancelled')),
+    order_date TEXT DEFAULT (date('now')),
+    expected_date TEXT,
+    created_by INTEGER REFERENCES users(id),
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS purchase_order_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    po_id INTEGER NOT NULL REFERENCES purchase_orders(id) ON DELETE CASCADE,
+    item_id INTEGER NOT NULL REFERENCES items(id),
+    quantity_ordered REAL NOT NULL,
+    quantity_received REAL DEFAULT 0,
+    unit_price REAL
+  );
+
+  CREATE TABLE IF NOT EXISTS goods_receipts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    po_id INTEGER REFERENCES purchase_orders(id),
+    received_by INTEGER NOT NULL REFERENCES users(id),
+    received_at TEXT DEFAULT (datetime('now')),
+    document_reference TEXT,
+    notes TEXT
+  );
+
+  CREATE TABLE IF NOT EXISTS goods_receipt_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    receipt_id INTEGER NOT NULL REFERENCES goods_receipts(id) ON DELETE CASCADE,
+    item_id INTEGER NOT NULL REFERENCES items(id),
+    lot_number TEXT NOT NULL,
+    quantity_received REAL NOT NULL,
+    location_id INTEGER REFERENCES warehouse_locations(id),
+    quality_status TEXT DEFAULT 'ok' CHECK(quality_status IN ('ok', 'quarantine', 'rejected')),
+    expiration_date TEXT
+  );
+
+  -- QUALITY CONTROL (QMS)
+  CREATE TABLE IF NOT EXISTS quarantine_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    receipt_item_id INTEGER REFERENCES goods_receipt_items(id),
+    item_id INTEGER NOT NULL REFERENCES items(id),
+    lot_number TEXT NOT NULL,
+    quantity REAL NOT NULL,
+    reason TEXT NOT NULL,
+    reported_by INTEGER NOT NULL REFERENCES users(id),
+    photo_url TEXT,
+    status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'released', 'scrapped')),
+    decision_by INTEGER REFERENCES users(id),
+    decision_at TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+
+  -- STOCK TRANSFERS
+  CREATE TABLE IF NOT EXISTS stock_transfers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    from_warehouse_id INTEGER REFERENCES warehouses(id),
+    to_warehouse_id INTEGER REFERENCES warehouses(id),
+    status TEXT DEFAULT 'completed',
+    created_by INTEGER NOT NULL REFERENCES users(id),
+    created_at TEXT DEFAULT (datetime('now')),
+    completed_at TEXT
+  );
+
+  CREATE TABLE IF NOT EXISTS stock_transfer_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    transfer_id INTEGER NOT NULL REFERENCES stock_transfers(id) ON DELETE CASCADE,
+    item_id INTEGER NOT NULL REFERENCES items(id),
+    lot_number TEXT,
+    quantity REAL NOT NULL,
+    from_location_id INTEGER REFERENCES warehouse_locations(id),
+    to_location_id INTEGER REFERENCES warehouse_locations(id)
+  );
 `);
 
 // ─── MIGRATIONS ─────────────────────────────────────────────────────────────
@@ -329,6 +454,8 @@ addColumnIfNotExists('orders', 'order_type', "TEXT DEFAULT 'production' CHECK(or
 addColumnIfNotExists('order_delays', 'delay_reason_id', 'INTEGER REFERENCES delay_reasons(id)');
 addColumnIfNotExists('order_delays', 'corrective_action', 'TEXT');
 addColumnIfNotExists('items', 'unit_price', 'REAL DEFAULT 0');
+addColumnIfNotExists('items', 'supplier_name', 'TEXT');
+addColumnIfNotExists('items', 'lead_time_days', 'INTEGER DEFAULT 0');
 addColumnIfNotExists('orders', 'parent_order_id', 'INTEGER REFERENCES orders(id) ON DELETE CASCADE');
 addColumnIfNotExists('orders', 'routing_sequence', 'INTEGER DEFAULT 0');
 
@@ -341,67 +468,24 @@ addColumnIfNotExists('bom_positions', 'node_type', "TEXT DEFAULT 'component' CHE
 
 // ─── SEED DATA ─────────────────────────────────────────────────────────────
 function seedIfNeeded() {
-  const admin = db.prepare('SELECT id FROM users WHERE badge_number = ?').get('ADMIN001');
-  if (!admin) {
-    const hash = bcrypt.hashSync('admin123', 10);
-    db.prepare(`
-      INSERT INTO users (first_name, last_name, badge_number, role, password_hash)
-      VALUES (?, ?, ?, ?, ?)
-    `).run('Admin', 'System', 'ADMIN001', 'administrator', hash);
-    console.log('✅ Seed: Admin creat (badge: ADMIN001, parolă: admin123)');
-  }
-
-  // Update shifts with times
-  const shiftsCount = db.prepare('SELECT count(*) as count FROM shifts').get().count;
-  if (shiftsCount === 0) {
-    db.prepare('INSERT INTO shifts (name, start_time, end_time) VALUES (?, ?, ?)').run('Schimb 1', '06:00', '14:00');
-    db.prepare('INSERT INTO shifts (name, start_time, end_time) VALUES (?, ?, ?)').run('Schimb 2', '14:00', '22:00');
-    db.prepare('INSERT INTO shifts (name, start_time, end_time) VALUES (?, ?, ?)').run('Schimb 3', '22:00', '06:00');
-    console.log('✅ Seed: Schimburi 1, 2, 3 create');
-  }
-
-  // Delay reasons
-  const checkDelayReason = db.prepare('SELECT id FROM delay_reasons LIMIT 1').get();
-  if (!checkDelayReason) {
-    const reasons = [
-      ['Defecțiune Mecanică', 'mechanical'],
-      ['Defecțiune Electrică', 'electrical'],
-      ['Lipsă Materie Primă', 'material'],
-      ['Lipsă Operator', 'human'],
-      ['Schimbare Format (Setup)', 'setup'],
-      ['Mentenanță Planificată', 'maintenance'],
-      ['Pauză Masă', 'human'],
-      ['Altele', 'general']
-    ];
-    const stmt = db.prepare('INSERT INTO delay_reasons (name, category) VALUES (?, ?)');
-    reasons.forEach(r => stmt.run(r[0], r[1]));
-    console.log('✅ Seed: Motive întârzieri create');
-  }
-
-  // Demo area + machine
-  const area = db.prepare('SELECT id FROM areas WHERE name = ?').get('Aria Demo');
-  if (!area) {
-    const areaRes = db.prepare('INSERT INTO areas (name, description) VALUES (?, ?)').run('Aria Demo', 'Arie de producție demonstrativă');
-    db.prepare('INSERT INTO machines (area_id, name, setup_time_min, working_time_min, supervision_time_min) VALUES (?,?,?,?,?)').run(areaRes.lastInsertRowid, 'Utilaj 1', 30, 480, 20);
-    db.prepare('INSERT INTO machines (area_id, name, setup_time_min, working_time_min, supervision_time_min) VALUES (?,?,?,?,?)').run(areaRes.lastInsertRowid, 'Utilaj 2', 45, 360, 30);
-    console.log('✅ Seed: Arie Demo + 2 utilaje create');
-  }
-
   // Demo users
-  const planner = db.prepare('SELECT id FROM users WHERE badge_number = ?').get('PLN001');
-  if (!planner) {
-    const roles = [
-      ['Mihai', 'Ionescu', 'PLN001', 'planner'],
-      ['Elena', 'Popescu', 'SPV001', 'area_supervisor'],
-      ['Andrei', 'Dumitrescu', 'SHR001', 'shift_responsible'],
-      ['Ion', 'Constantin', 'OPR001', 'operator'],
-      ['Maria', 'Stan', 'OPR002', 'operator'],
-    ];
-    const hash = bcrypt.hashSync('pass123', 10);
-    for (const [fn, ln, badge, role] of roles) {
-      db.prepare('INSERT OR IGNORE INTO users (first_name, last_name, badge_number, role, password_hash) VALUES (?,?,?,?,?)').run(fn, ln, badge, role, hash);
+  const usersToSeed = [
+    ['Admin', 'System', 'ADMIN001', 'administrator', 'admin123'],
+    ['Mihai', 'Ionescu', 'PLN001', 'planner', 'pass123'],
+    ['Elena', 'Popescu', 'SPV001', 'area_supervisor', 'pass123'],
+    ['Andrei', 'Dumitrescu', 'SHR001', 'shift_responsible', 'pass123'],
+    ['Ion', 'Constantin', 'OPR001', 'operator', 'pass123'],
+    ['Maria', 'Stan', 'OPR002', 'operator', 'pass123'],
+    ['Vasile', 'Magazioner', 'WHM001', 'warehouse_manager', 'pass123'],
+  ];
+
+  for (const [fn, ln, badge, role, pass] of usersToSeed) {
+    const exists = db.prepare('SELECT id FROM users WHERE badge_number = ?').get(badge);
+    if (!exists) {
+      const hash = bcrypt.hashSync(pass, 10);
+      db.prepare('INSERT INTO users (first_name, last_name, badge_number, role, password_hash) VALUES (?,?,?,?,?)').run(fn, ln, badge, role, hash);
+      console.log(`✅ Seed: User creat (${role}): ${badge} / ${pass}`);
     }
-    console.log('✅ Seed: Useri demo creați');
   }
 
   // Defect reasons

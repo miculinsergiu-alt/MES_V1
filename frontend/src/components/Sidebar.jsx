@@ -33,7 +33,10 @@ export default function Sidebar({ items }) {
           return (
             <button
               key={item.path}
-              onClick={() => navigate(item.path)}
+              onClick={() => {
+                if (item.onClick) item.onClick();
+                else navigate(item.path);
+              }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative ${
                 isActive 
                   ? 'text-accent bg-accent/5 font-semibold' 

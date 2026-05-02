@@ -114,9 +114,18 @@
     "item_code": "Item Code",
     "item_name": "Item Name",
     "item_type": "Item Type",
+    "general_info": "General Info",
+    "suppliers": "Suppliers",
+    "supplier_name": "Supplier Name",
     "production_time": "Time (min)",
-    "op_notes": "Operation Notes",
+    "op_notes": "Operating Notes",
     "save_item": "Save Item",
+    "add_supplier": "Add Supplier",
+    "suppliers_list": "Suppliers List",
+    "purchase_price": "Purchase Price",
+    "lead_time_days": "Lead Time (days)",
+    "primary": "Primary",
+    "no_suppliers": "No associated suppliers",
     "add_phantom": "Add Department (Phantom Code)",
     "select_article_first": "Select an article first",
     "no_bom_for_item": "No BOM defined for this article",
@@ -154,14 +163,16 @@
     "confirm": "Confirm",
     "search": "Search...",
     "no_data": "No data available.",
-    "today": "Today"
+    "today": "Today",
+    "logout": "Logout"
   },
   "roles": {
     "administrator": "Administrator",
     "planner": "Planner",
     "area_supervisor": "Supervisor",
     "shift_responsible": "Shift Responsible",
-    "operator": "Operator"
+    "operator": "Operator",
+    "warehouse_manager": "Warehouse Manager"
   },
   "sidebar": {
     "users": "Users",
@@ -186,6 +197,7 @@
     "oee_analytics": "OEE Analytics",
     "articles_bom": "Articles & BOM",
     "stocks": "Stocks",
+    "inventory_hub": "Inventory Hub",
     "logout": "Logout"
   },
   "analytics": {

@@ -23,6 +23,11 @@ const maintenanceRoutes = require('./routes/maintenance');
 const analyticsRoutes = require('./routes/analytics');
 const oeeRoutes = require('./routes/oee');
 const shiftsRoutes = require('./routes/shifts');
+const suppliersRoutes = require('./routes/suppliers');
+const warehousingRoutes = require('./routes/warehousing');
+const procurementRoutes = require('./routes/procurement');
+const qualityRoutes = require('./routes/quality');
+const inventoryRoutes = require('./routes/inventory');
 
 const app = express();
 const httpServer = createServer(app);
@@ -58,6 +63,11 @@ app.use('/api/maintenance', maintenanceRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/oee', oeeRoutes);
 app.use('/api/shifts', shiftsRoutes);
+app.use('/api/suppliers', suppliersRoutes);
+app.use('/api/warehousing', warehousingRoutes);
+app.use('/api/procurement', procurementRoutes);
+app.use('/api/quality', qualityRoutes);
+app.use('/api/inventory', inventoryRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

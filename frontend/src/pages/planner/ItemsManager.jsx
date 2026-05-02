@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Box, Plus, Search, Edit2, Trash2, X, Clock, DollarSign, List, FileText, TrendingUp, Zap, GitBranch, Printer } from 'lucide-react';
+import { Box, Plus, Search, Edit2, Trash2, X, Clock, DollarSign, List, FileText, TrendingUp, Zap, GitBranch, Printer, Truck, MapPin, ArrowDownUp } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
@@ -64,6 +64,8 @@ export default function ItemsManager() {
     { path:'/planner/gantt', labelKey:'sidebar.production_plan', icon:<Clock size={16}/> },
     { path:'/planner/orders', labelKey:'sidebar.manage_orders', icon:<FileText size={16}/> },
     { path:'/planner/items', labelKey:'sidebar.items_bom', icon:<Box size={16}/> },
+    { path:'/planner/suppliers', labelKey:'sidebar.suppliers', icon:<Truck size={16}/> },
+    { path:'/planner/inventory', labelKey:'sidebar.stocks', icon:<ArrowDownUp size={16}/> },
   ];
 
   return (
@@ -134,8 +136,8 @@ export default function ItemsManager() {
             <motion.div key="items" initial={{opacity:0, y:10}} animate={{opacity:1, y:0}} exit={{opacity:0, y:-10}}>
               <ItemsList 
                 items={items.filter(i => 
-                  (i.item_code.toLowerCase().includes(searchCode.toLowerCase())) &&
-                  (i.name.toLowerCase().includes(searchName.toLowerCase()))
+                  (i.item_code?.toLowerCase().includes(searchCode.toLowerCase())) &&
+                  (i.name?.toLowerCase().includes(searchName.toLowerCase()))
                 )} 
                 onEdit={(item) => { setEditingItem(item); setShowItemModal(true); }}
                 loading={loading}
@@ -244,9 +246,9 @@ function ItemsList({ items, onEdit, loading }) {
                   </Badge>
                 </td>
                 <td className="px-6 py-4 text-sm font-medium">{item.uom}</td>
-                <td className="px-6 py-4 font-mono text-sm">{item.acquisition_cost?.toFixed(2)}</td>
-                <td className="px-6 py-4 font-mono text-sm">{item.production_cost?.toFixed(2)}</td>
-                <td className="px-6 py-4 font-mono font-bold text-accent">{item.unit_price?.toFixed(2)}</td>
+                <td className="px-6 py-4 font-mono text-sm">{(item.acquisition_cost || 0).toFixed(2)}</td>
+                <td className="px-6 py-4 font-mono text-sm">{(item.production_cost || 0).toFixed(2)}</td>
+                <td className="px-6 py-4 font-mono font-bold text-accent">{(item.unit_price || 0).toFixed(2)}</td>
                 <td className="px-6 py-4 text-center">
                   {item.unit_price > 0 && (
                     <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${margin > 20 ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
@@ -270,6 +272,7 @@ function ItemsList({ items, onEdit, loading }) {
 
 function ItemModal({ item, machines, onClose, onSave }) {
   const { t } = useTranslation();
+  const [activeSubTab, setActiveSubTab] = useState('general'); // 'general', 'route'
   const [formData, setFormData] = useState({
     item_code: '',
     name: '',
@@ -279,6 +282,8 @@ function ItemModal({ item, machines, onClose, onSave }) {
     production_cost: 0,
     unit_price: 0,
     production_time_min: 0,
+    supplier_name: '',
+    lead_time_days: 0,
     routes: []
   });
 
@@ -287,7 +292,9 @@ function ItemModal({ item, machines, onClose, onSave }) {
       api.get(`/items/${item.id}`).then(res => {
         setFormData({
           ...res.data,
-          routes: res.data.routes || [] // Ensure routes is always an array to prevent crashes
+          routes: res.data.routes || [],
+          supplier_name: res.data.supplier_name || '',
+          lead_time_days: res.data.lead_time_days || 0
         });
       }).catch(() => toast.error(t('items.loading_details_error')));
     }
@@ -296,8 +303,18 @@ function ItemModal({ item, machines, onClose, onSave }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      if (item) await api.put(`/items/${item.id}`, formData);
-      else await api.post('/items', formData);
+      const payload = {
+        ...formData,
+        supplier_name: formData.type === 'raw_material' ? formData.supplier_name : null,
+        lead_time_days: formData.type === 'raw_material' ? formData.lead_time_days : 0
+      };
+
+      if (item) {
+        await api.put(`/items/${item.id}`, payload);
+      } else {
+        await api.post('/items', payload);
+      }
+
       toast.success(t('messages.save_success'));
       onSave();
     } catch (err) {
@@ -311,71 +328,119 @@ function ItemModal({ item, machines, onClose, onSave }) {
 
   return (
     <ModalWrapper title={item ? t('items.edit_item') : t('items.new_item')} onClose={onClose}>
-      <form onSubmit={handleSubmit} className="space-y-8">
-        <div className="grid grid-cols-2 gap-6">
-          <div className="space-y-2">
-            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">{t('items.item_code')}</label>
-            <Input value={formData.item_code} disabled={!!item} onChange={e => setFormData({...formData, item_code: e.target.value.toUpperCase()})} required />
-          </div>
-          <div className="space-y-2">
-            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">{t('items.item_name')}</label>
-            <Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-6">
-          <div className="space-y-2">
-            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">{t('items.item_type')}</label>
-            <select className="w-full h-12 rounded-xl border border-border bg-white px-4 focus:ring-2 focus:ring-accent outline-none" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})}>
-              <option value="raw_material">{t('items.raw_material')}</option>
-              <option value="semi_finished">{t('items.semi_finished')}</option>
-              <option value="finished_good">{t('items.finished_good')}</option>
-            </select>
-          </div>
-          <div className="space-y-2">
-            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">{t('inventory.uom')}</label>
-            <Input value={formData.uom} onChange={e => setFormData({...formData, uom: e.target.value})} />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-4 gap-4 bg-muted/20 p-6 rounded-2xl border border-border/50">
-          <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase text-muted-foreground">{t('items.purchase_cost')}</label>
-            <div className="relative">
-              <DollarSign size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <Input type="number" step="0.01" className="pl-8 h-10" value={formData.acquisition_cost} onChange={e => setFormData({...formData, acquisition_cost: parseFloat(e.target.value)})} />
-            </div>
-          </div>
-          <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase text-muted-foreground">{t('items.production_cost')}</label>
-            <div className="relative">
-              <DollarSign size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <Input type="number" step="0.01" className="pl-8 h-10" value={formData.production_cost} onChange={e => setFormData({...formData, production_cost: parseFloat(e.target.value)})} />
-            </div>
-          </div>
-          <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase text-accent">{t('items.sale_price')}</label>
-            <div className="relative">
-              <TrendingUp size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-accent" />
-              <Input type="number" step="0.01" className="pl-8 h-10 border-accent/30 text-accent font-bold" value={formData.unit_price} onChange={e => setFormData({...formData, unit_price: parseFloat(e.target.value)})} />
-            </div>
-          </div>
-          <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase text-muted-foreground">{t('items.production_time')}</label>
-            <div className="relative">
-              <Clock size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <Input type="number" className="pl-8 h-10" value={formData.production_time_min} onChange={e => setFormData({...formData, production_time_min: parseInt(e.target.value)})} />
-            </div>
-          </div>
-        </div>
-
+      <div className="flex gap-4 mb-6 border-b border-border pb-2">
+        <button 
+          className={`text-sm font-bold uppercase tracking-widest pb-2 px-1 transition-all ${activeSubTab === 'general' ? 'text-accent border-b-2 border-accent' : 'text-muted-foreground'}`}
+          onClick={() => setActiveSubTab('general')}
+          type="button"
+        >
+          {t('items.general_info')}
+        </button>
         {formData.type !== 'raw_material' && (
+          <button 
+            className={`text-sm font-bold uppercase tracking-widest pb-2 px-1 transition-all ${activeSubTab === 'route' ? 'text-accent border-b-2 border-accent' : 'text-muted-foreground'}`}
+            onClick={() => setActiveSubTab('route')}
+            type="button"
+          >
+            {t('items.production_route')}
+          </button>
+        )}
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {activeSubTab === 'general' && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">{t('items.item_code')}</label>
+                <Input value={formData.item_code} disabled={!!item} onChange={e => setFormData({...formData, item_code: e.target.value.toUpperCase()})} required />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">{t('items.item_name')}</label>
+                <Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">{t('items.item_type')}</label>
+                <select className="w-full h-12 rounded-xl border border-border bg-white px-4 focus:ring-2 focus:ring-accent outline-none font-bold" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})}>
+                  <option value="raw_material">{t('items.raw_material')}</option>
+                  <option value="semi_finished">{t('items.semi_finished')}</option>
+                  <option value="finished_good">{t('items.finished_good')}</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">{t('items.uom')}</label>
+                <Input value={formData.uom} onChange={e => setFormData({...formData, uom: e.target.value})} />
+              </div>
+            </div>
+
+            {formData.type === 'raw_material' && (
+              <div className="grid grid-cols-2 gap-6 p-6 bg-blue-50/50 border border-blue-100 rounded-2xl">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-widest text-blue-600 ml-1">{t('items.supplier_name')}</label>
+                  <Input 
+                    value={formData.supplier_name} 
+                    onChange={e => setFormData({...formData, supplier_name: e.target.value})} 
+                    placeholder="ex: Steel Corp SRL"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-widest text-blue-600 ml-1">{t('items.lead_time_days')}</label>
+                  <div className="relative">
+                     <Truck size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-400" />
+                     <Input 
+                       type="number" 
+                       className="pl-10"
+                       value={formData.lead_time_days} 
+                       onChange={e => setFormData({...formData, lead_time_days: parseInt(e.target.value) || 0})} 
+                     />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-4 gap-4 bg-muted/20 p-6 rounded-2xl border border-border/50">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase text-muted-foreground">{t('items.purchase_cost')}</label>
+                <div className="relative">
+                  <DollarSign size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Input type="number" step="0.01" className="pl-8 h-10" value={formData.acquisition_cost} onChange={e => setFormData({...formData, acquisition_cost: parseFloat(e.target.value)})} />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase text-muted-foreground">{t('items.production_cost')}</label>
+                <div className="relative">
+                  <DollarSign size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Input type="number" step="0.01" className="pl-8 h-10" value={formData.production_cost} onChange={e => setFormData({...formData, production_cost: parseFloat(e.target.value)})} />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase text-accent">{t('items.sale_price')}</label>
+                <div className="relative">
+                  <TrendingUp size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-accent" />
+                  <Input type="number" step="0.01" className="pl-8 h-10 border-accent/30 text-accent font-bold" value={formData.unit_price} onChange={e => setFormData({...formData, unit_price: parseFloat(e.target.value)})} />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase text-muted-foreground">{t('items.production_time')}</label>
+                <div className="relative">
+                  <Clock size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Input type="number" className="pl-8 h-10" value={formData.production_time_min} onChange={e => setFormData({...formData, production_time_min: parseInt(e.target.value)})} />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeSubTab === 'route' && (
           <div className="space-y-4">
             <div className="flex justify-between items-center border-b border-border pb-2">
               <h4 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2"><Zap size={16} className="text-yellow-500"/> {t('items.production_route')}</h4>
               <Button type="button" variant="secondary" size="sm" onClick={addRoute}><Plus size={14} className="mr-1"/> {t('items.add_step')}</Button>
             </div>
-            <div className="space-y-3 max-h-48 overflow-y-auto pr-2">
+            <div className="space-y-3 max-h-64 overflow-y-auto pr-2">
               {formData.routes.map((r, i) => (
                 <div key={i} className="flex gap-3 items-end bg-white p-4 rounded-xl border border-border shadow-sm">
                   <div className="flex-1 space-y-1">

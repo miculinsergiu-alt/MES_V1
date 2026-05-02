@@ -114,9 +114,18 @@
     "item_code": "Cod Articol",
     "item_name": "Denumire Articol",
     "item_type": "Tip Articol",
+    "general_info": "Informații Generale",
+    "suppliers": "Furnizori",
+    "supplier_name": "Nume Furnizor",
     "production_time": "Timp (min)",
     "op_notes": "Note Operare",
     "save_item": "Salvare Articol",
+    "add_supplier": "Adaugă Furnizor",
+    "suppliers_list": "Listă Furnizori",
+    "purchase_price": "Preț Achiziție",
+    "lead_time_days": "Lead Time (zile)",
+    "primary": "Principal",
+    "no_suppliers": "Niciun furnizor asociat",
     "add_phantom": "Adaugă Departament (Phantom Code)",
     "select_article_first": "Selectează mai întâi un articol",
     "no_bom_for_item": "Nu există BOM definit pentru acest articol",
@@ -156,14 +165,16 @@
     "confirm": "Confirmă",
     "search": "Caută...",
     "no_data": "Nicio dată disponibilă.",
-    "today": "Azi"
+    "today": "Azi",
+    "logout": "Deconectare"
   },
   "roles": {
     "administrator": "Administrator",
     "planner": "Planner",
     "area_supervisor": "Supervisor",
     "shift_responsible": "Șef Schimb",
-    "operator": "Operator"
+    "operator": "Operator",
+    "warehouse_manager": "Manager Depozit"
   },
   "sidebar": {
     "users": "Utilizatori",
@@ -188,6 +199,7 @@
     "oee_analytics": "Analitice OEE",
     "articles_bom": "Articole & BOM",
     "stocks": "Stocuri",
+    "inventory_hub": "Centru Inventar",
     "logout": "Deconectare"
   },
   "analytics": {
