@@ -40,6 +40,13 @@ SmartFactory Flow este un sistem de management al producției (Manufacturing Exe
 
 ## 📝 Jurnal de Actualizări (Changelog)
 
+### [Mai 2026] — Advanced Planning (MRP) & Gantt 2.0
+- **MRP & Purchase Orders:** Sistem de rezervări automate (Soft Allocation) și recomandări de achiziție bazate pe deficitul de stoc.
+- **Finite Capacity Scheduler:** Motor de planificare cu prevenire automată a conflictelor (fără suprapuneri pe utilaje) și aliniere în cascadă.
+- **Interactive Gantt 2.0:** Redesign complet cu vizualizare pe 7 zile, navigare Drag-to-Scroll și coloană statică (sticky) pentru utilaje.
+- **Logică Consum Strict:** Deducerea materialelor se face exclusiv la prima etapă a rutei, asigurând integritatea stocurilor în ierarhii complexe.
+- **UX Enhancements:** Calcul automat `Planned End Date`, ștergere ierarhică Arii/Utilaje și autentificare Material Planner.
+
 ### [Mai 2026] — Enterprise WMS & ERP Modules
 - **WMS Integration:** Modul complet de management magazii, locații bin-uri și trasabilitate loturi.
 - **Recepție Marfă (Goods Receipt):** Flux avansat "multi-package" care permite scanarea și recepționarea fragmentată a loturilor per cutie.
