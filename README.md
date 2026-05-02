@@ -40,12 +40,14 @@ SmartFactory Flow este un sistem de management al producției (Manufacturing Exe
 
 ## 📝 Jurnal de Actualizări (Changelog)
 
-### [Mai 2026] — Routing Engine & i18n
+### [Mai 2026] — Enterprise WMS & ERP Modules
+- **WMS Integration:** Modul complet de management magazii, locații bin-uri și trasabilitate loturi.
+- **Recepție Marfă (Goods Receipt):** Flux avansat "multi-package" care permite scanarea și recepționarea fragmentată a loturilor per cutie.
+- **ERP Supplier Entry:** Gestiune simplificată a furnizorilor și a timpilor de livrare (Lead Time) direct în fișa articolului.
+- **QMS & Quarantine:** Sistem de control al calității pentru blocarea automată a loturilor neconforme în carantină.
 - **Motor de Routing Inteligent:** Explozia automată a rutei tehnologice în sub-comenzi (Work Orders).
 - **Propagare Cross-Machine:** Re-alinierea automată a întregului flux de producție în caz de delay pe orice stație.
-- **Suport Multi-Language:** Implementare completă RO/EN (react-i18next) cu detectare automată.
-- **Sistem BOM Ierarhic:** Structură arborescentă recursivă cu calcul de cost standard și "Smart Stock Deduction".
-- **UX Polish:** Rezolvarea erorilor de execuție la printare și navigarea fluidă între tab-uri.
+- **Suport Multi-Language:** Implementare completă RO/EN (react-i18next).
 
 
 ### [Aprilie 2026] — Analytics & Infrastructure
