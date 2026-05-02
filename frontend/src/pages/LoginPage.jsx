@@ -17,6 +17,7 @@ const ROLE_ROUTES = {
   area_supervisor: '/supervisor',
   shift_responsible: '/shift',
   operator: '/operator',
+  material_planner: '/inventory',
 };
 
 const fadeInUp = {
@@ -134,7 +135,8 @@ export default function LoginPage() {
                   { role: t('roles.planner'), badge: 'PLN001', pass: 'pass123' },
                   { role: t('roles.area_supervisor'), badge: 'SPV001', pass: 'pass123' },
                   { role: t('roles.shift_responsible'), badge: 'SHR001', pass: 'pass123' },
-                  { role: t('roles.operator'), badge: 'OPR001', pass: 'pass123' }
+                  { role: t('roles.operator'), badge: 'OPR001', pass: 'pass123' },
+                  { role: t('roles.material_planner'), badge: 'MAT001', pass: 'pass123' }
                 ].map((cred) => (
                   <button
                     key={cred.badge}

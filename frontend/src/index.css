@@ -127,63 +127,80 @@
   }
 
   .gantt-row {
-    @apply flex border-b border-border last:border-b-0 min-h-[96px] relative;
+    @apply flex border-b border-border last:border-b-0 min-h-[64px] relative;
   }
 
-  /* Fixed Left Column */
+  /* Fixed Left Column - NOW STICKY */
   .gantt-label-col {
-    @apply w-[220px] min-w-[220px] border-r border-border bg-muted/20 flex flex-col z-10;
+    @apply w-[200px] min-w-[200px] border-r border-border bg-white flex flex-col z-30 shadow-[4px_0_10px_rgba(0,0,0,0.03)] sticky left-0;
   }
 
   .gantt-machine-name {
-    @apply px-4 py-3 font-bold text-sm text-foreground border-b border-border/10 flex-1 flex items-center;
+    @apply px-4 py-2 font-bold text-xs text-foreground border-b border-border/10 flex-1 flex items-center;
   }
 
   .gantt-row-markers {
-    @apply flex flex-col h-full bg-white/50;
+    @apply flex flex-col h-full bg-white/40;
   }
 
   .gantt-marker {
-    @apply px-3 text-[9px] font-black uppercase tracking-tighter text-muted-foreground/40 h-10 flex items-center border-b border-border/5 last:border-b-0;
+    @apply px-3 text-[8px] font-black uppercase tracking-tighter text-muted-foreground/50 h-6 flex items-center border-b border-border/5 last:border-b-0;
   }
 
   /* Main Track Area */
   .gantt-track {
-    @apply flex-1 relative bg-white overflow-hidden flex flex-col;
+    @apply flex-1 relative bg-white overflow-hidden flex flex-col z-10;
   }
 
   .gantt-layer {
-    @apply h-10 relative w-full border-b border-border/5 last:border-b-0;
+    @apply h-6 relative w-full border-b border-border/5 last:border-b-0;
   }
 
   .gantt-grid-line {
-    @apply absolute top-0 bottom-0 border-r border-border/30;
+    @apply absolute top-0 bottom-0 border-r border-border/30 z-0;
   }
 
   .gantt-time-header {
-    @apply flex bg-muted/50 border-b border-border h-12 relative;
+    @apply flex bg-slate-50 border-b border-border h-12 relative z-40;
   }
 
   .gantt-time-label {
     @apply absolute top-1/2 -translate-y-1/2 font-mono text-[10px] font-bold text-muted-foreground -translate-x-1/2;
   }
 
-  /* Segments - UNIFORM SIZE */
+  /* Segments - CLEAN & CLIPPED */
   .gantt-segment {
-    @apply absolute h-7 rounded-lg shadow-sm border border-black/5 transition-all;
-    top: 6px;
+    @apply absolute h-5 rounded-md shadow-sm border border-black/10 transition-all z-10 overflow-hidden flex items-center px-2;
+    top: 2px;
   }
 
   .gantt-segment.planner {
-    @apply opacity-30 border-dashed bg-slate-400;
+    @apply opacity-40 border-dashed bg-slate-300 text-slate-700;
   }
 
-  /* Fixed Order Label: Simple text inside or above the bars */
+  /* Text inside the bar - STRICT CLIPPING */
+  .gantt-segment span {
+    @apply text-[9px] font-black whitespace-nowrap overflow-hidden text-ellipsis pointer-events-none;
+    display: block;
+    width: 100%;
+  }
+
   .gantt-block-tag {
-    @apply absolute flex items-center px-2 pointer-events-none z-20;
-    @apply text-[10px] font-black text-slate-700;
-    height: 28px;
-    top: 6px; /* Align with the first bar (Planner) */
+    display: none; /* Removed separate tag to avoid overlap */
+  }
+
+  /* Maintenance styling */
+  .maintenance-block {
+    @apply text-orange-950;
+  }
+
+  .gantt-now-line {
+    @apply absolute top-0 bottom-0 w-[2px] bg-red-500 z-20 shadow-[0_0_10px_rgba(239,68,68,0.5)];
+  }
+
+  .gantt-now-line::after {
+    content: 'ACUM';
+    @apply absolute -top-7 left-1/2 -translate-x-1/2 bg-red-500 text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-lg z-50;
   }
 
   .gantt-now-line {

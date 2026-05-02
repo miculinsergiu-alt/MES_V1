@@ -22,10 +22,19 @@ export default function PlannerDashboard() {
 
   const loadData = useCallback(async () => {
     try {
-      const [oRes, mRes] = await Promise.all([api.get('/orders/gantt'), api.get('/machines')]);
+      const endRange = addDays(viewDate, 7);
+      const [oRes, mRes] = await Promise.all([
+        api.get('/orders/gantt', { 
+          params: { 
+            date_from: format(viewDate, 'yyyy-MM-dd 00:00:00'),
+            date_to: format(endRange, 'yyyy-MM-dd 23:59:59')
+          } 
+        }), 
+        api.get('/machines')
+      ]);
       setOrders(oRes.data); setMachines(mRes.data);
     } catch {}
-  }, []);
+  }, [viewDate]);
 
   const handleDeleteOrder = async (orderId) => {
     if (!window.confirm(t('planner.delete_confirm'))) return;
@@ -211,15 +220,33 @@ function CreateOrderModal({ machines, onClose, onSave }) {
   const handleSubmit = async (e) => {
     e.preventDefault(); setLoading(true);
     try {
-      const payload = orders.map(o => ({
-        ...o, 
-        machine_id: parseInt(o.machine_id), 
-        quantity: parseInt(o.quantity),
-        item_id: o.item_id ? parseInt(o.item_id) : null,
-        bom_id: o.bom_id ? parseInt(o.bom_id) : null,
-        planned_start: o.planned_start.replace('T',' '), 
-        planned_end: o.planned_end.replace('T',' ')
-      }));
+      const payload = orders.map(o => {
+        let pEnd = o.planned_end;
+        
+        // Auto-calculate end time if not provided
+        if (!pEnd && o.planned_start && o.item_id && o.order_type === 'production') {
+          const routes = itemRoutes[o.item_id] || [];
+          const totalMin = routes.reduce((sum, r) => sum + (r.process_time_min * o.quantity), 0);
+          if (totalMin > 0) {
+            const startDate = new Date(o.planned_start);
+            const endDate = new Date(startDate.getTime() + totalMin * 60000);
+            pEnd = format(endDate, 'yyyy-MM-dd HH:mm');
+          }
+        }
+
+        // Fallback if still no end date (e.g. maintenance or no route)
+        if (!pEnd) pEnd = o.planned_start;
+
+        return {
+          ...o, 
+          machine_id: parseInt(o.machine_id), 
+          quantity: parseInt(o.quantity),
+          item_id: o.item_id ? parseInt(o.item_id) : null,
+          bom_id: o.bom_id ? parseInt(o.bom_id) : null,
+          planned_start: o.planned_start.replace('T',' '), 
+          planned_end: pEnd.replace('T',' ')
+        };
+      });
       await api.post('/orders', { orders: payload });
       toast.success(t('planner.orders_created', { count: payload.length })); onSave();
     } catch(err) { toast.error(err.response?.data?.error || t('common.error')); } finally { setLoading(false); }

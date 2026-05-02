@@ -1,5 +1,5 @@
 const express = require('express');
-const { ordersDb, machinesDb } = require('../db/init');
+const { ordersDb, machinesDb, itemsDb, productionDb } = require('../db/init');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 const router = express.Router();
 
@@ -76,9 +76,15 @@ function propagateMachineShift(machineId, afterOrderId, newStartTime) {
 }
 
 function addMinutes(dateStr, minutes) {
-  const d = new Date(dateStr);
-  d.setMinutes(d.getMinutes() + minutes);
-  return d.toISOString().replace('T', ' ').substring(0, 19);
+  // Ensure we parse consistently (handle both ' ' and 'T')
+  const d = new Date(dateStr.replace(' ', 'T'));
+  if (isNaN(d.getTime())) return dateStr;
+  
+  d.setMinutes(d.getMinutes() + Math.round(minutes));
+  
+  const pad = (num) => String(num).padStart(2, '0');
+  // Returns YYYY-MM-DD HH:MM:SS for strict lexicographical comparison in SQLite
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
 // GET /api/orders — all orders (optionally filtered by machine)
@@ -152,6 +158,78 @@ router.get('/:id', authenticateToken, (req, res) => {
   res.json({ ...order, delays });
 });
 
+// ─── MRP ALLOCATION LOGIC ───
+function allocateMaterialsForOrder(orderId, bomId, orderQuantity) {
+  if (!bomId) return;
+
+  // Find all leaf components (raw materials) by filtering out departments/phantoms
+  const positions = ordersDb.prepare(`
+    SELECT bp.item_id, bp.quantity as bom_quantity, i.name as item_name
+    FROM bom_positions bp
+    JOIN items i ON bp.item_id = i.id
+    WHERE bp.bom_id = ? AND bp.node_type = 'component'
+  `).all(bomId);
+
+  for (const pos of positions) {
+    const requiredTotal = pos.bom_quantity * orderQuantity;
+    if (requiredTotal <= 0) continue;
+
+    // Check current stock and reservations
+    const stock = ordersDb.prepare('SELECT * FROM stock_levels WHERE item_id = ?').get(pos.item_id);
+    const totalPhysical = stock ? stock.quantity : 0;
+    const totalReserved = stock ? (stock.allocated_quantity || 0) : 0;
+    const available = Math.max(0, totalPhysical - totalReserved);
+
+    let qtyToAllocate = 0;
+    let deficit = 0;
+
+    if (available >= requiredTotal) {
+      qtyToAllocate = requiredTotal;
+    } else {
+      qtyToAllocate = available;
+      deficit = requiredTotal - available;
+    }
+
+    // 1. Update Stock Reservation (soft allocation)
+    if (qtyToAllocate > 0) {
+      if (stock) {
+        ordersDb.prepare('UPDATE stock_levels SET allocated_quantity = allocated_quantity + ? WHERE item_id = ?').run(qtyToAllocate, pos.item_id);
+      } else {
+        ordersDb.prepare('INSERT INTO stock_levels (item_id, quantity, allocated_quantity) VALUES (?, 0, ?)').run(pos.item_id, qtyToAllocate);
+      }
+      
+      ordersDb.prepare('INSERT INTO order_material_allocations (order_id, item_id, allocated_qty) VALUES (?, ?, ?)').run(orderId, pos.item_id, qtyToAllocate);
+      console.log(`[MRP] Allocated ${qtyToAllocate} ${pos.item_name} for Order ${orderId}`);
+    }
+
+    // 2. Generate PO Recommendation if there's a deficit
+    if (deficit > 0) {
+      ordersDb.prepare(`
+        INSERT INTO purchase_recommendations (item_id, recommended_qty, triggering_order_id) 
+        VALUES (?, ?, ?)
+      `).run(pos.item_id, deficit, orderId);
+      console.log(`[MRP] Recommended PO for ${deficit} ${pos.item_name} (Order ${orderId})`);
+    }
+  }
+}
+
+// ─── Helper: Find next free slot on machine ───
+function getMachineAvailableTime(machineId, fromTime) {
+  // SQLite string comparison works perfectly for YYYY-MM-DD HH:MM:SS
+  const latestOrder = ordersDb.prepare(`
+    SELECT planned_end FROM orders 
+    WHERE machine_id = ? AND status IN ('pending', 'active')
+    AND planned_end > ?
+    ORDER BY planned_end DESC LIMIT 1
+  `).get(machineId, fromTime);
+  
+  if (latestOrder) {
+    console.log(`[Scheduler] Machine ${machineId} is busy until ${latestOrder.planned_end}. Pushing from ${fromTime}`);
+    return latestOrder.planned_end;
+  }
+  return fromTime;
+}
+
 // POST /api/orders — create order(s)
 router.post('/', authenticateToken, requireRole('planner', 'administrator'), (req, res) => {
   const { orders } = req.body; // array of orders
@@ -165,62 +243,87 @@ router.post('/', authenticateToken, requireRole('planner', 'administrator'), (re
     VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)
   `);
 
-  for (const o of orders) {
-    const { machine_id, product_name, item_id, bom_id, quantity, planned_start, planned_end, order_type } = o;
-    
-    // Check if item has a route
-    const route = item_id 
-      ? ordersDb.prepare('SELECT * FROM item_routes WHERE item_id = ? ORDER BY sequence ASC').all(item_id)
-      : [];
+  const transaction = ordersDb.transaction(() => {
+    for (const o of orders) {
+      const { machine_id, product_name, item_id, bom_id, quantity, planned_start, planned_end, order_type } = o;
+      
+      // Check if item has a route
+      const route = item_id 
+        ? ordersDb.prepare('SELECT * FROM item_routes WHERE item_id = ? ORDER BY sequence ASC').all(item_id)
+        : [];
 
-    if (route.length > 0) {
-      // ─── EXPLOSION MODE ───
-      let lastEnd = planned_start;
-      let firstParentId = null;
+      if (route.length > 0) {
+        // ─── EXPLOSION MODE with Conflict Prevention ───
+        let lastEnd = planned_start;
+        let firstParentId = null;
 
-      for (let i = 0; i < route.length; i++) {
-        const step = route[i];
-        const stepStart = lastEnd;
+        for (let i = 0; i < route.length; i++) {
+          const step = route[i];
+          
+          // 1. Calculate Earliest Start (after previous step)
+          const earliestStart = lastEnd;
+          
+          // 2. Adjust for Machine Availability (Finite Capacity)
+          const actualStart = getMachineAvailableTime(step.machine_id, earliestStart);
+          
+          const durationMins = (step.process_time_min || 0) * quantity;
+          const actualEnd = addMinutes(actualStart, durationMins || 60);
+
+          const result = insertStmt.run(
+            step.machine_id,
+            `${product_name} [${i+1}/${route.length}]`,
+            item_id,
+            bom_id || null,
+            quantity,
+            actualStart,
+            actualEnd,
+            order_type || 'production',
+            req.user.id,
+            firstParentId,
+            step.sequence
+          );
+
+          if (i === 0) firstParentId = result.lastInsertRowid;
+          
+          created.push({ id: result.lastInsertRowid, machine_id: step.machine_id, product_name: `${product_name} [${i+1}/${route.length}]`, item_id, bom_id, quantity, planned_start: actualStart, planned_end: actualEnd });
+          lastEnd = actualEnd;
+          
+          if (i === 0) {
+              allocateMaterialsForOrder(result.lastInsertRowid, bom_id, quantity);
+          }
+        }
+      } else {
+        // ─── STANDARD MODE (No route) with Conflict Prevention ───
+        if (!machine_id || !product_name || !quantity || !planned_start) {
+          throw new Error('Câmpurile obligatorii lipsesc');
+        }
         
-        // Calculate duration: process_time_min * quantity
-        // If it's the first step and we have a manual planned_end for the WHOLE order, 
-        // we might want to distribute it, but for now let's use the route times.
-        const durationMins = (step.process_time_min || 0) * quantity;
-        const stepEnd = addMinutes(stepStart, durationMins || 60); // min 60 mins if 0
-
-        const result = insertStmt.run(
-          step.machine_id,
-          `${product_name} [${i+1}/${route.length}]`,
-          item_id,
-          bom_id || null,
-          quantity,
-          stepStart,
-          stepEnd,
-          order_type || 'production',
-          req.user.id,
-          firstParentId, // null for first, then the ID of the first order in chain
-          step.sequence
-        );
-
-        if (i === 0) firstParentId = result.lastInsertRowid;
+        const actualStart = getMachineAvailableTime(machine_id, planned_start);
+        let actualEnd = planned_end;
         
-        created.push({ id: result.lastInsertRowid, machine_id: step.machine_id, product_name: `${product_name} [${i+1}/${route.length}]`, item_id, bom_id, quantity, planned_start: stepStart, planned_end: stepEnd });
-        lastEnd = stepEnd;
-      }
-    } else {
-      // ─── STANDARD MODE (No route) ───
-      if (!machine_id || !product_name || !quantity || !planned_start || !planned_end) {
-        return res.status(400).json({ error: 'Toate câmpurile comenzii sunt obligatorii' });
-      }
-      const machine = machinesDb.prepare('SELECT * FROM machines WHERE id = ?').get(machine_id);
-      if (!machine) return res.status(404).json({ error: `Utilajul ${machine_id} nu există` });
+        // If end not provided or overlapped, re-calculate
+        if (!actualEnd || new Date(actualEnd) <= new Date(actualStart)) {
+            actualEnd = addMinutes(actualStart, 60); // Default 1h if unknown
+        } else {
+            // Keep duration but shift start
+            const duration = (new Date(planned_end) - new Date(planned_start)) / 60000;
+            actualEnd = addMinutes(actualStart, duration);
+        }
 
-      const result = insertStmt.run(machine_id, product_name, item_id || null, bom_id || null, quantity, planned_start, planned_end, order_type || 'production', req.user.id, null, 0);
-      created.push({ id: result.lastInsertRowid, machine_id, product_name, item_id, bom_id, quantity, planned_start, planned_end, order_type: order_type || 'production' });
+        const result = insertStmt.run(machine_id, product_name, item_id || null, bom_id || null, quantity, actualStart, actualEnd, order_type || 'production', req.user.id, null, 0);
+        created.push({ id: result.lastInsertRowid, machine_id, product_name, item_id, bom_id, quantity, planned_start: actualStart, planned_end: actualEnd, order_type: order_type || 'production' });
+        
+        allocateMaterialsForOrder(result.lastInsertRowid, bom_id, quantity);
+      }
     }
-  }
+  });
 
-  res.status(201).json({ created, message: `${created.length} comandă/comenzi create (explodate pe rută)` });
+  try {
+      transaction();
+      res.status(201).json({ created, message: `${created.length} comandă/comenzi create.` });
+  } catch(e) {
+      res.status(400).json({ error: e.message });
+  }
 });
 
 // PUT /api/orders/:id
@@ -277,12 +380,32 @@ router.put('/:id', authenticateToken, requireRole('planner', 'administrator'), (
   res.json({ message: 'Comanda actualizată și planul re-aliniat' });
 });
 
+function releaseAllocationsForOrder(orderId) {
+  const allocations = ordersDb.prepare('SELECT * FROM order_material_allocations WHERE order_id = ?').all(orderId);
+  for (const alloc of allocations) {
+    ordersDb.prepare('UPDATE stock_levels SET allocated_quantity = allocated_quantity - ? WHERE item_id = ?').run(alloc.allocated_qty, alloc.item_id);
+  }
+  ordersDb.prepare('DELETE FROM order_material_allocations WHERE order_id = ?').run(orderId);
+  // Optional: Also delete pending purchase recommendations triggered by this order
+  ordersDb.prepare("DELETE FROM purchase_recommendations WHERE triggering_order_id = ? AND status = 'pending'").run(orderId);
+}
+
 // DELETE /api/orders/:id (cancel)
 router.delete('/:id', authenticateToken, requireRole('planner', 'administrator'), (req, res) => {
   const order = ordersDb.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
   if (!order) return res.status(404).json({ error: 'Comanda nu a fost găsită' });
-  ordersDb.prepare("UPDATE orders SET status='cancelled' WHERE id=?").run(req.params.id);
-  res.json({ message: 'Comanda anulată' });
+  
+  const transaction = ordersDb.transaction(() => {
+    ordersDb.prepare("UPDATE orders SET status='cancelled' WHERE id=?").run(req.params.id);
+    releaseAllocationsForOrder(req.params.id);
+  });
+
+  try {
+    transaction();
+    res.json({ message: 'Comanda anulată și alocările eliberate' });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // POST /api/orders/:id/delay — add delay to order and propagate

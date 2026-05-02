@@ -442,10 +442,16 @@ function ItemModal({ item, machines, onClose, onSave }) {
             </div>
             <div className="space-y-3 max-h-64 overflow-y-auto pr-2">
               {formData.routes.map((r, i) => (
-                <div key={i} className="flex gap-3 items-end bg-white p-4 rounded-xl border border-border shadow-sm">
+                <div key={i} className="flex gap-3 items-end bg-white p-4 rounded-xl border border-border shadow-sm group">
+                  <div className="w-20 space-y-1">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase">{t('items.phase') || 'Faza'}</label>
+                    <div className="h-10 rounded-lg bg-muted/50 border border-border flex items-center justify-center font-black text-accent text-sm">
+                      {i + 1}
+                    </div>
+                  </div>
                   <div className="flex-1 space-y-1">
                     <label className="text-[10px] font-bold text-muted-foreground uppercase">{t('admin.machine_name')}</label>
-                    <select className="w-full h-10 rounded-lg border border-border px-3 text-sm outline-none focus:ring-1 ring-accent" value={r.machine_id} onChange={e => {
+                    <select className="w-full h-10 rounded-lg border border-border px-3 text-sm outline-none focus:ring-1 ring-accent font-medium" value={r.machine_id} onChange={e => {
                       const newRoutes = [...formData.routes];
                       newRoutes[i].machine_id = parseInt(e.target.value);
                       setFormData({...formData, routes: newRoutes});
@@ -453,21 +459,16 @@ function ItemModal({ item, machines, onClose, onSave }) {
                       {machines.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                     </select>
                   </div>
-                  <div className="w-24 space-y-1">
+                  <div className="w-28 space-y-1">
                     <label className="text-[10px] font-bold text-muted-foreground uppercase">{t('items.production_time')}</label>
-                    <Input type="number" className="h-10" value={r.process_time_min} onChange={e => {
-                      const newRoutes = [...formData.routes];
-                      newRoutes[i].process_time_min = parseInt(e.target.value);
-                      setFormData({...formData, routes: newRoutes});
-                    }}/>
-                  </div>
-                  <div className="flex-1 space-y-1">
-                    <label className="text-[10px] font-bold text-muted-foreground uppercase">{t('items.op_notes')}</label>
-                    <Input className="h-10" value={r.notes} onChange={e => {
-                      const newRoutes = [...formData.routes];
-                      newRoutes[i].notes = e.target.value;
-                      setFormData({...formData, routes: newRoutes});
-                    }}/>
+                    <div className="relative">
+                      <Input type="number" className="h-10 pr-8 font-mono" value={r.process_time_min} onChange={e => {
+                        const newRoutes = [...formData.routes];
+                        newRoutes[i].process_time_min = parseInt(e.target.value);
+                        setFormData({...formData, routes: newRoutes});
+                      }}/>
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-muted-foreground">min</span>
+                    </div>
                   </div>
                   <Button type="button" variant="ghost" size="sm" className="h-10 text-red-500 hover:bg-red-50" onClick={() => {
                     const newRoutes = formData.routes.filter((_, idx) => idx !== i);

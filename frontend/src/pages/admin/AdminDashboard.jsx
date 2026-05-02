@@ -208,9 +208,14 @@ export default function AdminDashboard() {
                         </div>
                         <h4 className="font-bold text-foreground">{area.name}</h4>
                       </div>
-                      <Button variant="secondary" size="sm" className="h-8 px-3 text-xs" onClick={() => { setSelectedArea(area); setEditMachine(null); setShowMachineModal(true); }}>
-                        <Plus size={12} className="mr-1"/> Utilaj
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50" onClick={async () => { if(window.confirm(t('admin.delete_area_confirm', { defaultValue: 'Sigur dorești să ștergi această arie și toate utilajele ei?' }))) { await api.delete(`/machines/areas/${area.id}`); loadAreas(); } }}>
+                          <Trash2 size={14}/>
+                        </Button>
+                        <Button variant="secondary" size="sm" className="h-8 px-3 text-xs" onClick={() => { setSelectedArea(area); setEditMachine(null); setShowMachineModal(true); }}>
+                          <Plus size={12} className="mr-1"/> Utilaj
+                        </Button>
+                      </div>
                     </div>
                     <div className="p-2 space-y-1">
                       {(area.machines||[]).length === 0 ? (
@@ -222,9 +227,14 @@ export default function AdminDashboard() {
                                <div className="w-1.5 h-1.5 rounded-full bg-accent/40 group-hover:bg-accent transition-colors" />
                                <span className="text-sm font-medium text-foreground/80 group-hover:text-foreground transition-colors">{m.name}</span>
                              </div>
-                             <Button variant="ghost" size="sm" className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => { setSelectedArea(area); setEditMachine(m); setShowMachineModal(true); }}>
-                               <Settings size={12} className="text-muted-foreground" />
-                             </Button>
+                             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                               <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => { setSelectedArea(area); setEditMachine(m); setShowMachineModal(true); }}>
+                                 <Settings size={12} className="text-muted-foreground" />
+                               </Button>
+                               <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500 hover:bg-red-50" onClick={async () => { if(window.confirm(t('admin.delete_machine_confirm', { defaultValue: 'Sigur dorești să ștergi acest utilaj?' }))) { await api.delete(`/machines/${m.id}`); loadAreas(); } }}>
+                                 <Trash2 size={12} />
+                               </Button>
+                             </div>
                           </div>
                         ))
                       )}

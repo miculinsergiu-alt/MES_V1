@@ -2,17 +2,47 @@ import { useMemo, useRef, useEffect } from 'react';
 import { format, addHours, startOfDay, differenceInMinutes } from 'date-fns';
 import { useTranslation } from 'react-i18next';
 
-export default function GanttTimeline({ orders = [], machines = [], viewDate = new Date(), hoursToShow = 24, onBlockClick }) {
+export default function GanttTimeline({ orders = [], machines = [], viewDate = new Date(), hoursToShow = 168, onBlockClick }) {
   const containerRef = useRef(null);
+  const isDragging = useRef(false);
+  const startX = useRef(0);
+  const scrollLeft = useRef(0);
+  
   const dayStart = startOfDay(viewDate);
   const totalMinutes = hoursToShow * 60;
   const { t } = useTranslation();
+
+  // ... (drag handlers same as before)
+  const handleMouseDown = (e) => {
+    isDragging.current = true;
+    containerRef.current.classList.add('cursor-grabbing');
+    startX.current = e.pageX - containerRef.current.offsetLeft;
+    scrollLeft.current = containerRef.current.scrollLeft;
+  };
+
+  const handleMouseLeave = () => {
+    isDragging.current = false;
+    containerRef.current.classList.remove('cursor-grabbing');
+  };
+
+  const handleMouseUp = () => {
+    isDragging.current = false;
+    containerRef.current.classList.remove('cursor-grabbing');
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging.current) return;
+    e.preventDefault();
+    const x = e.pageX - containerRef.current.offsetLeft;
+    const walk = (x - startX.current) * 2;
+    containerRef.current.scrollLeft = scrollLeft.current - walk;
+  };
 
   const scrollToNow = () => {
     if (containerRef.current) {
       const nowMin = differenceInMinutes(new Date(), dayStart);
       const percent = Math.max(0, Math.min(100, (nowMin / totalMinutes) * 100));
-      const scrollPos = (containerRef.current.scrollWidth - 220) * (percent / 100);
+      const scrollPos = (containerRef.current.scrollWidth - 200) * (percent / 100);
       containerRef.current.scrollTo({ left: scrollPos - 300, behavior: 'smooth' });
     }
   };
@@ -25,13 +55,21 @@ export default function GanttTimeline({ orders = [], machines = [], viewDate = n
 
   const timeLabels = useMemo(() => {
     const labels = [];
+    // Show labels every 2 hours for the entire range (e.g. 168h)
     for (let h = 0; h <= hoursToShow; h += 2) {
       const d = addHours(dayStart, h);
-      labels.push({ hour: h, label: format(d, 'HH:mm') });
+      // For multi-day, include day prefix if it's 00:00
+      const isNewDay = h > 0 && h % 24 === 0;
+      labels.push({ 
+        hour: h, 
+        label: format(d, 'HH:mm'),
+        dayLabel: isNewDay ? format(d, 'dd MMM') : null
+      });
     }
     return labels;
   }, [dayStart, hoursToShow]);
 
+  // ... (helper functions for percentages same as before)
   const nowOffset = useMemo(() => {
     const nowMin = differenceInMinutes(new Date(), dayStart);
     return Math.max(0, Math.min(100, (nowMin / totalMinutes) * 100));
@@ -50,7 +88,7 @@ export default function GanttTimeline({ orders = [], machines = [], viewDate = n
       const s = typeof startStr === 'string' ? new Date(startStr.replace(' ', 'T')) : startStr;
       const e = typeof endStr === 'string' ? new Date(endStr.replace(' ', 'T')) : endStr;
       const mins = differenceInMinutes(e, s);
-      return Math.max(0.2, (mins / totalMinutes) * 100);
+      return Math.max(0.05, (mins / totalMinutes) * 100);
     } catch { return 1; }
   };
 
@@ -75,16 +113,24 @@ export default function GanttTimeline({ orders = [], machines = [], viewDate = n
         </button>
       </div>
 
-      <div className="gantt-wrap border border-border rounded-xl shadow-sm bg-white overflow-x-auto" ref={containerRef}>
-        <div className="min-w-[1400px]">
+      <div 
+        className="gantt-wrap border border-border rounded-xl shadow-sm bg-white overflow-x-auto cursor-grab select-none" 
+        ref={containerRef}
+        onMouseDown={handleMouseDown}
+        onMouseLeave={handleMouseLeave}
+        onMouseUp={handleMouseUp}
+        onMouseMove={handleMouseMove}
+      >
+        <div style={{ minWidth: `${(hoursToShow / 24) * 1200}px` }}>
           {/* Header */}
           <div className="gantt-time-header">
-            <div className="w-[220px] border-r border-border flex items-center px-4">
+            <div className="w-[200px] border-r border-border flex items-center px-4">
               <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">{t('gantt.header_label')}</span>
             </div>
             <div className="flex-1 relative">
-              {timeLabels.map(({ hour, label }) => (
+              {timeLabels.map(({ hour, label, dayLabel }) => (
                 <div key={hour} className="gantt-time-label" style={{ left:`${(hour*60/totalMinutes)*100}%` }}>
+                  {dayLabel && <span className="absolute -top-4 left-0 text-[8px] text-accent whitespace-nowrap">{dayLabel}</span>}
                   {label}
                 </div>
               ))}
@@ -131,15 +177,16 @@ export default function GanttTimeline({ orders = [], machines = [], viewDate = n
                               style={{ 
                                 left:`${left}%`, 
                                 width:`${width}%`,
-                                backgroundColor: isMaintenance ? '#f97316' : 'var(--planner-color)',
+                                backgroundColor: isMaintenance ? '#f97316' : '#cbd5e1',
                                 backgroundImage: isMaintenance ? 'linear-gradient(45deg, rgba(255,255,255,.1) 25%, transparent 25%, transparent 50%, rgba(255,255,255,.1) 50%, rgba(255,255,255,.1) 75%, transparent 75%, transparent)' : 'none',
-                                backgroundSize: '10px 10px'
+                                backgroundSize: '10px 10px',
+                                opacity: 0.7,
+                                border: '1px dashed #94a3b8'
                               }}
+                              title={`${order.product_name} | Qty: ${order.quantity} | ${order.planned_start} - ${order.planned_end}`}
                               onClick={() => onBlockClick?.(order)}
-                            />
-                            {/* Product Name as simple text */}
-                            <div className={`gantt-block-tag ${isMaintenance ? 'text-orange-950 font-black' : ''}`} style={{ left: `${left}%`, width: `${width}%` }}>
-                              {order.product_name}
+                            >
+                              <span>{order.product_name}</span>
                             </div>
                             {delays.map(d => {
                               const dWidth = (d.delay_minutes / totalMinutes) * 100;

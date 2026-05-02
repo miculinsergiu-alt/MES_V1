@@ -18,7 +18,7 @@ db.exec(`
     first_name TEXT NOT NULL,
     last_name TEXT NOT NULL,
     badge_number TEXT UNIQUE NOT NULL,
-    role TEXT NOT NULL CHECK(role IN ('administrator','planner','area_supervisor','shift_responsible','operator','warehouse_manager')),
+    role TEXT NOT NULL CHECK(role IN ('administrator','planner','area_supervisor','shift_responsible','operator','warehouse_manager','material_planner')),
     password_hash TEXT NOT NULL,
     active INTEGER DEFAULT 1,
     created_at TEXT DEFAULT (datetime('now'))
@@ -248,6 +248,7 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     item_id INTEGER NOT NULL UNIQUE REFERENCES items(id) ON DELETE CASCADE,
     quantity REAL DEFAULT 0,
+    allocated_quantity REAL DEFAULT 0,
     location TEXT,
     last_updated TEXT DEFAULT (datetime('now'))
   );
@@ -281,6 +282,25 @@ db.exec(`
     lot_id INTEGER NOT NULL REFERENCES inventory_lots(id),
     quantity_used REAL NOT NULL,
     recorded_at TEXT DEFAULT (datetime('now'))
+  );
+
+  -- INVENTORY ALLOCATION (MRP)
+  CREATE TABLE IF NOT EXISTS order_material_allocations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    item_id INTEGER NOT NULL REFERENCES items(id),
+    allocated_qty REAL NOT NULL,
+    created_at TEXT DEFAULT (datetime('now')),
+    UNIQUE(order_id, item_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS purchase_recommendations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    item_id INTEGER NOT NULL REFERENCES items(id),
+    recommended_qty REAL NOT NULL,
+    triggering_order_id INTEGER REFERENCES orders(id),
+    status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'converted', 'dismissed')),
+    created_at TEXT DEFAULT (datetime('now'))
   );
 
   -- PREVENTIVE MAINTENANCE
@@ -458,6 +478,7 @@ addColumnIfNotExists('items', 'supplier_name', 'TEXT');
 addColumnIfNotExists('items', 'lead_time_days', 'INTEGER DEFAULT 0');
 addColumnIfNotExists('orders', 'parent_order_id', 'INTEGER REFERENCES orders(id) ON DELETE CASCADE');
 addColumnIfNotExists('orders', 'routing_sequence', 'INTEGER DEFAULT 0');
+addColumnIfNotExists('stock_levels', 'allocated_quantity', 'REAL DEFAULT 0');
 
 // ─── BOM MULTI-NIVEL MIGRATIONS ──────────────────────────────────────────────
 addColumnIfNotExists('bom_positions', 'parent_position_id', 'INTEGER REFERENCES bom_positions(id) ON DELETE CASCADE');
@@ -477,6 +498,7 @@ function seedIfNeeded() {
     ['Ion', 'Constantin', 'OPR001', 'operator', 'pass123'],
     ['Maria', 'Stan', 'OPR002', 'operator', 'pass123'],
     ['Vasile', 'Magazioner', 'WHM001', 'warehouse_manager', 'pass123'],
+    ['Ana', 'Material', 'MAT001', 'material_planner', 'pass123'],
   ];
 
   for (const [fn, ln, badge, role, pass] of usersToSeed) {

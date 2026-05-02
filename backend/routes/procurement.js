@@ -1,6 +1,59 @@
 const express = require('express');
 const router = express.Router();
 const { db } = require('../db/init');
+const { authenticateToken } = require('../middleware/auth');
+
+// --- Purchase Recommendations (MRP) ---
+router.get('/recommendations', authenticateToken, (req, res) => {
+  try {
+    const recommendations = db.prepare(`
+      SELECT pr.*, i.name as item_name, i.item_code, i.uom, o.product_name as triggering_order_name
+      FROM purchase_recommendations pr
+      JOIN items i ON pr.item_id = i.id
+      LEFT JOIN orders o ON pr.triggering_order_id = o.id
+      WHERE pr.status = 'pending'
+      ORDER BY pr.created_at DESC
+    `).all();
+    res.json(recommendations);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/recommendations/:id/convert', authenticateToken, (req, res) => {
+  const { supplier_id, expected_date } = req.body;
+  
+  const transaction = db.transaction(() => {
+    const recommendation = db.prepare('SELECT * FROM purchase_recommendations WHERE id = ?').get(req.params.id);
+    if (!recommendation) throw new Error('Recomandarea nu a fost gasita');
+    if (recommendation.status !== 'pending') throw new Error('Recomandarea a fost deja procesata');
+
+    // 1. Create PO
+    const poResult = db.prepare(`
+      INSERT INTO purchase_orders (supplier_id, expected_date, created_by)
+      VALUES (?, ?, ?)
+    `).run(supplier_id, expected_date, req.user.id);
+    const poId = poResult.lastInsertRowid;
+
+    // 2. Add Item to PO
+    db.prepare(`
+      INSERT INTO purchase_order_items (po_id, item_id, quantity_ordered)
+      VALUES (?, ?, ?)
+    `).run(poId, recommendation.item_id, recommendation.recommended_qty);
+
+    // 3. Mark Recommendation as Converted
+    db.prepare(`UPDATE purchase_recommendations SET status = 'converted' WHERE id = ?`).run(recommendation.id);
+    
+    return poId;
+  });
+
+  try {
+    const poId = transaction();
+    res.json({ id: poId, message: 'Recomandare convertită cu succes în PO' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // --- Purchase Orders ---
 router.get('/purchase-orders', (req, res) => {

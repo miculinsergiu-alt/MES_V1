@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ShoppingCart, PackageCheck, Truck, Plus, Search, FileText, CheckCircle, AlertTriangle, QrCode, X, Trash2 } from 'lucide-react';
+import { ShoppingCart, PackageCheck, Truck, Plus, Search, FileText, CheckCircle, AlertTriangle, QrCode, X, Trash2, Zap } from 'lucide-react';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { Button } from '../../components/ui/Button';
@@ -11,13 +11,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 export default function ProcurementDashboard() {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState('pos'); // 'pos', 'receipts'
+  const [activeTab, setActiveTab] = useState('pos'); // 'pos', 'recommendations'
   const [purchaseOrders, setPurchaseOrders] = useState([]);
+  const [recommendations, setRecommendations] = useState([]);
   const [loading, setLoading] = useState(true);
   
   const [showPOModal, setShowPOModal] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [showConvertModal, setShowConvertModal] = useState(false);
   const [selectedPO, setSelectedPO] = useState(null);
+  const [selectedRec, setSelectedRec] = useState(null);
 
   const loadPOs = useCallback(async () => {
     try {
@@ -25,19 +28,29 @@ export default function ProcurementDashboard() {
       setPurchaseOrders(res.data);
     } catch (err) {
       toast.error('Eroare la încărcarea comenzilor de achiziție');
-    } finally {
-      setLoading(false);
     }
   }, []);
 
-  useEffect(() => { loadPOs(); }, [loadPOs]);
+  const loadRecommendations = useCallback(async () => {
+    try {
+      const res = await api.get('/procurement/recommendations');
+      setRecommendations(res.data);
+    } catch (err) {
+      toast.error('Eroare la încărcarea recomandărilor MRP');
+    }
+  }, []);
+
+  useEffect(() => { 
+    setLoading(true);
+    Promise.all([loadPOs(), loadRecommendations()]).finally(() => setLoading(false)); 
+  }, [loadPOs, loadRecommendations]);
 
   return (
     <div className="space-y-8">
       <header className="flex justify-between items-end">
         <div>
           <h2 className="font-display text-3xl text-foreground">Aprovizionare & Recepție Marfă</h2>
-          <p className="text-muted-foreground">Gestionează comenzile către furnizori și intrarea materialelor în stoc.</p>
+          <p className="text-muted-foreground">Gestionează comenzile către furnizori și recomandările MRP.</p>
         </div>
         <div className="flex gap-3">
           <Button variant="secondary" onClick={() => setShowReceiptModal(true)}>
@@ -55,6 +68,13 @@ export default function ProcurementDashboard() {
           onClick={() => setActiveTab('pos')}
         >
           Comenzi Active (PO)
+        </button>
+        <button 
+          className={`pb-4 px-2 font-bold uppercase tracking-widest text-sm transition-all flex items-center gap-2 ${activeTab === 'recommendations' ? 'text-accent border-b-2 border-accent' : 'text-muted-foreground'}`}
+          onClick={() => setActiveTab('recommendations')}
+        >
+          Recomandări MRP 
+          {recommendations.length > 0 && <span className="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full">{recommendations.length}</span>}
         </button>
       </div>
 
@@ -96,6 +116,40 @@ export default function ProcurementDashboard() {
         </div>
       )}
 
+      {activeTab === 'recommendations' && (
+        <div className="grid grid-cols-1 gap-4">
+          {recommendations.map(rec => (
+            <Card key={rec.id} className="p-6 flex justify-between items-center border-orange-200 bg-orange-50/30">
+              <div className="flex items-center gap-6">
+                <div className="p-3 bg-orange-100 text-orange-600 rounded-2xl">
+                  <AlertTriangle size={24} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-[10px] font-black text-orange-600 uppercase tracking-widest">{rec.item_code}</span>
+                    <h4 className="font-bold text-lg">{rec.item_name}</h4>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">Necesar: <span className="font-bold text-foreground">{rec.recommended_qty} {rec.uom}</span></p>
+                  <p className="text-[10px] uppercase font-black text-muted-foreground mt-1">Cauzată de: {rec.triggering_order_name || 'Comandă necunoscută'}</p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <Button onClick={() => { setSelectedRec(rec); setShowConvertModal(true); }} className="bg-orange-600 hover:bg-orange-700 text-white">
+                  <Zap size={16} className="mr-2" /> Transformă în PO
+                </Button>
+              </div>
+            </Card>
+          ))}
+          {recommendations.length === 0 && !loading && (
+            <div className="py-20 text-center text-green-700 bg-green-50 rounded-3xl border border-green-200 flex flex-col items-center justify-center gap-2">
+              <CheckCircle size={32} />
+              <p className="font-bold">Stoc suficient</p>
+              <p className="text-sm italic">Nu există nicio recomandare activă generată de MRP.</p>
+            </div>
+          )}
+        </div>
+      )}
+
       <AnimatePresence>
         {showPOModal && <POModal onClose={() => setShowPOModal(false)} onSave={() => { setShowPOModal(false); loadPOs(); }} />}
         {showReceiptModal && (
@@ -105,7 +159,65 @@ export default function ProcurementDashboard() {
             onSave={() => { setShowReceiptModal(false); setSelectedPO(null); loadPOs(); }} 
           />
         )}
+        {showConvertModal && selectedRec && (
+          <ConvertModal 
+            rec={selectedRec} 
+            onClose={() => { setShowConvertModal(false); setSelectedRec(null); }} 
+            onSave={() => { setShowConvertModal(false); setSelectedRec(null); loadRecommendations(); loadPOs(); setActiveTab('pos'); }} 
+          />
+        )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+function ConvertModal({ rec, onClose, onSave }) {
+  const [suppliers, setSuppliers] = useState([]);
+  const [formData, setFormData] = useState({
+    supplier_id: '',
+    expected_date: ''
+  });
+
+  useEffect(() => {
+    api.get('/suppliers').then(res => setSuppliers(res.data));
+  }, []);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await api.post(`/procurement/recommendations/${rec.id}/convert`, formData);
+      toast.success('Recomandare convertită cu succes!');
+      onSave();
+    } catch (err) {
+      toast.error('Eroare la conversia recomandării');
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm" onClick={onClose}>
+      <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-3xl p-8 w-full max-w-md border border-border shadow-2xl" onClick={e => e.stopPropagation()}>
+        <h3 className="font-display text-2xl mb-2">Transformă în PO</h3>
+        <p className="text-sm text-muted-foreground mb-6">Comanzi <span className="font-bold text-foreground">{rec.recommended_qty} {rec.uom}</span> de <span className="font-bold text-foreground">{rec.item_name}</span></p>
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1">
+            <label className="text-xs font-bold uppercase text-muted-foreground">Selectează Furnizorul</label>
+            <select className="w-full h-11 rounded-xl border border-border px-3 bg-white" value={formData.supplier_id} onChange={e => setFormData({...formData, supplier_id: e.target.value})} required>
+              <option value="">— Alege Furnizor —</option>
+              {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-bold uppercase text-muted-foreground">Data Estimată a Livrării</label>
+            <Input type="date" value={formData.expected_date} onChange={e => setFormData({...formData, expected_date: e.target.value})} required />
+          </div>
+
+          <div className="pt-6 flex justify-end gap-3 border-t">
+            <Button variant="secondary" onClick={onClose}>Anulează</Button>
+            <Button type="submit" className="bg-orange-600 hover:bg-orange-700 text-white">Generează PO</Button>
+          </div>
+        </form>
+      </motion.div>
     </div>
   );
 }

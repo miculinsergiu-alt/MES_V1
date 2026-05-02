@@ -26,13 +26,20 @@ function checkOperatorConflict(operatorId, startTime, endTime, excludeAllocation
 
 // ─── Helper: Deduct Stock based on BOM ─────────────────────────────────────
 function deductStock(orderId, producedQty, userId) {
-  const order = db.prepare('SELECT bom_id FROM orders WHERE id = ?').get(orderId);
-  if (!order || !order.bom_id) return;
+  const order = db.prepare('SELECT bom_id, parent_order_id, routing_sequence FROM orders WHERE id = ?').get(orderId);
+  if (!order) return;
+
+  // RULE: Only deduct stock for the FIRST step of a routing chain (parent_order_id is NULL)
+  // Subsequent steps consume the "semi-finished" product conceptually, but we only track 
+  // raw material consumption at the start of the chain (e.g. Phase 1).
+  if (order.parent_order_id !== null) {
+    console.log(`[MRP] Skipping deduction for Order ${orderId} (Step ${order.routing_sequence}) - Not the first step.`);
+    return;
+  }
+
+  if (!order.bom_id) return;
 
   // We only deduct items that are components (not departments/phantoms)
-  // and we only deduct leaf nodes or specific raw materials to avoid double-deduction 
-  // in a multi-level BOM where a semi-finished might also be in stock.
-  // For this implementation, we deduct all components that have an item_id.
   const positions = db.prepare(`
     SELECT item_id, quantity 
     FROM bom_positions 
@@ -41,18 +48,40 @@ function deductStock(orderId, producedQty, userId) {
   
   for (const pos of positions) {
     const requiredTotal = pos.quantity * producedQty;
+    if (requiredTotal <= 0) continue;
     
-    // Update stock level (Upsert style to ensure record exists)
-    const stockExists = db.prepare('SELECT id FROM stock_levels WHERE item_id = ?').get(pos.item_id);
-    if (!stockExists) {
-      db.prepare('INSERT INTO stock_levels (item_id, quantity, last_updated) VALUES (?, ?, datetime("now"))')
-        .run(pos.item_id, -requiredTotal);
-    } else {
-      db.prepare('UPDATE stock_levels SET quantity = quantity - ?, last_updated = datetime("now") WHERE item_id = ?')
-        .run(requiredTotal, pos.item_id);
+    // 1. Consume Allocation if it exists for this specific order
+    const allocation = db.prepare('SELECT * FROM order_material_allocations WHERE order_id = ? AND item_id = ?').get(orderId, pos.item_id);
+    let qtyToDeductFromAllocation = 0;
+    
+    if (allocation) {
+       // Only deduct what was originally allocated (prevent negative allocations if over-producing)
+       qtyToDeductFromAllocation = Math.min(allocation.allocated_qty, requiredTotal);
+       
+       if (qtyToDeductFromAllocation > 0) {
+           // Release from the soft allocation pool
+           db.prepare('UPDATE stock_levels SET allocated_quantity = MAX(0, allocated_quantity - ?) WHERE item_id = ?').run(qtyToDeductFromAllocation, pos.item_id);
+           
+           // Reduce the specific order's allocation record
+           const remainingAlloc = allocation.allocated_qty - qtyToDeductFromAllocation;
+           if (remainingAlloc <= 0) {
+               db.prepare('DELETE FROM order_material_allocations WHERE id = ?').run(allocation.id);
+           } else {
+               db.prepare('UPDATE order_material_allocations SET allocated_qty = ? WHERE id = ?').run(remainingAlloc, allocation.id);
+           }
+       }
     }
+
+    // 2. Update actual physical stock level
+    db.prepare(`
+      INSERT INTO stock_levels (item_id, quantity, last_updated)
+      VALUES (?, ?, datetime('now'))
+      ON CONFLICT(item_id) DO UPDATE SET 
+        quantity = quantity - EXCLUDED.quantity, 
+        last_updated = datetime('now')
+    `).run(pos.item_id, requiredTotal);
       
-    // Log transaction
+    // 3. Log transaction
     db.prepare(`
       INSERT INTO stock_transactions (item_id, quantity, type, reference_type, reference_id, user_id)
       VALUES (?, ?, ?, ?, ?, ?)

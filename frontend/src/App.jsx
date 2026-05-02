@@ -23,6 +23,7 @@ const ROLE_ROUTES = {
   shift_responsible: '/shift',
   operator: '/operator',
   warehouse_manager: '/inventory',
+  material_planner: '/inventory',
 };
 
 function PrivateRoute({ children, roles }) {
@@ -57,7 +58,7 @@ export default function App() {
             <Route path="/planner/suppliers" element={<PrivateRoute roles={['planner','administrator']}><SupplierManager /></PrivateRoute>} />
             <Route path="/planner/boms/:id" element={<PrivateRoute roles={['planner','administrator']}><BOMViewerPage /></PrivateRoute>} />
             <Route path="/planner/inventory" element={<PrivateRoute roles={['planner','administrator']}><InventoryPage /></PrivateRoute>} />
-            <Route path="/inventory" element={<PrivateRoute roles={['warehouse_manager','administrator']}><InventoryPage /></PrivateRoute>} />
+            <Route path="/inventory" element={<PrivateRoute roles={['warehouse_manager', 'material_planner', 'administrator']}><InventoryPage /></PrivateRoute>} />
             
             {/* Supervisor */}
             <Route path="/supervisor/*" element={<PrivateRoute roles={['area_supervisor','administrator']}><SupervisorDashboard /></PrivateRoute>} />
