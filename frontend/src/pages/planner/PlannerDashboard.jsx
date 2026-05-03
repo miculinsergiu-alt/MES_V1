@@ -221,21 +221,22 @@ function CreateOrderModal({ machines, onClose, onSave }) {
     e.preventDefault(); setLoading(true);
     try {
       const payload = orders.map(o => {
+        const pStart = o.planned_start || format(new Date(), 'yyyy-MM-dd HH:mm:ss');
         let pEnd = o.planned_end;
         
         // Auto-calculate end time if not provided
-        if (!pEnd && o.planned_start && o.item_id && o.order_type === 'production') {
+        if (!pEnd && pStart && o.item_id && o.order_type === 'production') {
           const routes = itemRoutes[o.item_id] || [];
           const totalMin = routes.reduce((sum, r) => sum + (r.process_time_min * o.quantity), 0);
           if (totalMin > 0) {
-            const startDate = new Date(o.planned_start);
+            const startDate = new Date(pStart.replace(' ', 'T'));
             const endDate = new Date(startDate.getTime() + totalMin * 60000);
-            pEnd = format(endDate, 'yyyy-MM-dd HH:mm');
+            pEnd = format(endDate, 'yyyy-MM-dd HH:mm:ss');
           }
         }
 
-        // Fallback if still no end date (e.g. maintenance or no route)
-        if (!pEnd) pEnd = o.planned_start;
+        // Fallback if still no end date
+        if (!pEnd) pEnd = pStart;
 
         return {
           ...o, 
@@ -243,7 +244,7 @@ function CreateOrderModal({ machines, onClose, onSave }) {
           quantity: parseInt(o.quantity),
           item_id: o.item_id ? parseInt(o.item_id) : null,
           bom_id: o.bom_id ? parseInt(o.bom_id) : null,
-          planned_start: o.planned_start.replace('T',' '), 
+          planned_start: pStart.replace('T',' '), 
           planned_end: pEnd.replace('T',' ')
         };
       });
@@ -264,7 +265,7 @@ function CreateOrderModal({ machines, onClose, onSave }) {
         </div>
 
         <div className="p-8 overflow-y-auto">
-          <form onSubmit={handleSubmit} className="space-y-8">
+          <form id="create-order-form" onSubmit={handleSubmit} className="space-y-8">
             {orders.map((order, i) => (
               <div key={i} className="relative p-6 rounded-2xl border border-border bg-slate-50/50 space-y-6">
                 <div className="flex justify-between items-center">
@@ -352,7 +353,7 @@ function CreateOrderModal({ machines, onClose, onSave }) {
                   </div>
                   <div className="space-y-2">
                     <label className="text-[11px] font-bold text-muted-foreground uppercase ml-1">{t('planner.planned_end_label')}</label>
-                    <input className="w-full h-12 rounded-xl border border-border bg-white px-4 focus:ring-2 focus:ring-accent outline-none text-sm" type="datetime-local" value={order.planned_end} onChange={e=>setField(i,'planned_end',e.target.value)} required />
+                    <input className="w-full h-12 rounded-xl border border-border bg-white px-4 focus:ring-2 focus:ring-accent outline-none text-sm" type="datetime-local" value={order.planned_end} onChange={e=>setField(i,'planned_end',e.target.value)} />
                   </div>
                 </div>
               </div>
@@ -373,7 +374,7 @@ function CreateOrderModal({ machines, onClose, onSave }) {
 
         <div className="px-8 py-6 border-t border-border bg-slate-50 flex justify-end gap-3 sticky bottom-0">
           <button type="button" className="btn btn-secondary px-8" onClick={onClose}>{t('common.cancel')}</button>
-          <button type="submit" className="btn btn-primary px-10 shadow-lg shadow-accent/20" onClick={handleSubmit} disabled={loading}>
+          <button type="submit" form="create-order-form" className="btn btn-primary px-10 shadow-lg shadow-accent/20" disabled={loading}>
             {loading ? t('planner.processing') : t('planner.confirm_launch')}
           </button>
         </div>

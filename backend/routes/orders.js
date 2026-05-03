@@ -107,8 +107,13 @@ router.get('/gantt', authenticateToken, (req, res) => {
   const { date_from, date_to } = req.query;
   let sql = "SELECT * FROM orders WHERE status != 'cancelled'";
   const params = [];
-  if (date_from) { sql += ' AND planned_end >= ?'; params.push(date_from); }
-  if (date_to) { sql += ' AND planned_start <= ?'; params.push(date_to); }
+  if (date_from && date_to) {
+    sql += ' AND planned_start <= ? AND planned_end >= ?';
+    params.push(date_to, date_from);
+  } else {
+    if (date_from) { sql += ' AND planned_end >= ?'; params.push(date_from); }
+    if (date_to) { sql += ' AND planned_start <= ?'; params.push(date_to); }
+  }
   sql += ' ORDER BY machine_id, planned_start ASC';
   const orders = ordersDb.prepare(sql).all(...params);
 
@@ -163,9 +168,10 @@ function allocateMaterialsForOrder(orderId, bomId, orderQuantity) {
   if (!bomId) return;
   console.log(`[MRP] Starting recursive allocation for Order ${orderId} (BOM ${bomId}, Order Qty ${orderQuantity})`);
 
+  const aggregatedNeeds = {}; // { itemId: { itemName: string, totalQty: number } }
+
   // Helper for recursive explosion
   function explode(currentBomId, currentQty) {
-    // We select EVERYTHING from bom_positions to ensure L1 items are included
     const positions = ordersDb.prepare(`
       SELECT bp.item_id, bp.quantity as bom_quantity, bp.node_type, i.name as item_name, i.type as item_type
       FROM bom_positions bp
@@ -173,25 +179,19 @@ function allocateMaterialsForOrder(orderId, bomId, orderQuantity) {
       WHERE bp.bom_id = ?
     `).all(currentBomId);
 
-    console.log(`[MRP] BOM ${currentBomId} has ${positions.length} positions to check.`);
-
     for (const pos of positions) {
-      // Required = Qty in BOM * Parent Qty
       const requiredTotal = pos.bom_quantity * currentQty;
-      console.log(`[MRP] Processing ${pos.item_name} (${pos.item_type}): Needs ${requiredTotal} (BOM Qty ${pos.bom_quantity} x Parent Qty ${currentQty})`);
       
-      // RULE: If it's a RAW MATERIAL, we check stock and create PO if needed
       if (pos.item_type === 'raw_material') {
-        processRawMaterial(pos.item_id, pos.item_name, requiredTotal);
+        if (!aggregatedNeeds[pos.item_id]) {
+          aggregatedNeeds[pos.item_id] = { itemName: pos.item_name, totalQty: 0 };
+        }
+        aggregatedNeeds[pos.item_id].totalQty += requiredTotal;
       } 
-      // RULE: If it's a SEMI-FINISHED, we must dig deeper into ITS OWN BOM
       else if (pos.item_type === 'semi_finished') {
         const subBom = ordersDb.prepare('SELECT id FROM boms WHERE parent_item_id = ? LIMIT 1').get(pos.item_id);
         if (subBom) {
-          console.log(`[MRP] Digging into sub-recipe for SF: ${pos.item_name} -> BOM ${subBom.id}`);
           explode(subBom.id, requiredTotal);
-        } else {
-          console.log(`[MRP] WARNING: SF ${pos.item_name} has no BOM defined! Cannot calculate its components.`);
         }
       }
     }
@@ -200,13 +200,10 @@ function allocateMaterialsForOrder(orderId, bomId, orderQuantity) {
   function processRawMaterial(itemId, itemName, requiredTotal) {
     if (requiredTotal <= 0) return;
 
-    // Check current stock and reservations
     const stock = ordersDb.prepare('SELECT * FROM stock_levels WHERE item_id = ?').get(itemId);
     const totalPhysical = stock ? stock.quantity : 0;
     const totalReserved = stock ? (stock.allocated_quantity || 0) : 0;
     const available = Math.max(0, totalPhysical - totalReserved);
-
-    console.log(`[MRP] Stock Check for ${itemName}: Physical=${totalPhysical}, Reserved=${totalReserved}, Available=${available}, Required=${requiredTotal}`);
 
     let qtyToAllocate = 0;
     let deficit = 0;
@@ -218,32 +215,33 @@ function allocateMaterialsForOrder(orderId, bomId, orderQuantity) {
       deficit = requiredTotal - available;
     }
 
-    // 1. Update Stock Reservation (soft allocation)
     if (qtyToAllocate > 0) {
       if (stock) {
         ordersDb.prepare('UPDATE stock_levels SET allocated_quantity = allocated_quantity + ? WHERE item_id = ?').run(qtyToAllocate, itemId);
       } else {
         ordersDb.prepare('INSERT INTO stock_levels (item_id, quantity, allocated_quantity) VALUES (?, 0, ?)').run(itemId, qtyToAllocate);
       }
-      
       ordersDb.prepare('INSERT INTO order_material_allocations (order_id, item_id, allocated_qty) VALUES (?, ?, ?)').run(orderId, itemId, qtyToAllocate);
-      console.log(`[MRP] SUCCESS: Reserved ${qtyToAllocate} ${itemName} for Order ${orderId}`);
     }
 
-    // 2. Generate PO Recommendation if there's a deficit
     if (deficit > 0) {
-      const exists = ordersDb.prepare('SELECT id FROM purchase_recommendations WHERE triggering_order_id = ? AND item_id = ? AND status = "pending"').get(orderId, itemId);
+      const exists = ordersDb.prepare("SELECT id FROM purchase_recommendations WHERE triggering_order_id = ? AND item_id = ? AND status = 'pending'").get(orderId, itemId);
       if (!exists) {
         ordersDb.prepare(`
           INSERT INTO purchase_recommendations (item_id, recommended_qty, triggering_order_id) 
           VALUES (?, ?, ?)
         `).run(itemId, deficit, orderId);
-        console.log(`[MRP] ALERT: Deficit detected! Recommended PO for ${deficit} ${itemName} (Order ${orderId})`);
       }
     }
   }
 
+  // 1. Calculate all aggregated needs
   explode(bomId, orderQuantity);
+
+  // 2. Process aggregated raw materials to avoid UNIQUE constraint errors
+  for (const [itemIdStr, data] of Object.entries(aggregatedNeeds)) {
+    processRawMaterial(parseInt(itemIdStr), data.itemName, data.totalQty);
+  }
 }
 
 // ─── Helper: Find next free slot on machine ───
