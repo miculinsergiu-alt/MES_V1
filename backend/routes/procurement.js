@@ -35,6 +35,15 @@ router.delete('/recommendations/:id', authenticateToken, (req, res) => {
 router.post('/recommendations/:id/convert', authenticateToken, (req, res) => {
   const { supplier_id, expected_date } = req.body;
   
+  if (!supplier_id) {
+    return res.status(400).json({ error: 'Furnizorul este obligatoriu' });
+  }
+
+  const sId = parseInt(supplier_id);
+  const uId = parseInt(req.user.id);
+
+  console.log(`[PROCUREMENT] Converting Rec ${req.params.id} to PO for Supplier ${sId} by User ${uId}`);
+
   const transaction = db.transaction(() => {
     const recommendation = db.prepare(`
       SELECT pr.*, i.name as item_name, i.item_code, o.product_name as triggering_order_name
@@ -51,7 +60,8 @@ router.post('/recommendations/:id/convert', authenticateToken, (req, res) => {
     const poResult = db.prepare(`
       INSERT INTO purchase_orders (supplier_id, expected_date, created_by, status)
       VALUES (?, ?, ?, 'ordered')
-    `).run(supplier_id || null, expected_date || null, req.user.id);
+    `).run(sId, expected_date || null, uId);
+    
     const poId = poResult.lastInsertRowid;
 
     // 2. Add Item to PO

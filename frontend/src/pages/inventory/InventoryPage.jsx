@@ -46,6 +46,12 @@ export default function InventoryPage() {
     { path: '#logout', labelKey: 'common.logout', icon: <LogOut size={16}/>, onClick: logout }
   ];
 
+  const matPlannerNav = [
+    { path: '/inventory', labelKey: 'sidebar.inventory_hub', icon: <Package size={16}/> },
+    { path: '/inventory/suppliers', label: 'Furnizori', icon: <Truck size={16}/> },
+    { path: '#logout', labelKey: 'common.logout', icon: <LogOut size={16}/>, onClick: logout }
+  ];
+
   const tabs = [
     { id: 'stock', label: 'Niveluri Stoc', icon: <Package size={16}/> },
     { id: 'procurement', label: 'Recepție & PO', icon: <ShoppingCart size={16}/> },
@@ -54,9 +60,15 @@ export default function InventoryPage() {
     { id: 'warehousing', label: 'Magazii', icon: <Home size={16}/> }
   ];
 
+  const getNav = () => {
+    if (user?.role === 'warehouse_manager') return whmNav;
+    if (user?.role === 'material_planner') return matPlannerNav;
+    return plannerNav;
+  };
+
   return (
     <div className="flex min-h-screen bg-background">
-      <Sidebar items={user?.role === 'warehouse_manager' ? whmNav : plannerNav} />
+      <Sidebar items={getNav()} />
       <main className="flex-1 p-10 overflow-auto">
         <div className="flex justify-between items-center mb-10">
            <div>

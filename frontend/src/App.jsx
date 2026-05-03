@@ -59,6 +59,7 @@ export default function App() {
             <Route path="/planner/boms/:id" element={<PrivateRoute roles={['planner','administrator']}><BOMViewerPage /></PrivateRoute>} />
             <Route path="/planner/inventory" element={<PrivateRoute roles={['planner','administrator']}><InventoryPage /></PrivateRoute>} />
             <Route path="/inventory" element={<PrivateRoute roles={['warehouse_manager', 'material_planner', 'administrator']}><InventoryPage /></PrivateRoute>} />
+            <Route path="/inventory/suppliers" element={<PrivateRoute roles={['warehouse_manager', 'material_planner', 'administrator']}><SupplierManager /></PrivateRoute>} />
             
             {/* Supervisor */}
             <Route path="/supervisor/*" element={<PrivateRoute roles={['area_supervisor','administrator']}><SupervisorDashboard /></PrivateRoute>} />

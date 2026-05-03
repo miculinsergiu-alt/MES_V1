@@ -2,10 +2,20 @@ const express = require('express');
 const router = express.Router();
 const { db } = require('../db/init');
 
-// List all suppliers
+// List all suppliers with their items
 router.get('/', (req, res) => {
   try {
     const suppliers = db.prepare('SELECT * FROM suppliers ORDER BY name ASC').all();
+    const items = db.prepare(`
+      SELECT its.*, i.item_code, i.name as item_name 
+      FROM item_suppliers its
+      JOIN items i ON its.item_id = i.id
+    `).all();
+    
+    suppliers.forEach(s => {
+      s.items = items.filter(i => i.supplier_id === s.id);
+    });
+    
     res.json(suppliers);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -65,6 +75,15 @@ router.post('/item', (req, res) => {
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `).run(item_id, supplier_id, purchase_price, currency || 'RON', lead_time_days, last_negotiation_date, is_primary);
     res.json({ id: result.lastInsertRowid });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete('/item/:itemId/:supplierId', (req, res) => {
+  try {
+    db.prepare('DELETE FROM item_suppliers WHERE item_id = ? AND supplier_id = ?').run(req.params.itemId, req.params.supplierId);
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
