@@ -45,6 +45,17 @@ export default function ProcurementDashboard() {
     Promise.all([loadPOs(), loadRecommendations()]).finally(() => setLoading(false)); 
   }, [loadPOs, loadRecommendations]);
 
+  const handleDeleteRecommendation = async (id) => {
+    if (!window.confirm('Ești sigur că vrei să ștergi această recomandare MRP?')) return;
+    try {
+      await api.delete(`/procurement/recommendations/${id}`);
+      toast.success('Recomandare ștearsă cu succes');
+      loadRecommendations();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Eroare la ștergerea recomandării');
+    }
+  };
+
   return (
     <div className="space-y-8">
       <header className="flex justify-between items-end">
@@ -134,6 +145,9 @@ export default function ProcurementDashboard() {
                 </div>
               </div>
               <div className="flex gap-3">
+                <Button variant="ghost" size="sm" onClick={() => handleDeleteRecommendation(rec.id)} className="text-red-500 hover:text-red-700 hover:bg-red-50 px-3" title="Șterge recomandare">
+                  <Trash2 size={16} />
+                </Button>
                 <Button onClick={() => { setSelectedRec(rec); setShowConvertModal(true); }} className="bg-orange-600 hover:bg-orange-700 text-white">
                   <Zap size={16} className="mr-2" /> Transformă în PO
                 </Button>
@@ -189,7 +203,7 @@ function ConvertModal({ rec, onClose, onSave }) {
       toast.success('Recomandare convertită cu succes!');
       onSave();
     } catch (err) {
-      toast.error('Eroare la conversia recomandării');
+      toast.error(err.response?.data?.error || 'Eroare la conversia recomandării');
     }
   };
 

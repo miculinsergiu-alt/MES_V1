@@ -20,6 +20,18 @@ router.get('/recommendations', authenticateToken, (req, res) => {
   }
 });
 
+router.delete('/recommendations/:id', authenticateToken, (req, res) => {
+  try {
+    const result = db.prepare(`DELETE FROM purchase_recommendations WHERE id = ? AND status = 'pending'`).run(req.params.id);
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Recomandarea nu a fost găsită sau nu poate fi ștearsă.' });
+    }
+    res.json({ message: 'Recomandare ștearsă cu succes.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.post('/recommendations/:id/convert', authenticateToken, (req, res) => {
   const { supplier_id, expected_date } = req.body;
   
@@ -58,6 +70,7 @@ router.post('/recommendations/:id/convert', authenticateToken, (req, res) => {
     const poId = transaction();
     res.json({ id: poId, message: 'Recomandare convertită cu succes în PO' });
   } catch (err) {
+    console.error('ERROR CONVERTING REC:', err);
     res.status(500).json({ error: err.message });
   }
 });
