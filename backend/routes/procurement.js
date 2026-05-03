@@ -100,13 +100,16 @@ router.get('/purchase-orders', (req, res) => {
   }
 });
 
-router.post('/purchase-orders', (req, res) => {
-  const { supplier_id, expected_date, items, created_by } = req.body;
+router.post('/purchase-orders', authenticateToken, (req, res) => {
+  const { supplier_id, expected_date, items } = req.body;
+  const created_by = req.user.id;
+
   const transaction = db.transaction(() => {
+    const sId = parseInt(supplier_id);
     const poResult = db.prepare(`
       INSERT INTO purchase_orders (supplier_id, expected_date, created_by)
       VALUES (?, ?, ?)
-    `).run(supplier_id, expected_date, created_by);
+    `).run(sId, expected_date, created_by);
     
     const poId = poResult.lastInsertRowid;
     const stmt = db.prepare(`
@@ -143,24 +146,27 @@ router.get('/purchase-orders/:id/items', (req, res) => {
 });
 
 // --- Goods Receipt (Recepție Marfă) ---
-router.post('/receipts', (req, res) => {
-  const { po_id, received_by, document_reference, notes, items } = req.body;
+router.post('/receipts', authenticateToken, (req, res) => {
+  const { po_id, document_reference, notes, items } = req.body;
+  const received_by = req.user.id;
   
   const transaction = db.transaction(() => {
     // 1. Create Receipt Header
+    const safePoId = po_id && po_id !== '' ? parseInt(po_id) : null;
     const receiptResult = db.prepare(`
       INSERT INTO goods_receipts (po_id, received_by, document_reference, notes)
       VALUES (?, ?, ?, ?)
-    `).run(po_id, received_by, document_reference, notes);
+    `).run(safePoId, received_by, document_reference, notes);
     
     const receiptId = receiptResult.lastInsertRowid;
     
     for (const item of items) {
+      const safeLocId = item.location_id && item.location_id !== '' ? parseInt(item.location_id) : null;
       // 2. Create Receipt Item
       db.prepare(`
         INSERT INTO goods_receipt_items (receipt_id, item_id, lot_number, quantity_received, location_id, quality_status, expiration_date)
         VALUES (?, ?, ?, ?, ?, ?, ?)
-      `).run(receiptId, item.item_id, item.lot_number, item.quantity_received, item.location_id, item.quality_status || 'ok', item.expiration_date);
+      `).run(receiptId, item.item_id, item.lot_number, item.quantity_received, safeLocId, item.quality_status || 'ok', item.expiration_date || null);
 
       // 3. Update/Create Inventory Lot
       db.prepare(`
