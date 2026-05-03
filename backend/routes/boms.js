@@ -110,6 +110,16 @@ router.get('/requirements', authenticateToken, (req, res) => {
   res.json(requirements);
 });
 
+// GET /api/boms/by-item/:itemId — Find BOM by parent item ID (Helper for Editor)
+router.get('/by-item/:itemId', authenticateToken, (req, res) => {
+  const bom = itemsDb.prepare(`
+    SELECT b.* FROM boms b WHERE b.parent_item_id = ? LIMIT 1
+  `).get(req.params.itemId);
+  
+  if (!bom) return res.status(404).json({ error: 'Niciun BOM definit pentru acest articol' });
+  res.json(bom);
+});
+
 // GET /api/boms/:id — BOM with flat positions list (backward compat)
 router.get('/:id', authenticateToken, (req, res) => {
   const bom = itemsDb.prepare(`

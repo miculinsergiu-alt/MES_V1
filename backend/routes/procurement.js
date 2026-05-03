@@ -24,22 +24,29 @@ router.post('/recommendations/:id/convert', authenticateToken, (req, res) => {
   const { supplier_id, expected_date } = req.body;
   
   const transaction = db.transaction(() => {
-    const recommendation = db.prepare('SELECT * FROM purchase_recommendations WHERE id = ?').get(req.params.id);
+    const recommendation = db.prepare(`
+      SELECT pr.*, i.name as item_name, i.item_code, o.product_name as triggering_order_name
+      FROM purchase_recommendations pr
+      JOIN items i ON pr.item_id = i.id
+      LEFT JOIN orders o ON pr.triggering_order_id = o.id
+      WHERE pr.id = ?
+    `).get(req.params.id);
+
     if (!recommendation) throw new Error('Recomandarea nu a fost gasita');
     if (recommendation.status !== 'pending') throw new Error('Recomandarea a fost deja procesata');
 
     // 1. Create PO
     const poResult = db.prepare(`
-      INSERT INTO purchase_orders (supplier_id, expected_date, created_by)
-      VALUES (?, ?, ?)
-    `).run(supplier_id, expected_date, req.user.id);
+      INSERT INTO purchase_orders (supplier_id, expected_date, created_by, status)
+      VALUES (?, ?, ?, 'ordered')
+    `).run(supplier_id || null, expected_date || null, req.user.id);
     const poId = poResult.lastInsertRowid;
 
     // 2. Add Item to PO
     db.prepare(`
-      INSERT INTO purchase_order_items (po_id, item_id, quantity_ordered)
-      VALUES (?, ?, ?)
-    `).run(poId, recommendation.item_id, recommendation.recommended_qty);
+      INSERT INTO purchase_order_items (po_id, item_id, quantity_ordered, unit_price)
+      VALUES (?, ?, ?, (SELECT acquisition_cost FROM items WHERE id = ?))
+    `).run(poId, recommendation.item_id, recommendation.recommended_qty, recommendation.item_id);
 
     // 3. Mark Recommendation as Converted
     db.prepare(`UPDATE purchase_recommendations SET status = 'converted' WHERE id = ?`).run(recommendation.id);

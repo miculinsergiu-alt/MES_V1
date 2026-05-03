@@ -27,7 +27,7 @@ function makeNode(level, overrides = {}) {
     quantity: 1,
     location: '',
     department: '',
-    node_type: level === 1 ? 'department' : 'component',
+    node_type: 'component', // Default to component even at L1 if an item is picked
     level,
     sort_order: 0,
     children: [],
@@ -138,20 +138,27 @@ function TreeNode({ node, items, warehouses, onUpdate, onRemove, onTreeChange, f
     if (!node.item_id) return toast.error(t('items.select_article_first'));
     setExpanding(true);
     try {
-      const res = await api.get('/boms');
-      const bom = res.data.find(b => b.parent_item_id === node.item_id);
-      if (!bom) { toast.error(t('items.no_bom_for_item')); return; }
-      const treeRes = await api.get(`/boms/${bom.id}/tree`);
+      // Use direct lookup instead of full list scan
+      const res = await api.get(`/boms/by-item/${node.item_id}`);
+      const bomId = res.data.id;
+      
+      const treeRes = await api.get(`/boms/${bomId}/tree`);
       const childNodes = serverToClient(treeRes.data.tree).map(n => ({
         ...n,
         level: node.level + 1,
+        // Recursively adjust levels for children
         children: (n.children || []).map(c => ({ ...c, level: node.level + 2 })),
       }));
+      
       onUpdate({ ...node, children: [...(node.children || []), ...childNodes] });
       setExpanded(true);
       toast.success(t('items.bom_exploded', { count: treeRes.data.tree.length }));
     } catch (err) {
-      toast.error(t('items.bom_explode_error'));
+      if (err.response?.status === 404) {
+        toast.error(t('items.no_bom_for_item') || 'Nu există rețetă definită pentru acest articol');
+      } else {
+        toast.error(t('items.bom_explode_error'));
+      }
     } finally {
       setExpanding(false);
     }
@@ -194,31 +201,36 @@ function TreeNode({ node, items, warehouses, onUpdate, onRemove, onTreeChange, f
           ))}
         </select>
 
-        {/* Quantity */}
-        {node.level > 1 && (
-          <>
-            <span className="text-[10px] text-muted-foreground flex-shrink-0">×</span>
+        {/* Quantity - ALWAYS show if an item is selected, even at L1 */}
+        {(node.level > 1 || node.item_id) && (
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <span className="text-[10px] text-muted-foreground">×</span>
             <Input
               type="number"
               step="0.001"
               min="0"
-              className="h-8 w-20 text-xs text-center flex-shrink-0"
+              className="h-8 w-20 text-xs text-center font-bold"
               value={node.quantity}
               onChange={e => update('quantity', parseFloat(e.target.value) || 0)}
             />
-            {selectedItem && <span className="text-[10px] text-muted-foreground flex-shrink-0">{selectedItem.uom}</span>}
-          </>
+            {selectedItem && (
+              <span className="text-[10px] font-bold text-muted-foreground uppercase bg-muted/40 px-1.5 py-0.5 rounded border border-border/50">
+                {selectedItem.uom}
+              </span>
+            )}
+          </div>
         )}
 
-        {/* Warehouse/Dept for level 1 */}
-        {node.level === 1 && (
-          <Input
-            placeholder={t('items.warehouse_placeholder')}
-            className="h-8 w-32 text-xs flex-shrink-0"
-            value={node.department || ''}
-            onChange={e => update('department', e.target.value.toUpperCase())}
-          />
-        )}
+        {/* Department / Warehouse Code (Optional for all, but emphasized for L1) */}
+        <Input
+          placeholder={node.level === 1 ? t('items.warehouse_placeholder') : t('items.location')}
+          className="h-8 w-28 text-xs flex-shrink-0"
+          value={node.department || node.location || ''}
+          onChange={e => {
+            if (node.level === 1) update('department', e.target.value.toUpperCase());
+            else update('location', e.target.value.toUpperCase());
+          }}
+        />
 
         {/* Position code */}
         <Input

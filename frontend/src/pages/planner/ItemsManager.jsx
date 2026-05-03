@@ -617,7 +617,7 @@ function BOMModal({ bom, items, onClose, onSave }) {
     }
   };
 
-  const finishedGoods = items.filter(i => i.type === 'finished_good');
+  const parentItemCandidates = items.filter(i => i.type === 'finished_good' || i.type === 'semi_finished');
 
   return (
     <ModalWrapper title={bom ? t('items.edit_bom') : t('items.create_bom')} onClose={onClose} maxWidth="max-w-5xl">
@@ -625,10 +625,14 @@ function BOMModal({ bom, items, onClose, onSave }) {
         {/* Header fields */}
         <div className="grid grid-cols-3 gap-4">
           <div className="space-y-1">
-            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t('items.finished_good')}</label>
-            <select className="w-full h-11 rounded-xl border border-border bg-white px-3 text-sm focus:ring-2 focus:ring-accent outline-none" value={formData.parent_item_id || ''} onChange={e => setFormData({...formData, parent_item_id: e.target.value})}>
-              <option value="">{t('items.select_finished_good')}</option>
-              {finishedGoods.map(i => <option key={i.id} value={i.id}>{i.item_code} — {i.name}</option>)}
+            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t('items.parent_item') || 'Articol Părinte'}</label>
+            <select className="w-full h-11 rounded-xl border border-border bg-white px-3 text-sm focus:ring-2 focus:ring-accent outline-none font-bold" value={formData.parent_item_id || ''} onChange={e => setFormData({...formData, parent_item_id: e.target.value})}>
+              <option value="">{t('items.select_parent_item') || '— Selectează PF sau SF —'}</option>
+              {parentItemCandidates.map(i => (
+                <option key={i.id} value={i.id}>
+                  {i.item_code} — {i.name} ({i.type === 'finished_good' ? 'PF' : 'SF'})
+                </option>
+              ))}
             </select>
           </div>
           <div className="space-y-1">
