@@ -4,10 +4,10 @@ node_modules/
 dist/
 build/
 
-# SQLite database
-backend/db/smartfactory.db
-*.db
-*.db-journal
+# SQLite database (Tracked for backup/demo purposes)
+# backend/db/smartfactory.db
+# *.db
+# *.db-journal
 
 # Environment variables
 .env
