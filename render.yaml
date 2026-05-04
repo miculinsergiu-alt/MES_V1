@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: smartfactory-mes
+    name: nova-mes
     env: node
     plan: free
     buildCommand: npm install && npm run build --workspace=frontend

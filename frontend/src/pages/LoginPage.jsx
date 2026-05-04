@@ -10,6 +10,7 @@ import { Card } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
 import { Badge } from '../components/ui/Badge';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
+import novaLogo from '../assets/NOVA.jpg';
 
 const ROLE_ROUTES = {
   administrator: '/admin',
@@ -69,9 +70,12 @@ export default function LoginPage() {
         variants={stagger}
       >
         <motion.div variants={fadeInUp} className="flex flex-col items-center mb-12 text-center">
-          <Badge className="mb-6" pulsing>Live Platform</Badge>
-          <h1 className="font-display text-5xl md:text-6xl text-foreground leading-tight mb-4 relative">
-            SmartFactory <span className="gradient-text">Flow</span>
+          <div className="w-24 h-24 rounded-2xl overflow-hidden shadow-2xl mb-8 border-2 border-accent/20 p-1 bg-white">
+            <img src={novaLogo} alt="NOVA Logo" className="w-full h-full object-cover rounded-xl" />
+          </div>
+          <Badge className="mb-4" pulsing>Live Platform</Badge>
+          <h1 className="font-display text-6xl md:text-7xl text-foreground font-black leading-tight mb-4 relative tracking-tighter">
+            NOVA
             <span className="gradient-underline" />
           </h1>
           <p className="text-muted-foreground text-lg max-w-md">
@@ -160,7 +164,7 @@ export default function LoginPage() {
         </motion.div>
 
         <motion.p variants={fadeInUp} className="text-center mt-8 text-muted-foreground text-sm">
-          &copy; 2026 SmartFactory Flow. {t('login.rights')}
+          &copy; 2026 NOVA. {t('login.rights')}
         </motion.p>
       </motion.div>
     </div>

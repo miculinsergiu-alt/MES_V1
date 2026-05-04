@@ -1,8 +1,8 @@
-# SmartFactory Flow — MES System v1.0
+# NOVA — MES System v1.0
 
-[ROMÂNĂ] SmartFactory Flow este un sistem de management al producției (Manufacturing Execution System) modern, conceput pentru monitorizarea în timp real a proceselor industriale, gestionarea ierarhică a structurilor de produse (BOM) și planificarea avansată a resurselor.
+[ROMÂNĂ] NOVA este un sistem de management al producției (Manufacturing Execution System) modern, conceput pentru monitorizarea în timp real a proceselor industriale, gestionarea ierarhică a structurilor de produse (BOM) și planificarea avansată a resurselor.
 
-[ENGLISH] SmartFactory Flow is a modern Manufacturing Execution System (MES) designed for real-time monitoring of industrial processes, hierarchical Bill of Materials (BOM) management, and advanced resource planning.
+[ENGLISH] NOVA is a modern Manufacturing Execution System (MES) designed for real-time monitoring of industrial processes, hierarchical Bill of Materials (BOM) management, and advanced resource planning.
 
 ## 🚀 Tehnologii Core / Core Technologies
 
@@ -64,4 +64,4 @@
 - **Monorepo Structure:** Deployment optimization for PaaS (Render/Railway).
 
 ---
-*SmartFactory MES Edition V1.0 — Developed for operational excellence.*
+*NOVA Edition V1.0 — Developed for operational excellence.*

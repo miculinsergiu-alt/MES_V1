@@ -686,7 +686,7 @@ function PrintPreview({ bom, onClose }) {
       <div className="space-y-8 no-print p-4">
          <div className="flex justify-between items-start bg-slate-50 p-6 rounded-2xl border border-border">
             <div className="space-y-1">
-               <h4 className="text-xl font-display text-accent">SmartFactory MES</h4>
+               <h4 className="text-xl font-display text-accent">NOVA MES</h4>
                <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{t('items.tech_doc')}</p>
             </div>
             <Button onClick={() => window.print()}><Printer size={16} className="mr-2"/> {t('items.print_sheet')}</Button>
@@ -740,7 +740,7 @@ function PrintPreview({ bom, onClose }) {
                   <p className="text-sm font-mono">{details.name}</p>
               </div>
               <div className="text-right text-xs">
-                  <p className="font-bold">SmartFactory Flow</p>
+                  <p className="font-bold">NOVA</p>
                   <p>{t('common.date')}: {format(new Date(), 'dd.MM.yyyy HH:mm')}</p>
               </div>
           </div>

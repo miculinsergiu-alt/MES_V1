@@ -1,5 +1,5 @@
 // env defaults (override via system environment variables)
-process.env.JWT_SECRET = process.env.JWT_SECRET || 'smartfactory_secret_key_2024';
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'nova_secret_key_2026';
 process.env.PORT = process.env.PORT || '3001';
 
 const express = require('express');
@@ -97,7 +97,7 @@ app.use((err, req, res, next) => {
 // ─── Start ──────────────────────────────────────────────────────────────────
 seedIfNeeded();
 httpServer.listen(PORT, () => {
-  console.log(`\n🚀 SmartFactory MES Backend pornit pe http://localhost:${PORT}`);
+  console.log(`\n🚀 NOVA MES Backend pornit pe http://localhost:${PORT}`);
   console.log(`📋 API disponibil la http://localhost:${PORT}/api`);
   console.log(`\n👤 Credențiale demo:`);
   console.log(`   Admin     → ADMIN001 / admin123`);

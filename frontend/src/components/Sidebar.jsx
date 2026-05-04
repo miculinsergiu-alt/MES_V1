@@ -1,11 +1,12 @@
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { LogOut, Factory } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
 import { LanguageSwitcher } from './LanguageSwitcher';
+import novaLogo from '../assets/NOVA.jpg';
 
 export default function Sidebar({ items }) {
   const { user, logout } = useAuth();
@@ -19,12 +20,12 @@ export default function Sidebar({ items }) {
     <div className="w-72 h-screen bg-card border-r border-border flex flex-col z-20 sticky top-0">
       <div className="p-8">
         <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent to-accent-secondary flex items-center justify-center shadow-accent">
-            <Factory className="text-white" size={20} />
+          <div className="w-12 h-12 rounded-xl overflow-hidden shadow-accent border border-accent/20">
+            <img src={novaLogo} alt="NOVA Logo" className="w-full h-full object-cover" />
           </div>
-          <h2 className="font-display text-xl text-foreground">SmartFactory <span className="gradient-text">Flow</span></h2>
+          <h2 className="font-display text-2xl text-foreground font-bold tracking-tight">NOVA</h2>
         </div>
-        <div className="ml-12 font-mono text-[10px] uppercase tracking-widest text-muted-foreground font-bold">MES Edition v1.0</div>
+        <div className="ml-1 font-mono text-[10px] uppercase tracking-widest text-muted-foreground font-bold">MES Edition v1.0</div>
       </div>
 
       <nav className="flex-1 px-4 space-y-2 mt-4">

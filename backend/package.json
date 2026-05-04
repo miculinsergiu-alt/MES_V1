@@ -1,7 +1,7 @@
 {
-  "name": "smartfactory-mes-backend",
+  "name": "nova-mes-backend",
   "version": "1.0.0",
-  "description": "SmartFactory MES Backend",
+  "description": "NOVA MES Backend",
   "main": "server.js",
   "scripts": {
     "dev": "nodemon server.js",
