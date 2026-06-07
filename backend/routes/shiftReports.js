@@ -16,6 +16,46 @@ router.get('/', authenticateToken, requireRole('area_supervisor','shift_responsi
 
   const result = reports.map(r => {
     const issues = shiftReportsDb.prepare('SELECT * FROM report_issues WHERE report_id = ? ORDER BY id').all(r.id);
+    
+    // AUTO-FETCH DELAYS FROM OPERATORS IF NOT ALREADY IN REPORT
+    const { ordersDb } = require('../db/init');
+    const shift = shiftReportsDb.prepare('SELECT * FROM shifts WHERE id = ?').get(r.shift_id);
+    
+    if (shift) {
+        // Construct shift interval for that date
+        const shiftStart = `${r.report_date} ${shift.start_time}:00`;
+        let shiftEnd = `${r.report_date} ${shift.end_time}:00`;
+        if (shift.end_time < shift.start_time) {
+            // Night shift ends next day
+            const nextDay = new Date(new Date(r.report_date).getTime() + 86400000).toISOString().split('T')[0];
+            shiftEnd = `${nextDay} ${shift.end_time}:00`;
+        }
+
+        const operatorDelays = ordersDb.prepare(`
+            SELECT od.*, o.product_name, o.machine_id 
+            FROM order_delays od
+            JOIN orders o ON od.order_id = o.id
+            WHERE od.source = 'operator' 
+            AND od.created_at BETWEEN ? AND ?
+        `).all(shiftStart, shiftEnd);
+
+        for (const od of operatorDelays) {
+            const alreadyExists = issues.some(iss => iss.order_id === od.order_id && iss.delay_minutes === od.delay_minutes);
+            if (!alreadyExists) {
+                issues.push({
+                    id: `auto-${od.id}`,
+                    report_id: r.id,
+                    machine_id: od.machine_id,
+                    order_id: od.order_id,
+                    description: `[AUTO-OPERATOR] ${od.reason}`,
+                    delay_minutes: od.delay_minutes,
+                    delay_already_logged: 1,
+                    is_auto: true
+                });
+            }
+        }
+    }
+
     return { ...r, issues };
   });
   res.json(result);

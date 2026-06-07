@@ -198,6 +198,21 @@ export default function OperatorDashboard() {
                     <span className="text-lg">{activePhase === 'working' ? t('operator.stop_production') : t('operator.start_production')}</span>
                   </button>
 
+                  {/* FINISH PRODUCTION */}
+                  <button 
+                    className="op-btn op-btn-done bg-green-600 text-white border-green-700 hover:bg-green-700"
+                    onClick={() => {
+                      if (window.confirm(t('operator.confirm_finish_production') || 'Sigur doriți să finalizați producția pentru această comandă?')) {
+                        logAction('working', 'end');
+                        setSelectedAlloc(null);
+                        loadAllocations();
+                      }
+                    }}
+                  >
+                    <CheckCircle size={32} />
+                    <span className="text-lg">{t('operator.finish_production') || 'Finish Production'}</span>
+                  </button>
+
                   {/* DELAY */}
                   <button className="op-btn op-btn-delay" onClick={() => setShowDelayModal(true)}>
                     <AlertTriangle size={32} />
@@ -206,7 +221,7 @@ export default function OperatorDashboard() {
 
                   {/* RESULTS */}
                   <button className="op-btn op-btn-done" onClick={() => setShowResultModal(true)}>
-                    <CheckCircle size={32} />
+                    <FileText size={32} />
                     <span className="text-lg">{t('operator.log_results')}</span>
                   </button>
                 </div>

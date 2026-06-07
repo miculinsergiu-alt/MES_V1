@@ -253,6 +253,11 @@ router.post('/actions', authenticateToken, (req, res) => {
       const now = new Date();
       const plannedStart = new Date(order.planned_start);
       
+      // Update actual_start on first start action
+      if (!order.actual_start) {
+        db.prepare("UPDATE orders SET actual_start = datetime('now') WHERE id = ?").run(order.id);
+      }
+
       // If operator starts more than 1 minute late
       if (now > plannedStart.getTime() + 60000) {
         const delayMins = Math.ceil((now - plannedStart) / 60000);
@@ -267,6 +272,12 @@ router.post('/actions', authenticateToken, (req, res) => {
         // Propagate to shift everything
         propagateScheduleShift(order.machine_id, order.id, delayMins);
       }
+    }
+
+    if (action_type === 'working_end') {
+      const alloc = db.prepare('SELECT * FROM machine_allocations WHERE id = ?').get(allocation_id);
+      db.prepare("UPDATE orders SET actual_end = datetime('now'), status = 'done' WHERE id = ?").run(alloc.order_id);
+      broadcast('order:completed', { order_id: alloc.order_id });
     }
 
     if (action_type.endsWith('_end')) {
