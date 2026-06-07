@@ -172,7 +172,7 @@ export default function PlannerDashboard() {
 
 function CreateOrderModal({ machines, onClose, onSave }) {
   const { t } = useTranslation();
-  const [orders, setOrders] = useState([{ machine_id:'', item_id:'', bom_id:'', product_name:'', quantity:1, planned_start:'', planned_end:'', order_type:'production', is_fixed_time: false }]);
+  const [orders, setOrders] = useState([{ machine_id:'', item_id:'', bom_id:'', product_name:'', quantity:1, planned_start:'', planned_end:'', order_type:'production', is_fixed_time: false, route_overrides: [] }]);
   const [loading, setLoading] = useState(false);
   const [multiple, setMultiple] = useState(false);
   const [items, setItems] = useState([]);
@@ -186,17 +186,24 @@ function CreateOrderModal({ machines, onClose, onSave }) {
     }).catch(err => console.error(err));
   }, []);
 
-  const fetchRoute = async (itemId) => {
-    if (!itemId || itemRoutes[itemId]) return;
+  const fetchRoute = async (itemId, orderIdx) => {
+    if (!itemId) return;
     try {
-      const res = await api.get(`/items/${itemId}`);
-      if (res.data.routes) {
-        setItemRoutes(prev => ({ ...prev, [itemId]: res.data.routes }));
+      let routes = itemRoutes[itemId];
+      if (!routes) {
+        const res = await api.get(`/items/${itemId}`);
+        routes = res.data.routes || [];
+        setItemRoutes(prev => ({ ...prev, [itemId]: routes }));
       }
+      // Initialize overrides for this specific order in the batch
+      setOrders(prev => prev.map((o, idx) => {
+        if (idx !== orderIdx) return o;
+        return { ...o, route_overrides: routes.map(r => r.process_time_min) };
+      }));
     } catch {}
   };
 
-  const addOrder = () => setOrders(p => [...p, { machine_id:'', item_id:'', bom_id:'', product_name:'', quantity:1, planned_start:'', planned_end:'', order_type:'production', is_fixed_time: false }]);
+  const addOrder = () => setOrders(p => [...p, { machine_id:'', item_id:'', bom_id:'', product_name:'', quantity:1, planned_start:'', planned_end:'', order_type:'production', is_fixed_time: false, route_overrides: [] }]);
   const removeOrder = (i) => setOrders(p => p.filter((_,idx) => idx !== i));
   
   const setField = (i, k, v) => setOrders(p => p.map((o,idx) => {
@@ -206,16 +213,26 @@ function CreateOrderModal({ machines, onClose, onSave }) {
       const selectedItem = items.find(it => it.id === parseInt(v));
       newO.product_name = selectedItem ? selectedItem.name : '';
       newO.bom_id = '';
-      fetchRoute(v);
+      fetchRoute(v, i);
     }
     if (k === 'order_type' && v === 'maintenance') {
       newO.product_name = t('planner.maintenance_desc');
       newO.quantity = 0;
       newO.item_id = '';
       newO.bom_id = '';
+      newO.route_overrides = [];
     }
     return newO;
   }));
+
+  const setOverride = (orderIdx, routeIdx, val) => {
+    setOrders(prev => prev.map((o, idx) => {
+      if (idx !== orderIdx) return o;
+      const newOverrides = [...o.route_overrides];
+      newOverrides[routeIdx] = parseInt(val) || 0;
+      return { ...o, route_overrides: newOverrides };
+    }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault(); setLoading(true);
@@ -227,7 +244,10 @@ function CreateOrderModal({ machines, onClose, onSave }) {
         // Auto-calculate end time if not provided
         if (!pEnd && pStart && o.item_id && o.order_type === 'production') {
           const routes = itemRoutes[o.item_id] || [];
-          const totalMin = routes.reduce((sum, r) => sum + (o.is_fixed_time ? r.process_time_min : r.process_time_min * o.quantity), 0);
+          const totalMin = routes.reduce((sum, r, idx) => {
+            const baseTime = o.route_overrides[idx] !== undefined ? o.route_overrides[idx] : r.process_time_min;
+            return sum + (o.is_fixed_time ? baseTime : baseTime * o.quantity);
+          }, 0);
           if (totalMin > 0) {
             const startDate = new Date(pStart.replace(' ', 'T'));
             const endDate = new Date(startDate.getTime() + totalMin * 60000);
@@ -246,7 +266,8 @@ function CreateOrderModal({ machines, onClose, onSave }) {
           bom_id: o.bom_id ? parseInt(o.bom_id) : null,
           planned_start: pStart.replace('T',' '), 
           planned_end: pEnd.replace('T',' '),
-          is_fixed_time: o.is_fixed_time
+          is_fixed_time: o.is_fixed_time,
+          route_overrides: o.route_overrides
         };
       });
       await api.post('/orders', { orders: payload });
@@ -329,21 +350,7 @@ function CreateOrderModal({ machines, onClose, onSave }) {
                     </div>
                     <div className="space-y-2">
                       <label className="text-[11px] font-bold text-muted-foreground uppercase ml-1">{t('planner.quantity_buc')}</label>
-                      <div className="flex gap-2">
-                        <input className="flex-1 h-12 rounded-xl border border-border bg-white px-4 focus:ring-2 focus:ring-accent outline-none font-mono" type="number" min={1} value={order.quantity} onChange={e=>setField(i,'quantity',e.target.value)} required />
-                        <div className="flex items-center gap-2 px-3 bg-white border border-border rounded-xl">
-                          <input 
-                            type="checkbox" 
-                            id={`fixed-time-${i}`}
-                            className="w-4 h-4 rounded text-accent focus:ring-accent"
-                            checked={order.is_fixed_time}
-                            onChange={e => setField(i, 'is_fixed_time', e.target.checked)}
-                          />
-                          <label htmlFor={`fixed-time-${i}`} className="text-[10px] font-black uppercase tracking-tight text-muted-foreground cursor-pointer">
-                            {t('planner.fixed_time') || 'Timp Fix'}
-                          </label>
-                        </div>
-                      </div>
+                      <input className="w-full h-12 rounded-xl border border-border bg-white px-4 focus:ring-2 focus:ring-accent outline-none font-mono" type="number" min={1} value={order.quantity} onChange={e=>setField(i,'quantity',e.target.value)} required />
                     </div>
                   </div>
                 )}
@@ -357,12 +364,26 @@ function CreateOrderModal({ machines, onClose, onSave }) {
                     <div className="flex items-center gap-2 overflow-x-auto pb-2">
                       {itemRoutes[order.item_id].map((r, ridx) => {
                         const m = machines.find(mach => mach.id === r.machine_id);
-                        const duration = order.is_fixed_time ? r.process_time_min : r.process_time_min * order.quantity;
+                        const duration = order.route_overrides[ridx] !== undefined ? order.route_overrides[ridx] : r.process_time_min;
+                        const displayDuration = order.is_fixed_time ? duration : duration * order.quantity;
+                        
                         return (
                           <div key={ridx} className="flex items-center gap-2 flex-shrink-0">
-                            <div className="px-3 py-2 rounded-lg bg-white border border-accent/20 shadow-sm text-center min-w-[100px]">
-                              <p className="text-[9px] font-bold text-muted-foreground uppercase">{m?.name || '?'}</p>
-                              <p className="text-[11px] font-black text-accent">{duration} min</p>
+                            <div className={`px-3 py-2 rounded-lg bg-white border shadow-sm text-center min-w-[110px] transition-all ${order.is_fixed_time ? 'border-blue-300 ring-2 ring-blue-50' : 'border-accent/20'}`}>
+                              <p className="text-[9px] font-bold text-muted-foreground uppercase mb-1">{m?.name || '?'}</p>
+                              {order.is_fixed_time ? (
+                                <div className="flex items-center justify-center gap-1">
+                                  <input 
+                                    type="number" 
+                                    className="w-12 h-6 text-[11px] font-black text-blue-600 bg-blue-50 rounded border-none p-0 text-center outline-none focus:ring-1 focus:ring-blue-400"
+                                    value={duration}
+                                    onChange={e => setOverride(i, ridx, e.target.value)}
+                                  />
+                                  <span className="text-[10px] text-blue-400 font-bold">min</span>
+                                </div>
+                              ) : (
+                                <p className="text-[11px] font-black text-accent">{displayDuration} min</p>
+                              )}
                             </div>
                             {ridx < itemRoutes[order.item_id].length - 1 && <ChevronRight size={14} className="text-muted-foreground/40" />}
                           </div>

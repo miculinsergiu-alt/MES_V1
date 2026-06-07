@@ -297,7 +297,13 @@ router.post('/', authenticateToken, requireRole('planner', 'administrator'), (re
           // 2. Adjust for Machine Availability (Finite Capacity)
           const actualStart = getMachineAvailableTime(step.machine_id, earliestStart);
 
-          const durationMins = is_fixed_time ? (step.process_time_min || 0) : (step.process_time_min || 0) * quantity;
+          // 3. Duration Calculation (Check for manual overrides)
+          let baseDuration = step.process_time_min || 0;
+          if (o.route_overrides && o.route_overrides[i] !== undefined && o.route_overrides[i] !== null) {
+            baseDuration = parseInt(o.route_overrides[i]);
+          }
+
+          const durationMins = is_fixed_time ? baseDuration : baseDuration * quantity;
           const actualEnd = addMinutes(actualStart, durationMins || 60);
 
           const result = insertStmt.run(
