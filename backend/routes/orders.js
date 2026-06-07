@@ -270,14 +270,14 @@ router.post('/', authenticateToken, requireRole('planner', 'administrator'), (re
 
   const created = [];
   const insertStmt = ordersDb.prepare(`
-    INSERT INTO orders (machine_id, product_name, item_id, bom_id, quantity, planned_start, planned_end, status, order_type, created_by, parent_order_id, routing_sequence)
-    VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)
+    INSERT INTO orders (machine_id, product_name, item_id, bom_id, quantity, planned_start, planned_end, status, order_type, created_by, parent_order_id, routing_sequence, is_fixed_time)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)
   `);
 
   const transaction = ordersDb.transaction(() => {
     for (const o of orders) {
-      const { machine_id, product_name, item_id, bom_id, quantity, planned_start, planned_end, order_type } = o;
-      
+      const { machine_id, product_name, item_id, bom_id, quantity, planned_start, planned_end, order_type, is_fixed_time } = o;
+
       // Check if item has a route
       const route = item_id 
         ? ordersDb.prepare('SELECT * FROM item_routes WHERE item_id = ? ORDER BY sequence ASC').all(item_id)
@@ -290,14 +290,14 @@ router.post('/', authenticateToken, requireRole('planner', 'administrator'), (re
 
         for (let i = 0; i < route.length; i++) {
           const step = route[i];
-          
+
           // 1. Calculate Earliest Start (after previous step)
           const earliestStart = lastEnd;
-          
+
           // 2. Adjust for Machine Availability (Finite Capacity)
           const actualStart = getMachineAvailableTime(step.machine_id, earliestStart);
-          
-          const durationMins = (step.process_time_min || 0);
+
+          const durationMins = is_fixed_time ? (step.process_time_min || 0) : (step.process_time_min || 0) * quantity;
           const actualEnd = addMinutes(actualStart, durationMins || 60);
 
           const result = insertStmt.run(
@@ -311,7 +311,8 @@ router.post('/', authenticateToken, requireRole('planner', 'administrator'), (re
             order_type || 'production',
             req.user.id,
             firstParentId,
-            step.sequence
+            step.sequence,
+            is_fixed_time ? 1 : 0
           );
 
           if (i === 0) firstParentId = result.lastInsertRowid;

@@ -478,7 +478,9 @@ addColumnIfNotExists('items', 'supplier_name', 'TEXT');
 addColumnIfNotExists('items', 'lead_time_days', 'INTEGER DEFAULT 0');
 addColumnIfNotExists('orders', 'parent_order_id', 'INTEGER REFERENCES orders(id) ON DELETE CASCADE');
 addColumnIfNotExists('orders', 'routing_sequence', 'INTEGER DEFAULT 0');
+addColumnIfNotExists('orders', 'is_fixed_time', 'INTEGER DEFAULT 0');
 addColumnIfNotExists('stock_levels', 'allocated_quantity', 'REAL DEFAULT 0');
+addColumnIfNotExists('suppliers', 'vat_number', 'TEXT');
 
 // ─── BOM MULTI-NIVEL MIGRATIONS ──────────────────────────────────────────────
 addColumnIfNotExists('bom_positions', 'parent_position_id', 'INTEGER REFERENCES bom_positions(id) ON DELETE CASCADE');

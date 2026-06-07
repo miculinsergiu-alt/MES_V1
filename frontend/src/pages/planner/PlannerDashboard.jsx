@@ -172,7 +172,7 @@ export default function PlannerDashboard() {
 
 function CreateOrderModal({ machines, onClose, onSave }) {
   const { t } = useTranslation();
-  const [orders, setOrders] = useState([{ machine_id:'', item_id:'', bom_id:'', product_name:'', quantity:1, planned_start:'', planned_end:'', order_type:'production' }]);
+  const [orders, setOrders] = useState([{ machine_id:'', item_id:'', bom_id:'', product_name:'', quantity:1, planned_start:'', planned_end:'', order_type:'production', is_fixed_time: false }]);
   const [loading, setLoading] = useState(false);
   const [multiple, setMultiple] = useState(false);
   const [items, setItems] = useState([]);
@@ -196,7 +196,7 @@ function CreateOrderModal({ machines, onClose, onSave }) {
     } catch {}
   };
 
-  const addOrder = () => setOrders(p => [...p, { machine_id:'', item_id:'', bom_id:'', product_name:'', quantity:1, planned_start:'', planned_end:'', order_type:'production' }]);
+  const addOrder = () => setOrders(p => [...p, { machine_id:'', item_id:'', bom_id:'', product_name:'', quantity:1, planned_start:'', planned_end:'', order_type:'production', is_fixed_time: false }]);
   const removeOrder = (i) => setOrders(p => p.filter((_,idx) => idx !== i));
   
   const setField = (i, k, v) => setOrders(p => p.map((o,idx) => {
@@ -227,7 +227,7 @@ function CreateOrderModal({ machines, onClose, onSave }) {
         // Auto-calculate end time if not provided
         if (!pEnd && pStart && o.item_id && o.order_type === 'production') {
           const routes = itemRoutes[o.item_id] || [];
-          const totalMin = routes.reduce((sum, r) => sum + (r.process_time_min), 0);
+          const totalMin = routes.reduce((sum, r) => sum + (o.is_fixed_time ? r.process_time_min : r.process_time_min * o.quantity), 0);
           if (totalMin > 0) {
             const startDate = new Date(pStart.replace(' ', 'T'));
             const endDate = new Date(startDate.getTime() + totalMin * 60000);
@@ -245,7 +245,8 @@ function CreateOrderModal({ machines, onClose, onSave }) {
           item_id: o.item_id ? parseInt(o.item_id) : null,
           bom_id: o.bom_id ? parseInt(o.bom_id) : null,
           planned_start: pStart.replace('T',' '), 
-          planned_end: pEnd.replace('T',' ')
+          planned_end: pEnd.replace('T',' '),
+          is_fixed_time: o.is_fixed_time
         };
       });
       await api.post('/orders', { orders: payload });
@@ -315,7 +316,21 @@ function CreateOrderModal({ machines, onClose, onSave }) {
                     </div>
                     <div className="space-y-2">
                       <label className="text-[11px] font-bold text-muted-foreground uppercase ml-1">{t('planner.quantity_buc')}</label>
-                      <input className="w-full h-12 rounded-xl border border-border bg-white px-4 focus:ring-2 focus:ring-accent outline-none font-mono" type="number" min={1} value={order.quantity} onChange={e=>setField(i,'quantity',e.target.value)} required />
+                      <div className="flex gap-2">
+                        <input className="flex-1 h-12 rounded-xl border border-border bg-white px-4 focus:ring-2 focus:ring-accent outline-none font-mono" type="number" min={1} value={order.quantity} onChange={e=>setField(i,'quantity',e.target.value)} required />
+                        <div className="flex items-center gap-2 px-3 bg-white border border-border rounded-xl">
+                          <input 
+                            type="checkbox" 
+                            id={`fixed-time-${i}`}
+                            className="w-4 h-4 rounded text-accent focus:ring-accent"
+                            checked={order.is_fixed_time}
+                            onChange={e => setField(i, 'is_fixed_time', e.target.checked)}
+                          />
+                          <label htmlFor={`fixed-time-${i}`} className="text-[10px] font-black uppercase tracking-tight text-muted-foreground cursor-pointer">
+                            {t('planner.fixed_time') || 'Timp Fix'}
+                          </label>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -329,13 +344,14 @@ function CreateOrderModal({ machines, onClose, onSave }) {
                     <div className="flex items-center gap-2 overflow-x-auto pb-2">
                       {itemRoutes[order.item_id].map((r, ridx) => {
                         const m = machines.find(mach => mach.id === r.machine_id);
+                        const duration = order.is_fixed_time ? r.process_time_min : r.process_time_min * order.quantity;
                         return (
                           <div key={ridx} className="flex items-center gap-2 flex-shrink-0">
                             <div className="px-3 py-2 rounded-lg bg-white border border-accent/20 shadow-sm text-center min-w-[100px]">
                               <p className="text-[9px] font-bold text-muted-foreground uppercase">{m?.name || '?'}</p>
-                              <p className="text-[11px] font-black text-accent">{r.process_time_min} min</p>
+                              <p className="text-[11px] font-black text-accent">{duration} min</p>
                             </div>
-                            {ridx < itemRoutes[order.item_id].length - 1 && <ChevronRight size={14} className="text-muted-foreground/30" />}
+                            {ridx < itemRoutes[order.item_id].length - 1 && <ChevronRight size={14} className="text-muted-foreground/40" />}
                           </div>
                         );
                       })}
