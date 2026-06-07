@@ -10,7 +10,7 @@ router.post('/transfers', authenticateToken, (req, res) => {
   const transaction = db.transaction(() => {
     const transferResult = db.prepare(`
       INSERT INTO stock_transfers (from_warehouse_id, to_warehouse_id, created_by, completed_at)
-      VALUES (?, ?, ?, datetime('now'))
+      VALUES (?, ?, ?, datetime('now', 'localtime'))
     `).run(from_warehouse_id, to_warehouse_id, created_by);
     
     const transferId = transferResult.lastInsertRowid;

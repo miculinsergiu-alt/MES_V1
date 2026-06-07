@@ -178,8 +178,8 @@ router.post('/receipts', authenticateToken, (req, res) => {
       // 4. Update Stock Level (Main table)
       db.prepare(`
         INSERT INTO stock_levels (item_id, quantity, last_updated)
-        VALUES (?, ?, datetime('now'))
-        ON CONFLICT(item_id) DO UPDATE SET quantity = quantity + EXCLUDED.quantity, last_updated = datetime('now')
+        VALUES (?, ?, datetime('now', 'localtime'))
+        ON CONFLICT(item_id) DO UPDATE SET quantity = quantity + EXCLUDED.quantity, last_updated = datetime('now', 'localtime')
       `).run(item.item_id, item.quantity_received);
 
       // 5. Update PO Item received quantity

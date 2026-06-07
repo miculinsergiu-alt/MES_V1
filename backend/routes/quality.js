@@ -29,7 +29,7 @@ router.put('/quarantine/:id/resolve', (req, res) => {
 
     db.prepare(`
       UPDATE quarantine_logs 
-      SET status = ?, decision_by = ?, decision_at = datetime('now')
+      SET status = ?, decision_by = ?, decision_at = datetime('now', 'localtime')
       WHERE id = ?
     `).run(decision, decision_by, req.params.id);
 

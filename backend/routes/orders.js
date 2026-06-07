@@ -31,7 +31,7 @@ function propagateDelay(machineId, fromOrderId, delayMinutes) {
 
     let lastChainEnd = newCurrentEnd;
     for (const step of chainSteps) {
-      const stepDurationMins = (new Date(step.planned_end) - new Date(step.planned_start)) / 60000;
+      const stepDurationMins = (new Date(step.planned_end.replace(' ','T')) - new Date(step.planned_start.replace(' ','T'))) / 60000;
       const newStepStart = lastChainEnd;
       const newStepEnd = addMinutes(newStepStart, stepDurationMins);
       
@@ -61,7 +61,7 @@ function propagateMachineShift(machineId, afterOrderId, newStartTime) {
   for (const order of subsequentOrders) {
     // If there was a gap, we might want to preserve it, but the project rule is "no gaps/overlaps"
     const newStart = lastEnd; 
-    const durationMins = (new Date(order.planned_end) - new Date(order.planned_start)) / 60000;
+    const durationMins = (new Date(order.planned_end.replace(' ','T')) - new Date(order.planned_start.replace(' ','T'))) / 60000;
     const newEnd = addMinutes(newStart, durationMins);
     
     ordersDb.prepare('UPDATE orders SET planned_start = ?, planned_end = ? WHERE id = ?').run(newStart, newEnd, order.id);
@@ -344,7 +344,7 @@ router.post('/', authenticateToken, requireRole('planner', 'administrator'), (re
             actualEnd = addMinutes(actualStart, 60); // Default 1h if unknown
         } else {
             // Keep duration but shift start
-            const duration = (new Date(planned_end) - new Date(planned_start)) / 60000;
+            const duration = (new Date(planned_end.replace(' ','T')) - new Date(planned_start.replace(' ','T'))) / 60000;
             actualEnd = addMinutes(actualStart, duration);
         }
 
@@ -402,7 +402,7 @@ router.put('/:id', authenticateToken, requireRole('planner', 'administrator'), (
 
       let lastChainEnd = finalEnd;
       for (const step of chainSteps) {
-        const stepDurationMins = (new Date(step.planned_end) - new Date(step.planned_start)) / 60000;
+        const stepDurationMins = (new Date(step.planned_end.replace(' ','T')) - new Date(step.planned_start.replace(' ','T'))) / 60000;
         const newStepStart = lastChainEnd;
         const newStepEnd = addMinutes(newStepStart, stepDurationMins);
         ordersDb.prepare('UPDATE orders SET planned_start = ?, planned_end = ? WHERE id = ?').run(newStepStart, newStepEnd, step.id);

@@ -21,7 +21,7 @@ db.exec(`
     role TEXT NOT NULL CHECK(role IN ('administrator','planner','area_supervisor','shift_responsible','operator','warehouse_manager','material_planner')),
     password_hash TEXT NOT NULL,
     active INTEGER DEFAULT 1,
-    created_at TEXT DEFAULT (datetime('now'))
+    created_at TEXT DEFAULT (datetime('now', 'localtime'))
   );
   
   CREATE TABLE IF NOT EXISTS shifts (
@@ -30,7 +30,7 @@ db.exec(`
     shift_responsible_id INTEGER REFERENCES users(id),
     start_time TEXT, -- e.g. "06:00"
     end_time TEXT,   -- e.g. "14:00"
-    created_at TEXT DEFAULT (datetime('now'))
+    created_at TEXT DEFAULT (datetime('now', 'localtime'))
   );
   
   CREATE TABLE IF NOT EXISTS shift_members (
@@ -46,7 +46,7 @@ db.exec(`
     machine_id INTEGER NOT NULL REFERENCES machines(id) ON DELETE CASCADE,
     shift_id INTEGER NOT NULL REFERENCES shifts(id) ON DELETE CASCADE,
     work_date TEXT NOT NULL,
-    created_at TEXT DEFAULT (datetime('now')),
+    created_at TEXT DEFAULT (datetime('now', 'localtime')),
     UNIQUE(user_id, work_date, shift_id)
   );
 
@@ -55,7 +55,7 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     description TEXT,
-    created_at TEXT DEFAULT (datetime('now'))
+    created_at TEXT DEFAULT (datetime('now', 'localtime'))
   );
   
   CREATE TABLE IF NOT EXISTS machines (
@@ -67,7 +67,7 @@ db.exec(`
     supervision_time_min INTEGER DEFAULT 30,
     total_running_hours REAL DEFAULT 0,
     active INTEGER DEFAULT 1,
-    created_at TEXT DEFAULT (datetime('now'))
+    created_at TEXT DEFAULT (datetime('now', 'localtime'))
   );
 
   -- ITEMS & BOM
@@ -86,7 +86,7 @@ db.exec(`
     supplier_name TEXT,
     lead_time_days INTEGER DEFAULT 0,
     active INTEGER DEFAULT 1,
-    created_at TEXT DEFAULT (datetime('now'))
+    created_at TEXT DEFAULT (datetime('now', 'localtime'))
   );
   
   CREATE TABLE IF NOT EXISTS item_routes (
@@ -109,7 +109,7 @@ db.exec(`
     parent_item_id INTEGER REFERENCES items(id),
     name TEXT NOT NULL,
     description TEXT,
-    created_at TEXT DEFAULT (datetime('now'))
+    created_at TEXT DEFAULT (datetime('now', 'localtime'))
   );
   
   CREATE TABLE IF NOT EXISTS bom_positions (
@@ -122,7 +122,7 @@ db.exec(`
     finish_date TEXT,
     location TEXT,
     requirement_id INTEGER REFERENCES requirements(id),
-    created_at TEXT DEFAULT (datetime('now'))
+    created_at TEXT DEFAULT (datetime('now', 'localtime'))
   );
 
   -- ORDERS
@@ -140,7 +140,7 @@ db.exec(`
     status TEXT DEFAULT 'pending' CHECK(status IN ('pending','active','done','cancelled')),
     order_type TEXT DEFAULT 'production' CHECK(order_type IN ('production','maintenance')),
     created_by INTEGER REFERENCES users(id),
-    created_at TEXT DEFAULT (datetime('now'))
+    created_at TEXT DEFAULT (datetime('now', 'localtime'))
   );
   
   CREATE TABLE IF NOT EXISTS delay_reasons (
@@ -159,7 +159,7 @@ db.exec(`
     reported_by INTEGER REFERENCES users(id),
     source TEXT CHECK(source IN ('operator','shift_responsible','system')),
     applied INTEGER DEFAULT 0,
-    created_at TEXT DEFAULT (datetime('now'))
+    created_at TEXT DEFAULT (datetime('now', 'localtime'))
   );
 
   -- PRODUCTION TRACKING
@@ -173,14 +173,14 @@ db.exec(`
     phase TEXT CHECK(phase IN ('setup','working','supervision')),
     delay_confirmed INTEGER DEFAULT 0,
     delay_minutes INTEGER DEFAULT 0,
-    created_at TEXT DEFAULT (datetime('now'))
+    created_at TEXT DEFAULT (datetime('now', 'localtime'))
   );
   
   CREATE TABLE IF NOT EXISTS operator_actions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     allocation_id INTEGER NOT NULL REFERENCES machine_allocations(id) ON DELETE CASCADE,
     action_type TEXT NOT NULL CHECK(action_type IN ('setup_start','setup_end','working_start','working_end','supervision_start','supervision_end','delay_start','delay_end')),
-    timestamp TEXT DEFAULT (datetime('now')),
+    timestamp TEXT DEFAULT (datetime('now', 'localtime')),
     notes TEXT
   );
   
@@ -190,7 +190,7 @@ db.exec(`
     operator_id INTEGER REFERENCES users(id),
     qty_ok INTEGER DEFAULT 0,
     qty_fail INTEGER DEFAULT 0,
-    completed_at TEXT DEFAULT (datetime('now'))
+    completed_at TEXT DEFAULT (datetime('now', 'localtime'))
   );
 
   CREATE TABLE IF NOT EXISTS defect_reasons (
@@ -205,7 +205,7 @@ db.exec(`
     reason_id INTEGER NOT NULL REFERENCES defect_reasons(id),
     quantity INTEGER NOT NULL,
     notes TEXT,
-    created_at TEXT DEFAULT (datetime('now'))
+    created_at TEXT DEFAULT (datetime('now', 'localtime'))
   );
 
   -- SHIFT REPORTS
@@ -215,7 +215,7 @@ db.exec(`
     shift_responsible_id INTEGER NOT NULL REFERENCES users(id),
     report_date TEXT NOT NULL,
     general_notes TEXT,
-    created_at TEXT DEFAULT (datetime('now'))
+    created_at TEXT DEFAULT (datetime('now', 'localtime'))
   );
   
   CREATE TABLE IF NOT EXISTS report_issues (
@@ -226,7 +226,7 @@ db.exec(`
     description TEXT NOT NULL,
     delay_minutes INTEGER DEFAULT 0,
     delay_already_logged INTEGER DEFAULT 0,
-    created_at TEXT DEFAULT (datetime('now'))
+    created_at TEXT DEFAULT (datetime('now', 'localtime'))
   );
 
   -- ─── ENHANCED MODULES ─────────────────────────────────────────────────────
@@ -240,7 +240,7 @@ db.exec(`
     entity_id INTEGER,
     old_data TEXT, -- JSON
     new_data TEXT, -- JSON
-    timestamp TEXT DEFAULT (datetime('now'))
+    timestamp TEXT DEFAULT (datetime('now', 'localtime'))
   );
 
   -- INVENTORY & LOT TRACKING
@@ -250,7 +250,7 @@ db.exec(`
     quantity REAL DEFAULT 0,
     allocated_quantity REAL DEFAULT 0,
     location TEXT,
-    last_updated TEXT DEFAULT (datetime('now'))
+    last_updated TEXT DEFAULT (datetime('now', 'localtime'))
   );
 
   CREATE TABLE IF NOT EXISTS inventory_lots (
@@ -260,7 +260,7 @@ db.exec(`
     quantity REAL DEFAULT 0,
     supplier_code TEXT,
     expiration_date TEXT,
-    created_at TEXT DEFAULT (datetime('now'))
+    created_at TEXT DEFAULT (datetime('now', 'localtime'))
   );
 
   CREATE TABLE IF NOT EXISTS stock_transactions (
@@ -272,7 +272,7 @@ db.exec(`
     reference_type TEXT, -- e.g. order, receipt
     reference_id INTEGER,
     user_id INTEGER REFERENCES users(id),
-    created_at TEXT DEFAULT (datetime('now'))
+    created_at TEXT DEFAULT (datetime('now', 'localtime'))
   );
 
   CREATE TABLE IF NOT EXISTS order_material_lots (
@@ -281,7 +281,7 @@ db.exec(`
     item_id INTEGER NOT NULL REFERENCES items(id),
     lot_id INTEGER NOT NULL REFERENCES inventory_lots(id),
     quantity_used REAL NOT NULL,
-    recorded_at TEXT DEFAULT (datetime('now'))
+    recorded_at TEXT DEFAULT (datetime('now', 'localtime'))
   );
 
   -- INVENTORY ALLOCATION (MRP)
@@ -290,7 +290,7 @@ db.exec(`
     order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
     item_id INTEGER NOT NULL REFERENCES items(id),
     allocated_qty REAL NOT NULL,
-    created_at TEXT DEFAULT (datetime('now')),
+    created_at TEXT DEFAULT (datetime('now', 'localtime')),
     UNIQUE(order_id, item_id)
   );
 
@@ -300,7 +300,7 @@ db.exec(`
     recommended_qty REAL NOT NULL,
     triggering_order_id INTEGER REFERENCES orders(id),
     status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'converted', 'dismissed')),
-    created_at TEXT DEFAULT (datetime('now'))
+    created_at TEXT DEFAULT (datetime('now', 'localtime'))
   );
 
   -- PREVENTIVE MAINTENANCE
@@ -319,7 +319,7 @@ db.exec(`
     maintenance_date TEXT DEFAULT (date('now')),
     hours_at_maintenance REAL NOT NULL,
     notes TEXT,
-    created_at TEXT DEFAULT (datetime('now'))
+    created_at TEXT DEFAULT (datetime('now', 'localtime'))
   );
 
   -- OPERATOR SKILLS & HR MATRIX
@@ -343,7 +343,7 @@ db.exec(`
     phone TEXT,
     address TEXT,
     active INTEGER DEFAULT 1,
-    created_at TEXT DEFAULT (datetime('now'))
+    created_at TEXT DEFAULT (datetime('now', 'localtime'))
   );
 
   CREATE TABLE IF NOT EXISTS item_suppliers (
@@ -364,7 +364,7 @@ db.exec(`
     name TEXT NOT NULL,
     type TEXT CHECK(type IN ('central', 'production', 'quarantine', 'shipping')),
     description TEXT,
-    created_at TEXT DEFAULT (datetime('now'))
+    created_at TEXT DEFAULT (datetime('now', 'localtime'))
   );
 
   CREATE TABLE IF NOT EXISTS warehouse_locations (
@@ -385,7 +385,7 @@ db.exec(`
     order_date TEXT DEFAULT (date('now')),
     expected_date TEXT,
     created_by INTEGER REFERENCES users(id),
-    created_at TEXT DEFAULT (datetime('now'))
+    created_at TEXT DEFAULT (datetime('now', 'localtime'))
   );
 
   CREATE TABLE IF NOT EXISTS purchase_order_items (
@@ -401,7 +401,7 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     po_id INTEGER REFERENCES purchase_orders(id),
     received_by INTEGER NOT NULL REFERENCES users(id),
-    received_at TEXT DEFAULT (datetime('now')),
+    received_at TEXT DEFAULT (datetime('now', 'localtime')),
     document_reference TEXT,
     notes TEXT
   );
@@ -430,7 +430,7 @@ db.exec(`
     status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'released', 'scrapped')),
     decision_by INTEGER REFERENCES users(id),
     decision_at TEXT,
-    created_at TEXT DEFAULT (datetime('now'))
+    created_at TEXT DEFAULT (datetime('now', 'localtime'))
   );
 
   -- STOCK TRANSFERS
@@ -440,7 +440,7 @@ db.exec(`
     to_warehouse_id INTEGER REFERENCES warehouses(id),
     status TEXT DEFAULT 'completed',
     created_by INTEGER NOT NULL REFERENCES users(id),
-    created_at TEXT DEFAULT (datetime('now')),
+    created_at TEXT DEFAULT (datetime('now', 'localtime')),
     completed_at TEXT
   );
 

@@ -7,8 +7,10 @@ const router = express.Router();
 router.get('/', authenticateToken, (req, res) => {
   const { date_from, date_to, machine_id } = req.query;
   
-  // Default to today
-  const targetDate = date_from || new Date().toISOString().substring(0, 10);
+  // Default to today (Local)
+  const d = new Date();
+  const todayLocal = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const targetDate = date_from || todayLocal;
   
   let machines = machinesDb.prepare('SELECT * FROM machines WHERE active = 1').all();
   if (machine_id) machines = machines.filter(m => m.id === parseInt(machine_id));
@@ -35,8 +37,8 @@ router.get('/', authenticateToken, (req, res) => {
 
     for (const o of orders) {
       // Planned time
-      const pStart = new Date(o.planned_start);
-      const pEnd = new Date(o.planned_end);
+      const pStart = new Date(o.planned_start.replace(' ', 'T'));
+      const pEnd = new Date(o.planned_end.replace(' ', 'T'));
       totalPlannedTimeMin += (pEnd - pStart) / 60000;
 
       // Operating time (Working phase only)
@@ -46,8 +48,8 @@ router.get('/', authenticateToken, (req, res) => {
         const startAction = db.prepare("SELECT timestamp FROM operator_actions WHERE allocation_id = ? AND action_type = 'working_start' ORDER BY timestamp DESC LIMIT 1").get(a.id);
         const endAction = db.prepare("SELECT timestamp FROM operator_actions WHERE allocation_id = ? AND action_type = 'working_end' ORDER BY timestamp DESC LIMIT 1").get(a.id);
         
-        let startTs = startAction ? new Date(startAction.timestamp) : new Date(a.start_time);
-        let endTs = endAction ? new Date(endAction.timestamp) : (o.status === 'active' ? new Date() : new Date(a.end_time));
+        let startTs = startAction ? new Date(startAction.timestamp.replace(' ', 'T')) : new Date(a.start_time.replace(' ', 'T'));
+        let endTs = endAction ? new Date(endAction.timestamp.replace(' ', 'T')) : (o.status === 'active' ? new Date() : new Date(a.end_time.replace(' ', 'T')));
         
         totalOperatingTimeMin += (endTs - startTs) / 60000;
       }

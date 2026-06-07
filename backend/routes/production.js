@@ -75,10 +75,10 @@ function deductStock(orderId, producedQty, userId) {
     // 2. Update actual physical stock level
     db.prepare(`
       INSERT INTO stock_levels (item_id, quantity, last_updated)
-      VALUES (?, ?, datetime('now'))
+      VALUES (?, ?, datetime('now', 'localtime'))
       ON CONFLICT(item_id) DO UPDATE SET 
         quantity = quantity - EXCLUDED.quantity, 
-        last_updated = datetime('now')
+        last_updated = datetime('now', 'localtime')
     `).run(pos.item_id, requiredTotal);
       
     // 3. Log transaction
@@ -117,7 +117,7 @@ router.get('/operator/:id', authenticateToken, (req, res) => {
 
 // GET /api/production/machine/:id/status
 router.get('/machine/:id/status', authenticateToken, (req, res) => {
-  const now = new Date().toISOString().replace('T',' ').substring(0,19);
+  const now = formatLocal(new Date());
   const activeOrder = db.prepare(`
     SELECT * FROM orders WHERE machine_id = ? AND status = 'active'
     ORDER BY planned_start ASC LIMIT 1
@@ -198,11 +198,17 @@ router.post('/allocations', authenticateToken, requireRole('shift_responsible','
   res.status(201).json({ id: result.lastInsertRowid, delay_minutes: delayMin, message: 'Operator alocat cu succes' });
 });
 
-// Helper to add minutes (Duplicated from orders.js for simplicity or moved to a shared utils)
+function formatLocal(date) {
+  const d = new Date(date);
+  const z = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}:${z(d.getSeconds())}`;
+}
+
+// Helper to add minutes
 function addMinutes(dateStr, minutes) {
-  const d = new Date(dateStr);
+  const d = new Date(dateStr.replace(' ', 'T'));
   d.setMinutes(d.getMinutes() + minutes);
-  return d.toISOString().replace('T', ' ').substring(0, 19);
+  return formatLocal(d);
 }
 
 // Internal propagate function (Matching the logic in orders.js)
@@ -225,7 +231,10 @@ function propagateScheduleShift(machineId, fromOrderId, delayMinutes) {
 
   let lastEnd = newEnd;
   for (const o of futureOrders) {
-    const duration = (new Date(o.planned_end) - new Date(o.planned_start)) / 60000;
+    const startObj = new Date(o.planned_start.replace(' ','T'));
+    const endObj = new Date(o.planned_end.replace(' ','T'));
+    const duration = (endObj - startObj) / 60000;
+    
     const newOStart = lastEnd;
     const newOEnd = addMinutes(newOStart, duration);
     ordersDb.prepare('UPDATE orders SET planned_start = ?, planned_end = ? WHERE id = ?').run(newOStart, newOEnd, o.id);
@@ -239,7 +248,7 @@ router.post('/actions', authenticateToken, (req, res) => {
   if (!allocation_id || !action_type) return res.status(400).json({ error: 'Câmpuri obligatorii lipsă' });
   
   db.transaction(() => {
-    db.prepare('INSERT INTO operator_actions (allocation_id, action_type, notes) VALUES (?,?,?)').run(allocation_id, action_type, notes || '');
+    db.prepare("INSERT INTO operator_actions (allocation_id, action_type, notes, timestamp) VALUES (?,?,?,datetime('now', 'localtime'))").run(allocation_id, action_type, notes || '');
 
     // AUTOMATIC DELAY DETECTION
     if (action_type === 'setup_start' || action_type === 'working_start') {
@@ -247,11 +256,11 @@ router.post('/actions', authenticateToken, (req, res) => {
       const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(alloc.order_id);
       
       const now = new Date();
-      const plannedStart = new Date(order.planned_start);
+      const plannedStart = new Date(order.planned_start.replace(' ', 'T'));
       
       // Update actual_start on first start action
       if (!order.actual_start) {
-        db.prepare("UPDATE orders SET actual_start = datetime('now') WHERE id = ?").run(order.id);
+        db.prepare("UPDATE orders SET actual_start = datetime('now', 'localtime') WHERE id = ?").run(order.id);
       }
 
       // If operator starts more than 1 minute late
@@ -263,7 +272,7 @@ router.post('/actions', authenticateToken, (req, res) => {
           .run(order.id, delayMins, `Pornire întârziată (${action_type})`, req.user.id, 'operator');
         
         // Update current order start to actual
-        db.prepare('UPDATE orders SET planned_start = ? WHERE id = ?').run(now.toISOString().replace('T',' ').substring(0,19), order.id);
+        db.prepare('UPDATE orders SET planned_start = ? WHERE id = ?').run(formatLocal(now), order.id);
         
         // Propagate to shift everything
         propagateScheduleShift(order.machine_id, order.id, delayMins);
@@ -272,7 +281,7 @@ router.post('/actions', authenticateToken, (req, res) => {
 
     if (action_type === 'working_end') {
       const alloc = db.prepare('SELECT * FROM machine_allocations WHERE id = ?').get(allocation_id);
-      db.prepare("UPDATE orders SET actual_end = datetime('now'), status = 'done' WHERE id = ?").run(alloc.order_id);
+      db.prepare("UPDATE orders SET actual_end = datetime('now', 'localtime'), status = 'done' WHERE id = ?").run(alloc.order_id);
       broadcast('order:completed', { order_id: alloc.order_id });
     }
 
@@ -326,7 +335,7 @@ router.post('/results', authenticateToken, (req, res) => {
       const results = db.prepare('SELECT * FROM production_results WHERE order_id = ?').all(order_id);
       const totalProduced = results.reduce((a, r) => a + r.qty_ok + r.qty_fail, 0);
       if (totalProduced >= order.quantity) {
-        db.prepare("UPDATE orders SET status='done', actual_end=datetime('now') WHERE id=?").run(order_id);
+        db.prepare("UPDATE orders SET status='done', actual_end=datetime('now', 'localtime') WHERE id=?").run(order_id);
         broadcast('order:completed', { order_id });
       }
     }
@@ -393,7 +402,9 @@ router.post('/optimize', authenticateToken, requireRole('shift_responsible', 'ad
   if (operators.length === 0) return res.status(400).json({ error: 'No operators found in this shift' });
 
   // 2. Get pending orders
-  const targetDate = date || new Date().toISOString().substring(0, 10);
+  const d = new Date();
+  const todayLocal = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const targetDate = date || todayLocal;
   const orders = db.prepare(`
     SELECT * FROM orders 
     WHERE status IN ('pending', 'active') 
@@ -427,7 +438,7 @@ router.post('/optimize', authenticateToken, requireRole('shift_responsible', 'ad
     let earliestTime = Infinity;
 
     for (const op of skilledOperators) {
-      const freeAt = operatorFreeTime[op.id] ? new Date(operatorFreeTime[op.id]) : new Date(0);
+      const freeAt = operatorFreeTime[op.id] ? new Date(operatorFreeTime[op.id].replace(' ','T')) : new Date(0);
       if (freeAt < earliestTime) {
         earliestTime = freeAt;
         bestOperator = op;
@@ -435,8 +446,8 @@ router.post('/optimize', authenticateToken, requireRole('shift_responsible', 'ad
     }
 
     if (bestOperator) {
-      const orderStart = new Date(order.planned_start);
-      const orderEnd = new Date(order.planned_end);
+      const orderStart = new Date(order.planned_start.replace(' ','T'));
+      const orderEnd = new Date(order.planned_end.replace(' ','T'));
       
       let actualStart = orderStart;
       let delayMinutes = 0;
@@ -455,13 +466,13 @@ router.post('/optimize', authenticateToken, requireRole('shift_responsible', 'ad
         operator_id: bestOperator.id,
         operator_name: `${bestOperator.first_name} ${bestOperator.last_name}`,
         planned_start: order.planned_start,
-        suggested_start: actualStart.toISOString().replace('T', ' ').substring(0, 19),
-        suggested_end: actualEnd.toISOString().replace('T', ' ').substring(0, 19),
+        suggested_start: formatLocal(actualStart),
+        suggested_end: formatLocal(actualEnd),
         delay_minutes: delayMinutes,
         is_skill_match: true
       });
 
-      operatorFreeTime[bestOperator.id] = actualEnd.toISOString();
+      operatorFreeTime[bestOperator.id] = formatLocal(actualEnd);
     }
   }
 
