@@ -104,17 +104,13 @@ router.get('/allocations', authenticateToken, (req, res) => {
 
 // GET /api/production/operator/:id
 router.get('/operator/:id', authenticateToken, (req, res) => {
-  const allocations = db.prepare(`
-    SELECT * FROM machine_allocations WHERE operator_id = ? ORDER BY start_time ASC
+  const result = db.prepare(`
+    SELECT ma.*, o.product_name, o.quantity, o.planned_start, o.planned_end, o.status as order_status, o.item_id
+    FROM machine_allocations ma
+    JOIN orders o ON ma.order_id = o.id
+    WHERE ma.operator_id = ? AND o.status != 'cancelled'
+    ORDER BY o.planned_start ASC
   `).all(req.params.id);
-
-  const result = allocations.map(ma => {
-    const order = db.prepare(`
-      SELECT product_name, quantity, planned_start, planned_end, status as order_status 
-      FROM orders WHERE id = ?
-    `).get(ma.order_id);
-    return { ...ma, ...order };
-  }).filter(ma => ma.order_status !== 'cancelled');
 
   res.json(result);
 });

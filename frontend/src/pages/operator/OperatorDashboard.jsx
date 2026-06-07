@@ -128,9 +128,12 @@ export default function OperatorDashboard() {
                       <Settings size={20} />
                     </div>
                   </div>
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
-                  <div className="flex items-center gap-1.5"><Clock size={14}/> {alloc.quantity} {t('inventory.uom')}</div>
-                  <div className="flex items-center gap-1.5"><CheckCircle size={14}/> {t(`status.${alloc.status}`)}</div>
+                  <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-4">
+                    <div className="flex items-center gap-1.5"><Clock size={14}/> {alloc.quantity} {t('inventory.uom')}</div>
+                    <div className="flex items-center gap-1.5"><CheckCircle size={14}/> {t(`status.${alloc.order_status || alloc.status}`)}</div>
+                    <div className="flex items-center gap-1.5 bg-accent/5 px-2 py-0.5 rounded-lg border border-accent/10 text-[10px] font-mono">
+                      {alloc.planned_start?.substring(11,16)} - {alloc.planned_end?.substring(11,16)}
+                    </div>
                   </div>                  <button className="btn btn-primary w-full">{t('operator.open_control')}</button>
                 </div>
               ))}
