@@ -270,9 +270,22 @@ function CreateOrderModal({ machines, onClose, onSave }) {
             {orders.map((order, i) => (
               <div key={i} className="relative p-6 rounded-2xl border border-border bg-slate-50/50 space-y-6">
                 <div className="flex justify-between items-center">
-                  <div className="flex gap-2 p-1 bg-white border border-border rounded-xl">
-                    <button type="button" onClick={()=>setField(i,'order_type','production')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${order.order_type==='production'?'bg-accent text-white shadow-md shadow-accent/20':'text-muted-foreground'}`}>{t('planner.production')}</button>
-                    <button type="button" onClick={()=>setField(i,'order_type','maintenance')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${order.order_type==='maintenance'?'bg-orange-500 text-white shadow-md shadow-orange-500/20':'text-muted-foreground'}`}>{t('planner.maintenance')}</button>
+                  <div className="flex items-center gap-3">
+                    <div className="flex gap-2 p-1 bg-white border border-border rounded-xl">
+                      <button type="button" onClick={()=>setField(i,'order_type','production')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${order.order_type==='production'?'bg-accent text-white shadow-md shadow-accent/20':'text-muted-foreground'}`}>{t('planner.production')}</button>
+                      <button type="button" onClick={()=>setField(i,'order_type','maintenance')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${order.order_type==='maintenance'?'bg-orange-500 text-white shadow-md shadow-orange-500/20':'text-muted-foreground'}`}>{t('planner.maintenance')}</button>
+                    </div>
+
+                    {order.order_type === 'production' && (
+                      <div className="flex gap-2 p-1 bg-white border border-border rounded-xl">
+                        <button type="button" onClick={()=>setField(i,'is_fixed_time', false)} className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${!order.is_fixed_time ? 'bg-slate-600 text-white shadow-md':'text-muted-foreground'}`}>
+                          {t('planner.calc_time') || 'Timp Calculat'}
+                        </button>
+                        <button type="button" onClick={()=>setField(i,'is_fixed_time', true)} className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${order.is_fixed_time ? 'bg-blue-600 text-white shadow-md':'text-muted-foreground'}`}>
+                          {t('planner.fixed_time') || 'Timp Fix'}
+                        </button>
+                      </div>
+                    )}
                   </div>
                   {multiple && orders.length > 1 && (
                     <button type="button" className="text-red-500 hover:text-red-700 p-1" onClick={() => removeOrder(i)}><Trash2 size={16}/></button>
