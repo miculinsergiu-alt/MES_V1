@@ -300,6 +300,7 @@ function AllocateModal({ order, orders, operators, onClose, onAllocate }) {
   const [form, setForm] = useState({
     order_id: order?.id || '',
     operator_id: '',
+    machine_id: order?.machine_id || '',
     start_time: order?.planned_start?.replace(' ','T') || '',
     end_time: order?.planned_end?.replace(' ','T') || '',
     phase: 'working',
@@ -307,8 +308,14 @@ function AllocateModal({ order, orders, operators, onClose, onAllocate }) {
   
   const handleSubmit = (e) => {
     e.preventDefault();
-    onAllocate({ ...form, order_id:parseInt(form.order_id), operator_id:parseInt(form.operator_id),
-      start_time: form.start_time.replace('T',' '), end_time: form.end_time.replace('T',' ') });
+    onAllocate({ 
+      ...form, 
+      order_id: parseInt(form.order_id), 
+      operator_id: parseInt(form.operator_id),
+      machine_id: parseInt(form.machine_id),
+      start_time: form.start_time.replace('T',' '), 
+      end_time: form.end_time.replace('T',' ') 
+    });
   };
 
   return (
@@ -323,7 +330,13 @@ function AllocateModal({ order, orders, operators, onClose, onAllocate }) {
             <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest ml-1">{t('planner.production')}</label>
             <select className="w-full h-12 rounded-xl border border-border bg-white px-4 focus:ring-2 focus:ring-accent outline-none font-medium" value={form.order_id} onChange={e=>{
                 const o = orders.find(x=>x.id===+e.target.value);
-                setForm({...form, order_id: e.target.value, start_time: o?.planned_start?.replace(' ','T')||'', end_time: o?.planned_end?.replace(' ','T')||''});
+                setForm({
+                  ...form, 
+                  order_id: e.target.value, 
+                  machine_id: o?.machine_id || '',
+                  start_time: o?.planned_start?.replace(' ','T')||'', 
+                  end_time: o?.planned_end?.replace(' ','T')||''
+                });
               }} required>
               <option value="">{t('planner.select_product')}</option>
               {orders.filter(o=>o.status!=='done').map(o=><option key={o.id} value={o.id}>{o.product_name} ({t('analytics.machine')} #{o.machine_id})</option>)}
