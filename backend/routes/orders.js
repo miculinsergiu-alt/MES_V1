@@ -297,7 +297,7 @@ router.post('/', authenticateToken, requireRole('planner', 'administrator'), (re
           // 2. Adjust for Machine Availability (Finite Capacity)
           const actualStart = getMachineAvailableTime(step.machine_id, earliestStart);
           
-          const durationMins = (step.process_time_min || 0) * quantity;
+          const durationMins = (step.process_time_min || 0);
           const actualEnd = addMinutes(actualStart, durationMins || 60);
 
           const result = insertStmt.run(

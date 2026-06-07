@@ -227,7 +227,7 @@ function CreateOrderModal({ machines, onClose, onSave }) {
         // Auto-calculate end time if not provided
         if (!pEnd && pStart && o.item_id && o.order_type === 'production') {
           const routes = itemRoutes[o.item_id] || [];
-          const totalMin = routes.reduce((sum, r) => sum + (r.process_time_min * o.quantity), 0);
+          const totalMin = routes.reduce((sum, r) => sum + (r.process_time_min), 0);
           if (totalMin > 0) {
             const startDate = new Date(pStart.replace(' ', 'T'));
             const endDate = new Date(startDate.getTime() + totalMin * 60000);
@@ -333,7 +333,7 @@ function CreateOrderModal({ machines, onClose, onSave }) {
                           <div key={ridx} className="flex items-center gap-2 flex-shrink-0">
                             <div className="px-3 py-2 rounded-lg bg-white border border-accent/20 shadow-sm text-center min-w-[100px]">
                               <p className="text-[9px] font-bold text-muted-foreground uppercase">{m?.name || '?'}</p>
-                              <p className="text-[11px] font-black text-accent">{r.process_time_min * order.quantity} min</p>
+                              <p className="text-[11px] font-black text-accent">{r.process_time_min} min</p>
                             </div>
                             {ridx < itemRoutes[order.item_id].length - 1 && <ChevronRight size={14} className="text-muted-foreground/30" />}
                           </div>
@@ -349,11 +349,51 @@ function CreateOrderModal({ machines, onClose, onSave }) {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <label className="text-[11px] font-bold text-muted-foreground uppercase ml-1">{t('planner.planned_start_label')}</label>
-                    <input className="w-full h-12 rounded-xl border border-border bg-white px-4 focus:ring-2 focus:ring-accent outline-none text-sm" type="datetime-local" value={order.planned_start} onChange={e=>setField(i,'planned_start',e.target.value)} required />
+                    <div className="flex gap-2">
+                      <input 
+                        className="flex-[2] h-12 rounded-xl border border-border bg-white px-4 focus:ring-2 focus:ring-accent outline-none text-sm" 
+                        type="date" 
+                        value={order.planned_start?.substring(0,10)} 
+                        onChange={e => {
+                          const time = order.planned_start?.substring(11,16) || '00:00';
+                          setField(i, 'planned_start', `${e.target.value}T${time}`);
+                        }} 
+                        required 
+                      />
+                      <input 
+                        className="flex-1 h-12 rounded-xl border border-border bg-white px-4 focus:ring-2 focus:ring-accent outline-none text-sm" 
+                        type="time" 
+                        value={order.planned_start?.substring(11,16)} 
+                        onChange={e => {
+                          const date = order.planned_start?.substring(0,10) || format(new Date(), 'yyyy-MM-dd');
+                          setField(i, 'planned_start', `${date}T${e.target.value}`);
+                        }} 
+                        required 
+                      />
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <label className="text-[11px] font-bold text-muted-foreground uppercase ml-1">{t('planner.planned_end_label')}</label>
-                    <input className="w-full h-12 rounded-xl border border-border bg-white px-4 focus:ring-2 focus:ring-accent outline-none text-sm" type="datetime-local" value={order.planned_end} onChange={e=>setField(i,'planned_end',e.target.value)} />
+                    <div className="flex gap-2">
+                      <input 
+                        className="flex-[2] h-12 rounded-xl border border-border bg-white px-4 focus:ring-2 focus:ring-accent outline-none text-sm" 
+                        type="date" 
+                        value={order.planned_end?.substring(0,10)} 
+                        onChange={e => {
+                          const time = order.planned_end?.substring(11,16) || '00:00';
+                          setField(i, 'planned_end', `${e.target.value}T${time}`);
+                        }} 
+                      />
+                      <input 
+                        className="flex-1 h-12 rounded-xl border border-border bg-white px-4 focus:ring-2 focus:ring-accent outline-none text-sm" 
+                        type="time" 
+                        value={order.planned_end?.substring(11,16)} 
+                        onChange={e => {
+                          const date = order.planned_end?.substring(0,10) || format(new Date(), 'yyyy-MM-dd');
+                          setField(i, 'planned_end', `${date}T${e.target.value}`);
+                        }} 
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -433,11 +473,53 @@ function EditOrderModal({ order, machines, onClose, onSave }) {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-[11px] font-bold text-muted-foreground uppercase ml-1">{t('planner.new_start')}</label>
-              <input className="w-full h-12 rounded-xl border border-border bg-white px-4 outline-none focus:ring-2 focus:ring-accent text-sm" type="datetime-local" value={form.planned_start} onChange={e=>setForm({...form, planned_start: e.target.value})} required />
+              <div className="flex gap-2">
+                <input 
+                  className="flex-[2] h-12 rounded-xl border border-border bg-white px-4 outline-none focus:ring-2 focus:ring-accent text-sm" 
+                  type="date" 
+                  value={form.planned_start?.substring(0,10)} 
+                  onChange={e => {
+                    const time = form.planned_start?.substring(11,16) || '00:00';
+                    setForm({ ...form, planned_start: `${e.target.value}T${time}` });
+                  }} 
+                  required 
+                />
+                <input 
+                  className="flex-1 h-12 rounded-xl border border-border bg-white px-4 outline-none focus:ring-2 focus:ring-accent text-sm" 
+                  type="time" 
+                  value={form.planned_start?.substring(11,16)} 
+                  onChange={e => {
+                    const date = form.planned_start?.substring(0,10) || format(new Date(), 'yyyy-MM-dd');
+                    setForm({ ...form, planned_start: `${date}T${e.target.value}` });
+                  }} 
+                  required 
+                />
+              </div>
             </div>
             <div className="space-y-2">
               <label className="text-[11px] font-bold text-muted-foreground uppercase ml-1">{t('planner.new_end')}</label>
-              <input className="w-full h-12 rounded-xl border border-border bg-white px-4 outline-none focus:ring-2 focus:ring-accent text-sm" type="datetime-local" value={form.planned_end} onChange={e=>setForm({...form, planned_end: e.target.value})} required />
+              <div className="flex gap-2">
+                <input 
+                  className="flex-[2] h-12 rounded-xl border border-border bg-white px-4 outline-none focus:ring-2 focus:ring-accent text-sm" 
+                  type="date" 
+                  value={form.planned_end?.substring(0,10)} 
+                  onChange={e => {
+                    const time = form.planned_end?.substring(11,16) || '00:00';
+                    setForm({ ...form, planned_end: `${e.target.value}T${time}` });
+                  }} 
+                  required 
+                />
+                <input 
+                  className="flex-1 h-12 rounded-xl border border-border bg-white px-4 outline-none focus:ring-2 focus:ring-accent text-sm" 
+                  type="time" 
+                  value={form.planned_end?.substring(11,16)} 
+                  onChange={e => {
+                    const date = form.planned_end?.substring(0,10) || format(new Date(), 'yyyy-MM-dd');
+                    setForm({ ...form, planned_end: `${date}T${e.target.value}` });
+                  }} 
+                  required 
+                />
+              </div>
             </div>
           </div>
           {form.order_type === 'production' && (
