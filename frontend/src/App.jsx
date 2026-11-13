@@ -19,6 +19,7 @@ import DocumentsList from './pages/sales/DocumentsList';
 import DocumentEditor from './pages/sales/DocumentEditor';
 import CustomersPage from './pages/sales/CustomersPage';
 import SettingsPage from './pages/sales/SettingsPage';
+import IncomingInvoicesPage from './pages/sales/IncomingInvoicesPage';
 import { OpenItemsPage, DunningPage, DatevPage } from './pages/sales/OpenItemsPage';
 import './index.css';
 
@@ -81,6 +82,9 @@ export default function App() {
             </Route>
             <Route path="/settings" element={<PrivateRoute roles={['administrator']}><SalesLayout /></PrivateRoute>}>
               <Route index element={<SettingsPage />} />
+            </Route>
+            <Route path="/purchase-invoices" element={<PrivateRoute roles={['administrator', 'accounting', 'material_planner', 'planner', 'warehouse_manager']}><SalesLayout /></PrivateRoute>}>
+              <Route index element={<IncomingInvoicesPage />} />
             </Route>
 
             {/* Supervisor */}

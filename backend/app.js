@@ -19,6 +19,8 @@ app.set('trust proxy', config.trustProxy);
 // the frontend loads inline styles/fonts; revisit when the UI is consolidated.
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
 if (config.corsOrigins.length) app.use(cors({ origin: config.corsOrigins, credentials: true }));
+// Uploaded e-invoices are sent as base64 JSON and may be larger.
+app.use('/api/purchase-invoices', express.json({ limit: '21mb' }));
 app.use(express.json({ limit: '2mb' }));
 
 // Request log (method, path, status, duration) — never bodies, they can contain passwords.
@@ -67,6 +69,7 @@ app.use('/api/settings', require('./routes/settings'));
 app.use('/api/customers', require('./routes/customers'));
 app.use('/api/sales', require('./routes/sales'));
 app.use('/api/datev', require('./routes/datev'));
+app.use('/api/purchase-invoices', require('./routes/purchaseInvoices'));
 
 app.use('/api', (req, res, next) => next(notFound(`API route ${req.method} ${req.path}`)));
 

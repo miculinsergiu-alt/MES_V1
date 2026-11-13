@@ -7,7 +7,8 @@
     "datev": "DATEV export",
     "settings": "Settings",
     "sales": "Sales & invoicing",
-    "back": "Production"
+    "back": "Production",
+    "incoming": "Incoming invoices"
   },
   "types": {
     "quote": "Quote",
@@ -209,5 +210,30 @@
     "deleted": "Draft deleted",
     "payment_saved": "Payment recorded",
     "error": "Something went wrong"
+  },
+  "incoming": {
+    "title": "Incoming invoices",
+    "upload": "Upload e-invoice",
+    "drop_hint": "Drop ZUGFeRD PDFs or XRechnung XML files here, or use “Upload e-invoice”.",
+    "original": "Original",
+    "approve": "Approve",
+    "reject": "Reject",
+    "mark_paid": "Mark paid",
+    "warnings": "Plausibility warnings",
+    "seller": "Supplier",
+    "supplier": "Assigned supplier",
+    "create_supplier": "Create supplier from invoice",
+    "po": "Purchase order",
+    "differs": "difference",
+    "order_ref": "Order reference",
+    "due_amount": "Amount due",
+    "credit_note": "Credit note",
+    "status": {
+      "all": "All",
+      "received": "New",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "paid": "Paid"
+    }
   }
 }

@@ -31,7 +31,7 @@ Local data lives in `backend/data/` (ignored by git). Delete that folder to star
 ## Tests
 
 ```bash
-npm test             # 59 API tests against an in-memory PostgreSQL
+npm test             # API tests against an in-memory PostgreSQL
 ```
 
 The tests cover login and roles, separation between companies, validation, the purchase → stock → BOM → MRP → production flow, scheduling and delays, and real-time events.
@@ -44,6 +44,7 @@ The tests cover login and roles, separation between companies, validation, the p
 | `npm run seed:demo` | Create the `DEMO` company (never on a production database with real customers) |
 | `npm run export-company -- --code ACME` | Export one company's data as JSON (off-site backup, GDPR data requests). Password hashes are never exported. |
 | `npm run import:sqlite -- --file db/smartfactory.db --code ACME --name "Acme GmbH"` | One-time import of an old NOVA SQLite database into a fresh database |
+| `npm run validate:einvoices -- <files>` | Check e-invoices with the official KoSIT validator and Mustang (tools folder: see the script) |
 | `npm run migrate` | Apply database migrations (also happens automatically on start) |
 
 All scripts use `DATABASE_URL` when set, otherwise the local embedded database.
@@ -71,6 +72,15 @@ Required settings in production (see `backend/.env.example`): `NODE_ENV=producti
 - **API errors** have the form `{ "error": "readable message", "code": "MACHINE_CODE" }`, with `details` for validation errors.
 
 ## Changelog
+
+### [November 2026] — Phase 1: Sales, invoicing & e-invoices (Germany)
+- Customers (VIES VAT check, tax treatment from country and VAT ID), company settings, gap-free number ranges.
+- Quote → order confirmation → delivery note → invoice, partial deliveries, make-to-order production orders.
+- GoBD: issued documents locked by the database, corrections only via Rechnungskorrektur, write-once archive with SHA-256.
+- E-invoices: ZUGFeRD (Factur-X EN 16931, PDF/A-3) and XRechnung 3.0, validated with the official KoSIT validator and Mustang for domestic, intra-EU, export, credit note and § 19 cases.
+- Receiving e-invoices: ZUGFeRD PDF and XRechnung (CII and UBL), plausibility checks, duplicate detection, supplier and purchase-order matching, approval workflow, original archived unchanged.
+- Payments with Skonto, open items, three reminder levels, DATEV Buchungsstapel export (SKR03/SKR04).
+- Sales & invoicing screens in German and English; roles Sales and Accounting.
 
 ### [November 2026] — Phase 0: Foundation
 - PostgreSQL instead of SQLite, with migrations; embedded PostgreSQL for development.

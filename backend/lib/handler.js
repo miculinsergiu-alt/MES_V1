@@ -14,7 +14,11 @@ const SENSITIVE_KEYS = /password|token|secret/i;
 
 function sanitize(body) {
   if (!body || typeof body !== 'object') return body ?? null;
-  return JSON.parse(JSON.stringify(body, (k, v) => (SENSITIVE_KEYS.test(k) ? '[redacted]' : v)));
+  return JSON.parse(JSON.stringify(body, (k, v) => {
+    if (SENSITIVE_KEYS.test(k)) return '[redacted]';
+    if (/base64|data_url/i.test(k) && typeof v === 'string') return `[file, ${v.length} chars]`;
+    return v;
+  }));
 }
 
 async function writeAudit(req, payload) {

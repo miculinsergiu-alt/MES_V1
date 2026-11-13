@@ -7,7 +7,8 @@
     "datev": "DATEV-Export",
     "settings": "Einstellungen",
     "sales": "Verkauf & Rechnungen",
-    "back": "Produktion"
+    "back": "Produktion",
+    "incoming": "Eingangsrechnungen"
   },
   "types": {
     "quote": "Angebot",
@@ -209,5 +210,30 @@
     "deleted": "Entwurf gelöscht",
     "payment_saved": "Zahlung erfasst",
     "error": "Es ist ein Fehler aufgetreten"
+  },
+  "incoming": {
+    "title": "Eingangsrechnungen",
+    "upload": "E-Rechnung hochladen",
+    "drop_hint": "ZUGFeRD-PDFs oder XRechnung-XML-Dateien hier ablegen oder „E-Rechnung hochladen“ wählen.",
+    "original": "Original",
+    "approve": "Freigeben",
+    "reject": "Ablehnen",
+    "mark_paid": "Als bezahlt markieren",
+    "warnings": "Plausibilitätshinweise",
+    "seller": "Lieferant",
+    "supplier": "Zugeordneter Lieferant",
+    "create_supplier": "Lieferant aus Rechnung anlegen",
+    "po": "Bestellung",
+    "differs": "Abweichung",
+    "order_ref": "Bestellreferenz",
+    "due_amount": "Zahlbetrag",
+    "credit_note": "Gutschrift/Korrektur",
+    "status": {
+      "all": "Alle",
+      "received": "Neu",
+      "approved": "Freigegeben",
+      "rejected": "Abgelehnt",
+      "paid": "Bezahlt"
+    }
   }
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Package, ArrowDownUp, Edit, Plus, Truck, Home, ShoppingCart, ShieldAlert, LogOut } from 'lucide-react';
+import { Package, ArrowDownUp, Edit, Plus, Truck, Home, ShoppingCart, ShieldAlert, LogOut, Inbox } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Sidebar from '../../components/Sidebar';
 import api from '../../api/axios';
@@ -38,16 +38,19 @@ export default function InventoryPage() {
   const plannerNav = [
     { path: '/planner', labelKey: 'sidebar.dashboard', icon: <Package size={16}/> },
     { path: '/planner/items', labelKey: 'sidebar.articles_bom', icon: <Package size={16}/> },
-    { path: '/planner/inventory', labelKey: 'sidebar.stocks', icon: <ArrowDownUp size={16}/> }
+    { path: '/planner/inventory', labelKey: 'sidebar.stocks', icon: <ArrowDownUp size={16}/> },
+    { path: '/purchase-invoices', labelKey: 'sales.nav.incoming', icon: <Inbox size={16}/> }
   ];
 
   const whmNav = [
     { path: '/inventory', labelKey: 'sidebar.inventory_hub', icon: <Package size={16}/> },
+    { path: '/purchase-invoices', labelKey: 'sales.nav.incoming', icon: <Inbox size={16}/> },
     { path: '#logout', labelKey: 'common.logout', icon: <LogOut size={16}/>, onClick: logout }
   ];
 
   const matPlannerNav = [
     { path: '/inventory', labelKey: 'sidebar.inventory_hub', icon: <Package size={16}/> },
+    { path: '/purchase-invoices', labelKey: 'sales.nav.incoming', icon: <Inbox size={16}/> },
     { path: '/inventory/suppliers', label: 'Furnizori', icon: <Truck size={16}/> },
     { path: '#logout', labelKey: 'common.logout', icon: <LogOut size={16}/>, onClick: logout }
   ];
