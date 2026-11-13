@@ -5,7 +5,6 @@ import {
   ArrowLeft, Edit2, Printer, ChevronRight, ChevronDown,
   Layers, Package, Zap, GitBranch, DollarSign, Box
 } from 'lucide-react';
-import Sidebar from '../../components/Sidebar';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -176,10 +175,6 @@ export default function BOMViewerPage() {
     }).finally(() => setLoading(false));
   }, [id]);
 
-  const navItems = [
-    { path: '/planner/gantt',  labelKey: 'sidebar.production_plan', icon: <Box size={16}/> },
-    { path: '/planner/items',  labelKey: 'sidebar.items_bom',       icon: <Box size={16}/> },
-  ];
 
   const totalCost   = calcCost(tree);
   const totalNodes  = countNodes(tree);
@@ -188,8 +183,7 @@ export default function BOMViewerPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen bg-background">
-        <Sidebar items={navItems} />
+      <div className="flex flex-col">
         <main className="flex-1 flex items-center justify-center">
           <div className="text-center space-y-3">
             <div className="w-10 h-10 border-4 border-accent/30 border-t-accent rounded-full animate-spin mx-auto"/>
@@ -201,9 +195,8 @@ export default function BOMViewerPage() {
   }
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <Sidebar items={navItems} />
-      <main className="flex-1 p-8 overflow-auto">
+    <div className="flex flex-col">
+      <main className="flex-1 p-4 sm:p-6 lg:p-10 overflow-auto">
 
         {/* ── Breadcrumb + actions ── */}
         <div className="flex items-center justify-between mb-8 print:hidden">

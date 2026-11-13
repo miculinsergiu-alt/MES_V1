@@ -1,7 +1,9 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SocketProvider } from './contexts/SocketContext';
+import AppShell from './components/AppShell';
+import { homeFor } from './navigation';
 import LoginPage from './pages/LoginPage';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import PlannerDashboard from './pages/planner/PlannerDashboard';
@@ -14,38 +16,25 @@ import BOMViewerPage from './pages/planner/BOMViewerPage';
 import OEEPage from './pages/analytics/OEEPage';
 import InventoryPage from './pages/inventory/InventoryPage';
 import MaintenancePage from './pages/maintenance/MaintenancePage';
-import SalesLayout from './pages/sales/SalesLayout';
 import DocumentsList from './pages/sales/DocumentsList';
 import DocumentEditor from './pages/sales/DocumentEditor';
 import CustomersPage from './pages/sales/CustomersPage';
 import SettingsPage from './pages/sales/SettingsPage';
 import IncomingInvoicesPage from './pages/sales/IncomingInvoicesPage';
 import { OpenItemsPage, DunningPage, DatevPage } from './pages/sales/OpenItemsPage';
+import HomePage from './pages/HomePage';
+import ImportPage from './pages/ImportPage';
 import './index.css';
-
-const ROLE_ROUTES = {
-  administrator: '/admin',
-  planner: '/planner',
-  area_supervisor: '/supervisor',
-  shift_responsible: '/shift',
-  operator: '/operator',
-  warehouse_manager: '/inventory',
-  material_planner: '/inventory',
-  sales: '/sales/documents',
-  accounting: '/sales/open-items',
-};
-
-function PrivateRoute({ children, roles }) {
-  const { user } = useAuth();
-  if (!user) return <Navigate to="/login" replace />;
-  if (roles && !roles.includes(user.role)) return <Navigate to={ROLE_ROUTES[user.role] || '/login'} replace />;
-  return children;
-}
 
 function RootRedirect() {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
-  return <Navigate to={ROLE_ROUTES[user.role] || '/login'} replace />;
+  return <Navigate to={homeFor(user.role)} replace />;
+}
+
+/** Standard page padding for the newer screens. */
+function Padded() {
+  return <div className="p-4 sm:p-6 lg:p-10"><Outlet /></div>;
 }
 
 export default function App() {
@@ -57,47 +46,43 @@ export default function App() {
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/" element={<RootRedirect />} />
-            
-            {/* Admin */}
-            <Route path="/admin/*" element={<PrivateRoute roles={['administrator']}><AdminDashboard /></PrivateRoute>} />
-            
-            {/* Planner */}
-            <Route path="/planner/*" element={<PrivateRoute roles={['planner','administrator']}><PlannerDashboard /></PrivateRoute>} />
-            <Route path="/planner/items" element={<PrivateRoute roles={['planner','administrator']}><ItemsManager /></PrivateRoute>} />
-            <Route path="/planner/suppliers" element={<PrivateRoute roles={['planner','administrator']}><SupplierManager /></PrivateRoute>} />
-            <Route path="/planner/boms/:id" element={<PrivateRoute roles={['planner','administrator']}><BOMViewerPage /></PrivateRoute>} />
-            <Route path="/planner/inventory" element={<PrivateRoute roles={['planner','administrator']}><InventoryPage /></PrivateRoute>} />
-            <Route path="/inventory" element={<PrivateRoute roles={['warehouse_manager', 'material_planner', 'administrator']}><InventoryPage /></PrivateRoute>} />
-            <Route path="/inventory/suppliers" element={<PrivateRoute roles={['warehouse_manager', 'material_planner', 'administrator']}><SupplierManager /></PrivateRoute>} />
-            
-            {/* Sales & invoicing */}
-            <Route path="/sales" element={<PrivateRoute roles={['administrator', 'sales', 'accounting', 'planner']}><SalesLayout /></PrivateRoute>}>
-              <Route index element={<Navigate to="/sales/documents" replace />} />
-              <Route path="documents" element={<DocumentsList />} />
-              <Route path="documents/:id" element={<DocumentEditor />} />
-              <Route path="customers" element={<CustomersPage />} />
-              <Route path="open-items" element={<OpenItemsPage />} />
-              <Route path="dunning" element={<PrivateRoute roles={['administrator', 'accounting']}><DunningPage /></PrivateRoute>} />
-              <Route path="datev" element={<PrivateRoute roles={['administrator', 'accounting']}><DatevPage /></PrivateRoute>} />
-            </Route>
-            <Route path="/settings" element={<PrivateRoute roles={['administrator']}><SalesLayout /></PrivateRoute>}>
-              <Route index element={<SettingsPage />} />
-            </Route>
-            <Route path="/purchase-invoices" element={<PrivateRoute roles={['administrator', 'accounting', 'material_planner', 'planner', 'warehouse_manager']}><SalesLayout /></PrivateRoute>}>
-              <Route index element={<IncomingInvoicesPage />} />
+
+            {/* Everything after login lives in one shell; access is checked there (navigation.js). */}
+            <Route element={<AppShell />}>
+              {/* Production */}
+              <Route path="/admin/*" element={<AdminDashboard />} />
+              <Route path="/planner/items" element={<ItemsManager />} />
+              <Route path="/planner/boms/:id" element={<BOMViewerPage />} />
+              <Route path="/planner/*" element={<PlannerDashboard />} />
+              <Route path="/supervisor/oee" element={<OEEPage />} />
+              <Route path="/supervisor/maintenance" element={<MaintenancePage />} />
+              <Route path="/supervisor/*" element={<SupervisorDashboard />} />
+              <Route path="/shift/*" element={<ShiftDashboard />} />
+              <Route path="/operator/*" element={<OperatorDashboard />} />
+
+              {/* Warehouse & purchasing */}
+              <Route path="/inventory" element={<InventoryPage />} />
+              <Route path="/inventory/suppliers" element={<SupplierManager />} />
+
+              <Route element={<Padded />}>
+                <Route path="/home" element={<HomePage />} />
+                <Route path="/import" element={<ImportPage />} />
+                <Route path="/purchase-invoices" element={<IncomingInvoicesPage />} />
+                {/* Sales & invoicing */}
+                <Route path="/sales" element={<Navigate to="/sales/documents" replace />} />
+                <Route path="/sales/documents" element={<DocumentsList />} />
+                <Route path="/sales/documents/:id" element={<DocumentEditor />} />
+                <Route path="/sales/customers" element={<CustomersPage />} />
+                <Route path="/sales/open-items" element={<OpenItemsPage />} />
+                <Route path="/sales/dunning" element={<DunningPage />} />
+                <Route path="/sales/datev" element={<DatevPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+              </Route>
             </Route>
 
-            {/* Supervisor */}
-            <Route path="/supervisor/*" element={<PrivateRoute roles={['area_supervisor','administrator']}><SupervisorDashboard /></PrivateRoute>} />
-            <Route path="/supervisor/oee" element={<PrivateRoute roles={['area_supervisor','administrator']}><OEEPage /></PrivateRoute>} />
-            <Route path="/supervisor/maintenance" element={<PrivateRoute roles={['area_supervisor','administrator']}><MaintenancePage /></PrivateRoute>} />
-            
-            {/* Shift Responsible */}
-            <Route path="/shift/*" element={<PrivateRoute roles={['shift_responsible','administrator']}><ShiftDashboard /></PrivateRoute>} />
-            
-            {/* Operator */}
-            <Route path="/operator/*" element={<PrivateRoute roles={['operator','administrator']}><OperatorDashboard /></PrivateRoute>} />
-            
+            {/* Old addresses */}
+            <Route path="/planner/inventory" element={<Navigate to="/inventory" replace />} />
+            <Route path="/planner/suppliers" element={<Navigate to="/inventory/suppliers" replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>

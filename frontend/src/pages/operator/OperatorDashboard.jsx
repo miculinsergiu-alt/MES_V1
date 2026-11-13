@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { LayoutDashboard, Clock, CheckCircle, AlertTriangle, X, FileText, Image as ImageIcon, Play, Square, Settings } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import Sidebar from '../../components/Sidebar';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
@@ -89,11 +88,9 @@ export default function OperatorDashboard() {
     }
   };
 
-  const navItems = [{ path:'/operator', labelKey:'sidebar.my_tasks', icon:<LayoutDashboard size={18}/> }];
 
   return (
     <div className="app-layout">
-      <Sidebar items={navItems} />
       <div className="main-content">
         <header className="page-header">
           <div className="flex justify-between items-center w-full">

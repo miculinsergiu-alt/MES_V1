@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts';
 import { LayoutDashboard, TrendingUp, Clock, Activity, CheckCircle, Target, AlertCircle, DollarSign } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import Sidebar from '../../components/Sidebar';
 import api from '../../api/axios';
 import { useSocket } from '../../contexts/SocketContext';
 import { Badge } from '../../components/ui/Badge';
@@ -70,15 +69,10 @@ export default function OEEPage() {
     };
   }, [socket]);
 
-  const navItems = [
-    { path: '/supervisor', labelKey: 'sidebar.dashboard', icon: <LayoutDashboard size={16}/> },
-    { path: '/supervisor/oee', labelKey: 'sidebar.oee_analytics', icon: <TrendingUp size={16}/> },
-    { path: '/supervisor/maintenance', labelKey: 'sidebar.maintenance', icon: <Clock size={16}/> }
-  ];
 
   if (loading || !stats) {
     return (
-      <div className="flex min-h-screen bg-background items-center justify-center">
+      <div className="flex min-h-[60vh] items-center justify-center">
         <div className="flex flex-col items-center gap-4 text-accent">
           <div className="w-8 h-8 border-4 border-dashed border-current animate-spin-slow rounded-full"></div>
           <span className="font-mono text-sm tracking-widest uppercase font-bold">{t('analytics.calculating_oee')}</span>
@@ -94,8 +88,7 @@ export default function OEEPage() {
   ];
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <Sidebar items={navItems} />
+    <div className="flex flex-col">
       <div className="flex-1 p-10 overflow-auto">
         <header className="mb-10">
           <Badge className="mb-4">OEE Engine v2.0</Badge>

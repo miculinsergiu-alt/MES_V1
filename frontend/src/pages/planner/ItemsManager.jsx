@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Box, Plus, Search, Edit2, Trash2, X, Clock, DollarSign, List, FileText, TrendingUp, Zap, GitBranch, Printer, Truck, MapPin, ArrowDownUp } from 'lucide-react';
-import Sidebar from '../../components/Sidebar';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -21,7 +20,8 @@ export default function ItemsManager() {
   const [items, setItems] = useState([]);
   const [machines, setMachines] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchCode, setSearchCode] = useState('');
+  const [params] = useSearchParams();
+  const [searchCode, setSearchCode] = useState(() => params.get('search') || '');
   const [searchName, setSearchName] = useState('');
   
   // Modals
@@ -60,18 +60,10 @@ export default function ItemsManager() {
     }
   }, [location.state, items]);
 
-  const navItems = [
-    { path:'/planner/gantt', labelKey:'sidebar.production_plan', icon:<Clock size={16}/> },
-    { path:'/planner/orders', labelKey:'sidebar.manage_orders', icon:<FileText size={16}/> },
-    { path:'/planner/items', labelKey:'sidebar.items_bom', icon:<Box size={16}/> },
-    { path:'/planner/suppliers', labelKey:'sidebar.suppliers', icon:<Truck size={16}/> },
-    { path:'/planner/inventory', labelKey:'sidebar.stocks', icon:<ArrowDownUp size={16}/> },
-  ];
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <Sidebar items={navItems} />
-      <main className="flex-1 p-10 overflow-auto">
+    <div className="flex flex-col">
+      <main className="flex-1 p-4 sm:p-6 lg:p-10 overflow-auto">
         <header className="mb-10 flex justify-between items-end">
           <div>
             <Badge className="mb-4">Resource Planning</Badge>

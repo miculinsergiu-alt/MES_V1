@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Plus, Search, Pencil } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -103,7 +104,8 @@ export default function CustomersPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const [customers, setCustomers] = useState([]);
-  const [search, setSearch] = useState('');
+  const [params] = useSearchParams();
+  const [search, setSearch] = useState(() => params.get('search') || '');
   const [editing, setEditing] = useState(null);
   const canEdit = EDIT_ROLES.includes(user?.role);
 

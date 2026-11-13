@@ -6,11 +6,15 @@ import en from './locales/en.json';
 import ro from './locales/ro.json';
 import salesEn from './locales/sales.en.json';
 import salesDe from './locales/sales.de.json';
+import shellEn from './locales/shell.en.json';
+import shellDe from './locales/shell.de.json';
+import shellRo from './locales/shell.ro.json';
 
 // German: so far the sales & invoicing area, login and roles; everything else
 // falls back to English until the full German translation (Phase 2).
 const de = {
   sales: salesDe,
+  shell: shellDe,
   login: {
     title: 'NOVA', subtitle: 'ERP für Fertigungsunternehmen: Planung, Produktion, Verkauf und Rechnungen.',
     company: 'Firmenkennung', company_placeholder: 'z. B. ACME', badge: 'Ausweisnummer', password: 'Passwort', button: 'Anmelden',
@@ -31,8 +35,8 @@ i18n
   .init({
     resources: {
       de: { translation: de },
-      en: { translation: { ...en, sales: salesEn, roles: { ...en.roles, material_planner: 'Material Planner', sales: 'Sales', accounting: 'Accounting' } } },
-      ro: { translation: { ...ro, sales: salesEn, roles: { ...ro.roles, sales: 'Vânzări', accounting: 'Contabilitate' } } },
+      en: { translation: { ...en, sales: salesEn, shell: shellEn, roles: { ...en.roles, material_planner: 'Material Planner', sales: 'Sales', accounting: 'Accounting' } } },
+      ro: { translation: { ...ro, sales: salesEn, shell: shellRo, roles: { ...ro.roles, sales: 'Vânzări', accounting: 'Contabilitate' } } },
     },
     supportedLngs: ['de', 'en', 'ro'],
     nonExplicitSupportedLngs: true,

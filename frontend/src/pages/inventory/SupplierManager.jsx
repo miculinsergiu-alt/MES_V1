@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Truck, Plus, Search, Edit2, Phone, Mail, MapPin, CheckCircle, XCircle, Package, Trash2, Save } from 'lucide-react';
 import api from '../../api/axios';
@@ -9,14 +10,14 @@ import { Input } from '../../components/ui/Input';
 import { Badge } from '../../components/ui/Badge';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
-import Sidebar from '../../components/Sidebar';
 import { ArrowDownUp, LogOut, Clock, FileText, Box } from 'lucide-react';
 
 export default function SupplierManager() {
   const { t } = useTranslation();
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [params] = useSearchParams();
+  const [searchTerm, setSearchTerm] = useState(() => params.get('search') || '');
   
   const [showModal, setShowModal] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState(null);
@@ -46,29 +47,12 @@ export default function SupplierManager() {
 
   const { user, logout } = useAuth();
 
-  const plannerNav = [
-    { path:'/planner/gantt', labelKey:'sidebar.production_plan', icon:<Clock size={16}/> },
-    { path:'/planner/orders', labelKey:'sidebar.manage_orders', icon:<FileText size={16}/> },
-    { path:'/planner/items', labelKey:'sidebar.items_bom', icon:<Box size={16}/> },
-    { path:'/planner/suppliers', labelKey:'sidebar.suppliers', icon:<Truck size={16}/> },
-    { path:'/planner/inventory', labelKey:'sidebar.stocks', icon:<ArrowDownUp size={16}/> },
-  ];
 
-  const matPlannerNav = [
-    { path: '/inventory', labelKey: 'sidebar.inventory_hub', icon: <Package size={16}/> },
-    { path: '/inventory/suppliers', label: 'Furnizori', icon: <Truck size={16}/> },
-    { path: '#logout', labelKey: 'common.logout', icon: <LogOut size={16}/>, onClick: logout }
-  ];
 
-  const getNav = () => {
-    if (user?.role === 'material_planner' || user?.role === 'warehouse_manager') return matPlannerNav;
-    return plannerNav;
-  };
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <Sidebar items={getNav()} />
-      <main className="flex-1 p-10 overflow-auto space-y-8">
+    <div className="flex flex-col">
+      <main className="flex-1 p-4 sm:p-6 lg:p-10 overflow-auto space-y-8">
       <header className="flex justify-between items-end">
         <div>
           <h2 className="font-display text-3xl text-foreground flex items-center gap-3">

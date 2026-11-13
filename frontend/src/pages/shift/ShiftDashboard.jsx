@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LayoutDashboard, Users, FileText, Printer, Plus, X, AlertTriangle, ChevronLeft, ChevronRight, Zap, CheckCircle, UserPlus, Clock } from 'lucide-react';
-import Sidebar from '../../components/Sidebar';
 import GanttTimeline from '../../components/GanttTimeline';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../api/axios';
@@ -67,11 +66,6 @@ export default function ShiftDashboard() {
     }
   };
 
-  const navItems = [
-    { path:'/shift', labelKey:'sidebar.shift_orders', icon:<LayoutDashboard size={16}/> },
-    { path:'/shift/gantt', labelKey:'sidebar.gantt', icon:<LayoutDashboard size={16}/> },
-    { path:'/shift/report', labelKey:'sidebar.shift_report', icon:<FileText size={16}/> },
-  ];
 
   const myOrders = orders.filter(o => o.status !== 'cancelled');
   
@@ -83,7 +77,6 @@ export default function ShiftDashboard() {
 
   return (
     <div className="app-layout">
-      <Sidebar items={navItems} />
       <div className="main-content">
         <header className="page-header">
           <div className="flex justify-between items-center w-full">

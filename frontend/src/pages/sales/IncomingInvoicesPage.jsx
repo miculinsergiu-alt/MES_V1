@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Upload, Download, Check, X, Banknote, UserPlus, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -129,7 +130,8 @@ export default function IncomingInvoicesPage() {
   const { user } = useAuth();
   const [status, setStatus] = useState('all');
   const [rows, setRows] = useState([]);
-  const [selected, setSelected] = useState(null);
+  const [params] = useSearchParams();
+  const [selected, setSelected] = useState(() => Number(params.get('id')) || null);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const fileInput = useRef(null);

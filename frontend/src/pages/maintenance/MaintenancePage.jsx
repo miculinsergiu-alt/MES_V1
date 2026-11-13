@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Clock, LayoutDashboard, TrendingUp, AlertTriangle, CheckCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import Sidebar from '../../components/Sidebar';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
 
@@ -25,15 +24,9 @@ export default function MaintenancePage() {
     setShowLogModal(true);
   };
 
-  const navItems = [
-    { path: '/supervisor', labelKey: 'sidebar.dashboard', icon: <LayoutDashboard size={16}/> },
-    { path: '/supervisor/oee', labelKey: 'sidebar.oee_analytics', icon: <TrendingUp size={16}/> },
-    { path: '/supervisor/maintenance', labelKey: 'sidebar.maintenance', icon: <Clock size={16}/> }
-  ];
 
   return (
     <div className="app-layout">
-      <Sidebar items={navItems} />
       <div className="main-content">
         <div className="page-header">
           <h1>{t('maintenance.title')}</h1>

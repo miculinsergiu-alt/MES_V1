@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Users, Settings, Factory, Plus, Edit2, Trash2, X, ChevronDown, ChevronRight, Box, FileText, Award, CheckCircle, Search, Calendar, Clock, UserCheck, ShieldCheck } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import Sidebar from '../../components/Sidebar';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { Button } from '../../components/ui/Button';
@@ -45,13 +44,6 @@ export default function AdminDashboard() {
 
   useEffect(() => { loadUsers(); loadAreas(); loadShifts(); loadSchedules(); }, []);
 
-  const navItems = [
-    { path:'/admin/users', labelKey:'sidebar.users', icon:<Users size={18}/> },
-    { path:'/admin/machines', labelKey:'sidebar.areas_machines', icon:<Factory size={18}/> },
-    { path:'/admin/items', labelKey:'sidebar.bom_system', icon:<Box size={18}/> },
-    { path:'/sales/documents', labelKey:'sales.nav.sales', icon:<FileText size={18}/> },
-    { path:'/settings', labelKey:'sales.nav.settings', icon:<Settings size={18}/> },
-  ];
 
   const handleDeleteSchedule = async (id) => {
     if (!window.confirm(t('admin.delete_schedule_confirm'))) return;
@@ -72,10 +64,9 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <Sidebar items={navItems} />
+    <div className="flex flex-col">
       
-      <main className="flex-1 p-10 overflow-auto">
+      <main className="flex-1 p-4 sm:p-6 lg:p-10 overflow-auto">
         <header className="mb-10 flex justify-between items-end">
           <div>
             <Badge className="mb-4">Administrative Suite</Badge>

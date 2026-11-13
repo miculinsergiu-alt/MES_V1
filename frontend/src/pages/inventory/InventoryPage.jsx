@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Package, ArrowDownUp, Edit, Plus, Truck, Home, ShoppingCart, ShieldAlert, LogOut, Inbox } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import Sidebar from '../../components/Sidebar';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -35,25 +34,8 @@ export default function InventoryPage() {
     setShowAdjustModal(true);
   };
 
-  const plannerNav = [
-    { path: '/planner', labelKey: 'sidebar.dashboard', icon: <Package size={16}/> },
-    { path: '/planner/items', labelKey: 'sidebar.articles_bom', icon: <Package size={16}/> },
-    { path: '/planner/inventory', labelKey: 'sidebar.stocks', icon: <ArrowDownUp size={16}/> },
-    { path: '/purchase-invoices', labelKey: 'sales.nav.incoming', icon: <Inbox size={16}/> }
-  ];
 
-  const whmNav = [
-    { path: '/inventory', labelKey: 'sidebar.inventory_hub', icon: <Package size={16}/> },
-    { path: '/purchase-invoices', labelKey: 'sales.nav.incoming', icon: <Inbox size={16}/> },
-    { path: '#logout', labelKey: 'common.logout', icon: <LogOut size={16}/>, onClick: logout }
-  ];
 
-  const matPlannerNav = [
-    { path: '/inventory', labelKey: 'sidebar.inventory_hub', icon: <Package size={16}/> },
-    { path: '/purchase-invoices', labelKey: 'sales.nav.incoming', icon: <Inbox size={16}/> },
-    { path: '/inventory/suppliers', label: 'Furnizori', icon: <Truck size={16}/> },
-    { path: '#logout', labelKey: 'common.logout', icon: <LogOut size={16}/>, onClick: logout }
-  ];
 
   const tabs = [
     { id: 'stock', label: 'Niveluri Stoc', icon: <Package size={16}/> },
@@ -63,16 +45,10 @@ export default function InventoryPage() {
     { id: 'warehousing', label: 'Magazii', icon: <Home size={16}/> }
   ];
 
-  const getNav = () => {
-    if (user?.role === 'warehouse_manager') return whmNav;
-    if (user?.role === 'material_planner') return matPlannerNav;
-    return plannerNav;
-  };
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <Sidebar items={getNav()} />
-      <main className="flex-1 p-10 overflow-auto">
+    <div className="flex flex-col">
+      <main className="flex-1 p-4 sm:p-6 lg:p-10 overflow-auto">
         <div className="flex justify-between items-center mb-10">
            <div>
               <h1 className="font-display text-4xl text-foreground">WMS Enterprise</h1>

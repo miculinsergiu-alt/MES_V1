@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { LayoutDashboard, BarChart2, Users, FileText, Plus, X, ChevronLeft, ChevronRight, Factory, Clock, ShieldCheck } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import Sidebar from '../../components/Sidebar';
+import SubNav from '../../components/SubNav';
 import GanttTimeline from '../../components/GanttTimeline';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
@@ -91,8 +91,8 @@ export default function SupervisorDashboard() {
 
   return (
     <div className="app-layout">
-      <Sidebar items={navItems} />
       <div className="main-content">
+        <SubNav items={navItems} />
         <header className="page-header">
            <div className="flex justify-between items-end w-full">
               <div>

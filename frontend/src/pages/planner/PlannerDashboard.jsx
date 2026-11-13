@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { LayoutDashboard, FileText, Plus, X, Search, ChevronLeft, ChevronRight, Box, AlertCircle, Trash2, Edit2, Wrench, Settings, Zap, GitBranch } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import Sidebar from '../../components/Sidebar';
 import GanttTimeline from '../../components/GanttTimeline';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
@@ -50,17 +49,11 @@ export default function PlannerDashboard() {
 
   useEffect(() => { loadData(); const i = setInterval(loadData, 15000); return () => clearInterval(i); }, [loadData]);
 
-  const navItems = [
-    { path:'/planner/gantt', labelKey:'sidebar.production_plan', icon:<LayoutDashboard size={16}/> },
-    { path:'/planner/orders', labelKey:'sidebar.manage_orders', icon:<FileText size={16}/> },
-    { path:'/planner/items', labelKey:'sidebar.items_bom', icon:<Box size={16}/> },
-  ];
 
   const statusBadge = (s) => ({ pending:'badge-gray', active:'badge-green', done:'badge-blue', cancelled:'badge-red' })[s] || 'badge-gray';
 
   return (
     <div className="app-layout">
-      <Sidebar items={navItems} />
       <div className="main-content">
         <div className="page-header">
           <div className="flex justify-between items-center">

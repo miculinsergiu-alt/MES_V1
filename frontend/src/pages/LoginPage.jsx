@@ -11,18 +11,7 @@ import { Input } from '../components/ui/Input';
 import { Badge } from '../components/ui/Badge';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import novaLogo from '../assets/NOVA.jpg';
-
-const ROLE_ROUTES = {
-  administrator: '/admin',
-  planner: '/planner',
-  area_supervisor: '/supervisor',
-  shift_responsible: '/shift',
-  operator: '/operator',
-  warehouse_manager: '/inventory',
-  material_planner: '/inventory',
-  sales: '/sales/documents',
-  accounting: '/sales/open-items',
-};
+import { homeFor } from '../navigation';
 
 // Demo logins are only shown in development or on a dedicated demo site (VITE_SHOW_DEMO=true).
 const SHOW_DEMO = import.meta.env.DEV || import.meta.env.VITE_SHOW_DEMO === 'true';
@@ -59,7 +48,7 @@ export default function LoginPage() {
       const user = await login(companyCode, badge.trim().toUpperCase(), password);
       try { localStorage.setItem(COMPANY_KEY, companyCode); } catch { /* storage unavailable */ }
       toast.success(t('login.welcome', { name: user.first_name }));
-      navigate(ROLE_ROUTES[user.role] || '/');
+      navigate(homeFor(user.role));
     } catch (err) {
       toast.error(err.response?.data?.error || t('login.auth_error'));
     } finally {
