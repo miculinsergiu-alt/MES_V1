@@ -14,6 +14,12 @@ import BOMViewerPage from './pages/planner/BOMViewerPage';
 import OEEPage from './pages/analytics/OEEPage';
 import InventoryPage from './pages/inventory/InventoryPage';
 import MaintenancePage from './pages/maintenance/MaintenancePage';
+import SalesLayout from './pages/sales/SalesLayout';
+import DocumentsList from './pages/sales/DocumentsList';
+import DocumentEditor from './pages/sales/DocumentEditor';
+import CustomersPage from './pages/sales/CustomersPage';
+import SettingsPage from './pages/sales/SettingsPage';
+import { OpenItemsPage, DunningPage, DatevPage } from './pages/sales/OpenItemsPage';
 import './index.css';
 
 const ROLE_ROUTES = {
@@ -24,6 +30,8 @@ const ROLE_ROUTES = {
   operator: '/operator',
   warehouse_manager: '/inventory',
   material_planner: '/inventory',
+  sales: '/sales/documents',
+  accounting: '/sales/open-items',
 };
 
 function PrivateRoute({ children, roles }) {
@@ -61,6 +69,20 @@ export default function App() {
             <Route path="/inventory" element={<PrivateRoute roles={['warehouse_manager', 'material_planner', 'administrator']}><InventoryPage /></PrivateRoute>} />
             <Route path="/inventory/suppliers" element={<PrivateRoute roles={['warehouse_manager', 'material_planner', 'administrator']}><SupplierManager /></PrivateRoute>} />
             
+            {/* Sales & invoicing */}
+            <Route path="/sales" element={<PrivateRoute roles={['administrator', 'sales', 'accounting', 'planner']}><SalesLayout /></PrivateRoute>}>
+              <Route index element={<Navigate to="/sales/documents" replace />} />
+              <Route path="documents" element={<DocumentsList />} />
+              <Route path="documents/:id" element={<DocumentEditor />} />
+              <Route path="customers" element={<CustomersPage />} />
+              <Route path="open-items" element={<OpenItemsPage />} />
+              <Route path="dunning" element={<PrivateRoute roles={['administrator', 'accounting']}><DunningPage /></PrivateRoute>} />
+              <Route path="datev" element={<PrivateRoute roles={['administrator', 'accounting']}><DatevPage /></PrivateRoute>} />
+            </Route>
+            <Route path="/settings" element={<PrivateRoute roles={['administrator']}><SalesLayout /></PrivateRoute>}>
+              <Route index element={<SettingsPage />} />
+            </Route>
+
             {/* Supervisor */}
             <Route path="/supervisor/*" element={<PrivateRoute roles={['area_supervisor','administrator']}><SupervisorDashboard /></PrivateRoute>} />
             <Route path="/supervisor/oee" element={<PrivateRoute roles={['area_supervisor','administrator']}><OEEPage /></PrivateRoute>} />

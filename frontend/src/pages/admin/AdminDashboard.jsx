@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, Settings, Factory, Plus, Edit2, Trash2, X, ChevronDown, ChevronRight, Box, Award, CheckCircle, Search, Calendar, Clock, UserCheck, ShieldCheck } from 'lucide-react';
+import { Users, Settings, Factory, Plus, Edit2, Trash2, X, ChevronDown, ChevronRight, Box, FileText, Award, CheckCircle, Search, Calendar, Clock, UserCheck, ShieldCheck } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Sidebar from '../../components/Sidebar';
 import api from '../../api/axios';
@@ -49,6 +49,8 @@ export default function AdminDashboard() {
     { path:'/admin/users', labelKey:'sidebar.users', icon:<Users size={18}/> },
     { path:'/admin/machines', labelKey:'sidebar.areas_machines', icon:<Factory size={18}/> },
     { path:'/admin/items', labelKey:'sidebar.bom_system', icon:<Box size={18}/> },
+    { path:'/sales/documents', labelKey:'sales.nav.sales', icon:<FileText size={18}/> },
+    { path:'/settings', labelKey:'sales.nav.settings', icon:<Settings size={18}/> },
   ];
 
   const handleDeleteSchedule = async (id) => {
@@ -671,7 +673,7 @@ function UserModal({ user, onClose, onSave }) {
           <div className="space-y-2">
             <label className="text-sm font-medium ml-1">{t('admin.system_role')}</label>
             <select className="w-full h-12 rounded-xl border border-border bg-white px-4 focus:ring-2 focus:ring-accent outline-none" value={form.role} onChange={e=>setForm(p=>({...p,role:e.target.value}))}>
-              {['administrator', 'planner', 'area_supervisor', 'shift_responsible', 'operator'].map((v) => <option key={v} value={v}>{t(`roles.${v}`)}</option>)}
+              {['administrator', 'planner', 'area_supervisor', 'shift_responsible', 'operator', 'warehouse_manager', 'material_planner', 'sales', 'accounting'].map((v) => <option key={v} value={v}>{t(`roles.${v}`)}</option>)}
             </select>
           </div>
         </div>

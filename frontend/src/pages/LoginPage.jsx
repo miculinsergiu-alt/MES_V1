@@ -20,6 +20,8 @@ const ROLE_ROUTES = {
   operator: '/operator',
   warehouse_manager: '/inventory',
   material_planner: '/inventory',
+  sales: '/sales/documents',
+  accounting: '/sales/open-items',
 };
 
 // Demo logins are only shown in development or on a dedicated demo site (VITE_SHOW_DEMO=true).
