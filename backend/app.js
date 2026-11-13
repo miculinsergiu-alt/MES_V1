@@ -63,6 +63,9 @@ app.use('/api/warehousing', require('./routes/warehousing'));
 app.use('/api/procurement', require('./routes/procurement'));
 app.use('/api/quality', require('./routes/quality'));
 app.use('/api/inventory', require('./routes/inventory'));
+app.use('/api/settings', require('./routes/settings'));
+app.use('/api/customers', require('./routes/customers'));
+app.use('/api/sales', require('./routes/sales'));
 
 app.use('/api', (req, res, next) => next(notFound(`API route ${req.method} ${req.path}`)));
 

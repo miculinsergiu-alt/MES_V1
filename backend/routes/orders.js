@@ -231,17 +231,20 @@ const newOrderSchema = v.z.object({
   route_overrides: v.z.array(v.z.preprocess((x) => (x === '' ? null : x), v.z.coerce.number().min(0).nullable())).optional(),
 });
 
-// POST /api/orders — create one or more orders (items with a routing are split into one order per step)
-router.post('/', requireRole(...PLANNERS), h(async (req, res) => {
-  const { orders } = v.body(req, v.z.object({ orders: v.z.array(newOrderSchema).min(1).max(200) }));
+/**
+ * Creates production orders (items with a routing are split into one order per
+ * step). Used by the planner and by confirmed sales orders (make-to-order).
+ * Returns the created orders; the first entry per input is the root order.
+ */
+async function createProductionOrders(orders, userId) {
   const created = [];
 
   const insert = (o, machineId, name, start, end, parentId, sequence) => db.get(`
     INSERT INTO orders (machine_id, product_name, item_id, bom_id, quantity, planned_start, planned_end, status, order_type,
-                        created_by, parent_order_id, routing_sequence, is_fixed_time)
-    VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?) RETURNING id`,
+                        created_by, parent_order_id, routing_sequence, is_fixed_time, sales_line_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?) RETURNING id`,
   [machineId, name, o.item_id ?? null, o.bom_id ?? null, o.quantity, start, end, o.order_type,
-    req.user.id, parentId, sequence, o.is_fixed_time ? 1 : 0]);
+    userId, parentId, sequence, o.is_fixed_time ? 1 : 0, o.sales_line_id ?? null]);
 
   for (const o of orders) {
     let productName = o.product_name;
@@ -283,6 +286,13 @@ router.post('/', requireRole(...PLANNERS), h(async (req, res) => {
         bom_id: o.bom_id ?? null, quantity: o.quantity, planned_start: start, planned_end: end, order_type: o.order_type });
     }
   }
+  return created;
+}
+
+// POST /api/orders — create one or more orders (items with a routing are split into one order per step)
+router.post('/', requireRole(...PLANNERS), h(async (req, res) => {
+  const { orders } = v.body(req, v.z.object({ orders: v.z.array(newOrderSchema).min(1).max(200) }));
+  const created = await createProductionOrders(orders, req.user.id);
   res.status(201).json({ created, message: `${created.length} order(s) created` });
 }));
 
@@ -422,3 +432,5 @@ router.get('/:id/chain', h(async (req, res) => {
 module.exports = router;
 module.exports.propagateDelay = propagateDelay;
 module.exports.propagateMachineShift = propagateMachineShift;
+module.exports.createProductionOrders = createProductionOrders;
+module.exports.newOrderSchema = newOrderSchema;

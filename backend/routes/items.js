@@ -46,6 +46,7 @@ const itemFields = {
   production_time_min: v.nonNeg.optional(),
   supplier_name: v.optStr(300),
   lead_time_days: v.nonNeg.optional(),
+  tax_rate: v.z.coerce.number().refine((x) => [0, 7, 19].includes(x), 'VAT rate must be 0, 7 or 19').optional(),
   sop_url: v.optStr(2000),
   drawing_url: v.optStr(2000),
   routes: v.z.array(routeStep).optional(),
@@ -65,10 +66,10 @@ async function replaceRoutes(itemId, routes) {
 router.post('/', requireRole('planner', 'administrator'), h(async (req, res) => {
   const b = v.body(req, v.z.object({ item_code: v.z.string().trim().min(1).max(100), ...itemFields }));
   const row = await db.get(`
-    INSERT INTO items (item_code, name, type, uom, acquisition_cost, production_cost, unit_price, production_time_min, supplier_name, lead_time_days, sop_url, drawing_url)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+    INSERT INTO items (item_code, name, type, uom, acquisition_cost, production_cost, unit_price, production_time_min, supplier_name, lead_time_days, sop_url, drawing_url, tax_rate)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
   [b.item_code, b.name, b.type, b.uom || 'Stk', b.acquisition_cost ?? 0, b.production_cost ?? 0, b.unit_price ?? 0,
-    b.production_time_min ?? 0, b.supplier_name || null, b.lead_time_days ?? 0, b.sop_url || null, b.drawing_url || null]);
+    b.production_time_min ?? 0, b.supplier_name || null, b.lead_time_days ?? 0, b.sop_url || null, b.drawing_url || null, b.tax_rate ?? 19]);
   if (b.routes) await replaceRoutes(row.id, b.routes);
   res.status(201).json({ id: row.id, message: 'Item created' });
 }));
@@ -81,14 +82,14 @@ router.put('/:id', requireRole('planner', 'administrator'), h(async (req, res) =
   if (!item) throw notFound('Item');
   await db.run(`
     UPDATE items SET name=?, type=?, uom=?, acquisition_cost=?, production_cost=?, unit_price=?, production_time_min=?,
-      supplier_name=?, lead_time_days=?, sop_url=?, drawing_url=?
+      supplier_name=?, lead_time_days=?, sop_url=?, drawing_url=?, tax_rate=?
     WHERE id=?`,
   [b.name ?? item.name, b.type ?? item.type, b.uom ?? item.uom,
     b.acquisition_cost ?? item.acquisition_cost, b.production_cost ?? item.production_cost, b.unit_price ?? item.unit_price,
     b.production_time_min ?? item.production_time_min, b.supplier_name !== undefined ? b.supplier_name : item.supplier_name,
     b.lead_time_days ?? item.lead_time_days,
     b.sop_url !== undefined ? b.sop_url : item.sop_url,
-    b.drawing_url !== undefined ? b.drawing_url : item.drawing_url, id]);
+    b.drawing_url !== undefined ? b.drawing_url : item.drawing_url, b.tax_rate ?? item.tax_rate, id]);
   if (b.routes) await replaceRoutes(id, b.routes);
   res.json({ message: 'Item updated' });
 }));

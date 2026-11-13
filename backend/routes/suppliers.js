@@ -6,25 +6,17 @@ const v = require('../lib/validate');
 const { notFound, badRequest, AppError } = require('../lib/errors');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 const config = require('../config');
+const { parseVatId } = require('../lib/vat');
 
 const router = express.Router();
 router.use(authenticateToken);
 
 const EDITORS = ['administrator', 'planner', 'warehouse_manager', 'material_planner'];
 
-// EU member states as used by VIES (Greece is 'EL'; 'XI' = Northern Ireland).
-const VIES_COUNTRIES = new Set(['AT', 'BE', 'BG', 'CY', 'CZ', 'DE', 'DK', 'EE', 'EL', 'ES', 'FI', 'FR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU', 'LV', 'MT', 'NL', 'PL', 'PT', 'RO', 'SE', 'SI', 'SK', 'XI']);
+
+
 const VIES_TIMEOUT_MS = 8000;
 
-/** Normalises a VAT id: 'de 123 456 789' -> { country: 'DE', number: '123456789' }. */
-function parseVatId(raw) {
-  const clean = String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-  let country = clean.slice(0, 2);
-  const number = clean.slice(2);
-  if (country === 'GR') country = 'EL';
-  if (!VIES_COUNTRIES.has(country) || !/^[A-Z0-9]{2,12}$/.test(number)) return null;
-  return { country, number };
-}
 
 const optVat = v.z.preprocess(
   (x) => (x === '' || x === undefined ? null : x),

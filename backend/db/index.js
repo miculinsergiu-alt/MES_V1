@@ -63,9 +63,10 @@ function createPgDriver(connectionString) {
 }
 
 function createPgliteDriver(dataDir) {
-  const { PGlite } = require('@electric-sql/pglite');
+  const { PGlite, types } = require('@electric-sql/pglite');
   if (dataDir) fs.mkdirSync(dataDir, { recursive: true });
-  const pg = new PGlite(dataDir || undefined);
+  // Same number handling as the node-postgres driver: NUMERIC as JS number.
+  const pg = new PGlite({ dataDir: dataDir || undefined, parsers: { [types.NUMERIC]: (v) => parseFloat(v) } });
 
   // PGlite is a single connection: serialize sessions so transactions and
   // session variables of concurrent requests never interleave.
