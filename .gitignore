@@ -1,17 +1,21 @@
-# Node modules
+# Dependencies & build output
 node_modules/
 .npm
 dist/
 build/
+coverage/
 
-# SQLite database (Tracked for backup/demo purposes)
-# backend/db/smartfactory.db
-# *.db
-# *.db-journal
+# Databases & local data (never commit customer data)
+*.db
+*.db-journal
+*.sqlite
+backend/data/
+backups/
 
 # Environment variables
 .env
-.env.local
+.env.*
+!.env.example
 
 # IDEs
 .vscode/
