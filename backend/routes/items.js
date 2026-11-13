@@ -1,83 +1,96 @@
 const express = require('express');
-const { db } = require('../db/init');
+const db = require('../db');
+const { h } = require('../lib/handler');
+const v = require('../lib/validate');
+const { notFound } = require('../lib/errors');
 const { authenticateToken, requireRole } = require('../middleware/auth');
+
 const router = express.Router();
+router.use(authenticateToken);
 
-// GET /api/items — all items
-router.get('/', authenticateToken, (req, res) => {
-  const { type } = req.query;
-  let sql = 'SELECT * FROM items WHERE active = 1';
+const ITEM_TYPES = ['raw_material', 'semi_finished', 'finished_good'];
+
+// GET /api/items — active items, optionally by type
+router.get('/', h(async (req, res) => {
+  const q = v.query(req, v.z.object({ type: v.z.enum(ITEM_TYPES).optional() }));
   const params = [];
-  if (type) { sql += ' AND type = ?'; params.push(type); }
-  sql += ' ORDER BY item_code ASC';
-  const items = db.prepare(sql).all(...params);
-  res.json(items);
+  let sql = 'SELECT * FROM items WHERE active = 1';
+  if (q.type) { sql += ' AND type = ?'; params.push(q.type); }
+  res.json(await db.all(`${sql} ORDER BY item_code ASC`, params));
+}));
+
+// GET /api/items/:id — item with its routing
+router.get('/:id', h(async (req, res) => {
+  const item = await db.get('SELECT * FROM items WHERE id = ?', [v.paramId(req)]);
+  if (!item) throw notFound('Item');
+  const routes = await db.all(`
+    SELECT ir.*, m.name AS machine_name
+    FROM item_routes ir JOIN machines m ON ir.machine_id = m.id
+    WHERE ir.item_id = ? ORDER BY ir.sequence`, [item.id]);
+  res.json({ ...item, routes });
+}));
+
+const routeStep = v.z.object({
+  machine_id: v.id,
+  process_time_min: v.nonNeg.default(0),
+  notes: v.optStr(1000),
 });
 
-// GET /api/items/:id
-router.get('/:id', authenticateToken, (req, res) => {
-  const item = db.prepare('SELECT * FROM items WHERE id = ?').get(req.params.id);
-  if (!item) return res.status(404).json({ error: 'Articolul nu a fost găsit' });
-  
-  const routes = db.prepare('SELECT ir.*, m.name as machine_name FROM item_routes ir JOIN machines m ON ir.machine_id = m.id WHERE ir.item_id = ? ORDER BY ir.sequence').all(item.id);
-  res.json({ ...item, routes });
-});
+const itemFields = {
+  name: v.str(300),
+  type: v.z.enum(ITEM_TYPES),
+  uom: v.z.string().trim().min(1).max(20).optional(),
+  acquisition_cost: v.nonNeg.optional(),
+  production_cost: v.nonNeg.optional(),
+  unit_price: v.nonNeg.optional(),
+  production_time_min: v.nonNeg.optional(),
+  supplier_name: v.optStr(300),
+  lead_time_days: v.nonNeg.optional(),
+  sop_url: v.optStr(2000),
+  drawing_url: v.optStr(2000),
+  routes: v.z.array(routeStep).optional(),
+};
+
+async function replaceRoutes(itemId, routes) {
+  await db.run('DELETE FROM item_routes WHERE item_id = ?', [itemId]);
+  for (const [i, r] of routes.entries()) {
+    await db.run(
+      'INSERT INTO item_routes (item_id, machine_id, sequence, process_time_min, notes) VALUES (?, ?, ?, ?, ?)',
+      [itemId, r.machine_id, i + 1, r.process_time_min, r.notes ?? ''],
+    );
+  }
+}
 
 // POST /api/items
-router.post('/', authenticateToken, requireRole('planner','administrator'), (req, res) => {
-  const { item_code, name, type, uom, acquisition_cost, production_cost, unit_price, production_time_min, supplier_name, lead_time_days, routes, sop_url, drawing_url } = req.body;
-  if (!item_code || !name || !type) return res.status(400).json({ error: 'Codul, numele și tipul sunt obligatorii' });
-
-  try {
-    const result = db.prepare(`
-      INSERT INTO items (item_code, name, type, uom, acquisition_cost, production_cost, unit_price, production_time_min, supplier_name, lead_time_days, sop_url, drawing_url)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(item_code, name, type, uom || 'buc', acquisition_cost || 0, production_cost || 0, unit_price || 0, production_time_min || 0, supplier_name || null, lead_time_days || 0, sop_url || null, drawing_url || null);
-
-    const itemId = result.lastInsertRowid;
-
-    if (routes && Array.isArray(routes)) {
-      const stmt = db.prepare('INSERT INTO item_routes (item_id, machine_id, sequence, process_time_min, notes) VALUES (?, ?, ?, ?, ?)');
-      routes.forEach((r, i) => stmt.run(itemId, r.machine_id, i + 1, r.process_time_min || 0, r.notes || ''));
-    }
-
-    res.status(201).json({ id: itemId, message: 'Articol creat cu succes' });
-  } catch (err) {
-    if (err.message.includes('UNIQUE')) return res.status(409).json({ error: 'Codul de articol există deja' });
-    res.status(500).json({ error: 'Eroare server' });
-  }
-});
+router.post('/', requireRole('planner', 'administrator'), h(async (req, res) => {
+  const b = v.body(req, v.z.object({ item_code: v.z.string().trim().min(1).max(100), ...itemFields }));
+  const row = await db.get(`
+    INSERT INTO items (item_code, name, type, uom, acquisition_cost, production_cost, unit_price, production_time_min, supplier_name, lead_time_days, sop_url, drawing_url)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+  [b.item_code, b.name, b.type, b.uom || 'Stk', b.acquisition_cost ?? 0, b.production_cost ?? 0, b.unit_price ?? 0,
+    b.production_time_min ?? 0, b.supplier_name || null, b.lead_time_days ?? 0, b.sop_url || null, b.drawing_url || null]);
+  if (b.routes) await replaceRoutes(row.id, b.routes);
+  res.status(201).json({ id: row.id, message: 'Item created' });
+}));
 
 // PUT /api/items/:id
-router.put('/:id', authenticateToken, requireRole('planner','administrator'), (req, res) => {
-  const { name, type, uom, acquisition_cost, production_cost, unit_price, production_time_min, supplier_name, lead_time_days, routes, sop_url, drawing_url } = req.body;
-  const item = db.prepare('SELECT * FROM items WHERE id = ?').get(req.params.id);
-  if (!item) return res.status(404).json({ error: 'Articolul nu a fost găsit' });
-
-  db.prepare(`
-    UPDATE items SET name=?, type=?, uom=?, acquisition_cost=?, production_cost=?, unit_price=?, production_time_min=?, supplier_name=?, lead_time_days=?, sop_url=?, drawing_url=? WHERE id=?
-  `).run(
-    name || item.name, 
-    type || item.type, 
-    uom || item.uom, 
-    acquisition_cost ?? item.acquisition_cost, 
-    production_cost ?? item.production_cost, 
-    unit_price ?? item.unit_price,
-    production_time_min ?? item.production_time_min,
-    supplier_name ?? item.supplier_name,
-    lead_time_days ?? item.lead_time_days,
-    sop_url !== undefined ? sop_url : item.sop_url,
-    drawing_url !== undefined ? drawing_url : item.drawing_url,
-    req.params.id
-  );
-
-  if (routes && Array.isArray(routes)) {
-    db.prepare('DELETE FROM item_routes WHERE item_id = ?').run(req.params.id);
-    const stmt = db.prepare('INSERT INTO item_routes (item_id, machine_id, sequence, process_time_min, notes) VALUES (?, ?, ?, ?, ?)');
-    routes.forEach((r, i) => stmt.run(req.params.id, r.machine_id, i + 1, r.process_time_min || 0, r.notes || ''));
-  }
-
-  res.json({ message: 'Articol actualizat' });
-});
+router.put('/:id', requireRole('planner', 'administrator'), h(async (req, res) => {
+  const id = v.paramId(req);
+  const b = v.body(req, v.z.object(itemFields).partial());
+  const item = await db.get('SELECT * FROM items WHERE id = ?', [id]);
+  if (!item) throw notFound('Item');
+  await db.run(`
+    UPDATE items SET name=?, type=?, uom=?, acquisition_cost=?, production_cost=?, unit_price=?, production_time_min=?,
+      supplier_name=?, lead_time_days=?, sop_url=?, drawing_url=?
+    WHERE id=?`,
+  [b.name ?? item.name, b.type ?? item.type, b.uom ?? item.uom,
+    b.acquisition_cost ?? item.acquisition_cost, b.production_cost ?? item.production_cost, b.unit_price ?? item.unit_price,
+    b.production_time_min ?? item.production_time_min, b.supplier_name !== undefined ? b.supplier_name : item.supplier_name,
+    b.lead_time_days ?? item.lead_time_days,
+    b.sop_url !== undefined ? b.sop_url : item.sop_url,
+    b.drawing_url !== undefined ? b.drawing_url : item.drawing_url, id]);
+  if (b.routes) await replaceRoutes(id, b.routes);
+  res.json({ message: 'Item updated' });
+}));
 
 module.exports = router;

@@ -1,537 +1,424 @@
 const express = require('express');
-const { ordersDb, machinesDb, itemsDb, productionDb } = require('../db/init');
+const db = require('../db');
+const { h } = require('../lib/handler');
+const v = require('../lib/validate');
+const { notFound, badRequest } = require('../lib/errors');
+const { addMinutes, diffMinutes } = require('../lib/time');
 const { authenticateToken, requireRole } = require('../middleware/auth');
+
 const router = express.Router();
+router.use(authenticateToken);
 
-// GET /api/orders/delay-reasons
-router.get('/delay-reasons', authenticateToken, (req, res) => {
-  const reasons = ordersDb.prepare('SELECT * FROM delay_reasons ORDER BY name ASC').all();
-  res.json(reasons);
-});
+const PLANNERS = ['planner', 'administrator'];
+const MAX_BOM_DEPTH = 20;
 
-// ─── Helper: propagate delay to subsequent orders on same machine + routing chain ───
-function propagateDelay(machineId, fromOrderId, delayMinutes) {
-  const currentOrder = ordersDb.prepare('SELECT * FROM orders WHERE id = ?').get(fromOrderId);
-  if (!currentOrder) return;
+// ─── Scheduling helpers ─────────────────────────────────────────────────────
 
-  // 1. Update current order end time
-  const newCurrentEnd = addMinutes(currentOrder.planned_end, delayMinutes);
-  ordersDb.prepare('UPDATE orders SET planned_end = ? WHERE id = ?').run(newCurrentEnd, fromOrderId);
-
-  // 2. Shift all FUTURE steps of the SAME routing chain (Idea #2)
-  // These might be on DIFFERENT machines
-  if (currentOrder.parent_order_id || ordersDb.prepare('SELECT id FROM orders WHERE parent_order_id = ? LIMIT 1').get(fromOrderId)) {
-    const rootId = currentOrder.parent_order_id || currentOrder.id;
-    const chainSteps = ordersDb.prepare(`
-      SELECT * FROM orders 
-      WHERE (parent_order_id = ? OR id = ?) AND routing_sequence > ?
-      AND status IN ('pending','active')
-      ORDER BY routing_sequence ASC
-    `).all(rootId, rootId, currentOrder.routing_sequence);
-
-    let lastChainEnd = newCurrentEnd;
-    for (const step of chainSteps) {
-      const stepDurationMins = (new Date(step.planned_end.replace(' ','T')) - new Date(step.planned_start.replace(' ','T'))) / 60000;
-      const newStepStart = lastChainEnd;
-      const newStepEnd = addMinutes(newStepStart, stepDurationMins);
-      
-      ordersDb.prepare('UPDATE orders SET planned_start = ?, planned_end = ? WHERE id = ?').run(newStepStart, newStepEnd, step.id);
-      
-      // IMPORTANT: Since this step's time changed, we must ALSO propagate to other orders on ITS machine
-      propagateMachineShift(step.machine_id, step.id, newStepStart);
-      
-      lastChainEnd = newStepEnd;
-    }
-  }
-
-  // 3. Shift all FUTURE orders on this machine (Standard propagation)
-  propagateMachineShift(machineId, fromOrderId, newCurrentEnd);
-}
-
-function propagateMachineShift(machineId, afterOrderId, newStartTime) {
-  const subsequentOrders = ordersDb.prepare(`
+/** Shifts all later open orders on a machine so they start back-to-back from newStartTime. */
+async function propagateMachineShift(machineId, afterOrderId, newStartTime) {
+  const subsequent = await db.all(`
     SELECT * FROM orders
-    WHERE machine_id = ? AND id != ? AND status IN ('pending','active')
-    AND datetime(planned_start) >= (SELECT datetime(planned_start) FROM orders WHERE id = ?)
-    ORDER BY planned_start ASC
-  `).all(machineId, afterOrderId, afterOrderId);
-
+    WHERE machine_id = ? AND id <> ? AND status IN ('pending','active')
+      AND planned_start::timestamp >= (SELECT planned_start::timestamp FROM orders WHERE id = ?)
+    ORDER BY planned_start::timestamp ASC, id ASC`, [machineId, afterOrderId, afterOrderId]);
   let lastEnd = newStartTime;
-
-  for (const order of subsequentOrders) {
-    // If there was a gap, we might want to preserve it, but the project rule is "no gaps/overlaps"
-    const newStart = lastEnd; 
-    const durationMins = (new Date(order.planned_end.replace(' ','T')) - new Date(order.planned_start.replace(' ','T'))) / 60000;
-    const newEnd = addMinutes(newStart, durationMins);
-    
-    ordersDb.prepare('UPDATE orders SET planned_start = ?, planned_end = ? WHERE id = ?').run(newStart, newEnd, order.id);
-    
-    // If THIS order is part of a chain, we need to shift its subsequent steps too
-    // Recursive call could be dangerous, so we just trigger the chain shift if needed
-    // Actually, propagateDelay already handles both. 
-    // To keep it simple, we'll let the user know this is "best effort" or refine later.
-    
+  for (const o of subsequent) {
+    const duration = diffMinutes(o.planned_end, o.planned_start);
+    const newEnd = addMinutes(lastEnd, duration);
+    await db.run('UPDATE orders SET planned_start = ?, planned_end = ? WHERE id = ?', [lastEnd, newEnd, o.id]);
     lastEnd = newEnd;
   }
 }
 
-function addMinutes(dateStr, minutes) {
-  // Ensure we parse consistently (handle both ' ' and 'T')
-  const d = new Date(dateStr.replace(' ', 'T'));
-  if (isNaN(d.getTime())) return dateStr;
-  
-  d.setMinutes(d.getMinutes() + Math.round(minutes));
-  
-  const pad = (num) => String(num).padStart(2, '0');
-  // Returns YYYY-MM-DD HH:MM:SS for strict lexicographical comparison in SQLite
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+/** Moves the later steps of an order's routing chain to follow chainEnd. */
+async function propagateChain(order, chainEnd) {
+  const hasChildren = await db.get('SELECT id FROM orders WHERE parent_order_id = ? LIMIT 1', [order.id]);
+  if (!order.parent_order_id && !hasChildren) return;
+  const rootId = order.parent_order_id || order.id;
+  const steps = await db.all(`
+    SELECT * FROM orders
+    WHERE (parent_order_id = ? OR id = ?) AND routing_sequence > ? AND status IN ('pending','active')
+    ORDER BY routing_sequence ASC`, [rootId, rootId, order.routing_sequence]);
+  let lastEnd = chainEnd;
+  for (const step of steps) {
+    const duration = diffMinutes(step.planned_end, step.planned_start);
+    const newEnd = addMinutes(lastEnd, duration);
+    await db.run('UPDATE orders SET planned_start = ?, planned_end = ? WHERE id = ?', [lastEnd, newEnd, step.id]);
+    await propagateMachineShift(step.machine_id, step.id, lastEnd);
+    lastEnd = newEnd;
+  }
 }
 
-// GET /api/orders — all orders (optionally filtered by machine)
-router.get('/', authenticateToken, (req, res) => {
-  const { machine_id, status, date_from, date_to, order_type } = req.query;
-  let sql = 'SELECT * FROM orders WHERE 1=1';
-  const params = [];
-  if (machine_id) { sql += ' AND machine_id = ?'; params.push(machine_id); }
-  if (status) { sql += ' AND status = ?'; params.push(status); }
-  if (order_type) { sql += ' AND order_type = ?'; params.push(order_type); }
-  if (date_from) { sql += ' AND planned_start >= ?'; params.push(date_from); }
-  if (date_to) { sql += ' AND planned_end <= ?'; params.push(date_to); }
-  sql += ' ORDER BY planned_start ASC';
-  const orders = ordersDb.prepare(sql).all(...params);
-  res.json(orders);
-});
+/** Extends an order by delayMinutes and pushes everything that depends on it. */
+async function propagateDelay(orderId, delayMinutes) {
+  const order = await db.get('SELECT * FROM orders WHERE id = ?', [orderId]);
+  if (!order) return;
+  const newEnd = addMinutes(order.planned_end, delayMinutes);
+  await db.run('UPDATE orders SET planned_end = ? WHERE id = ?', [newEnd, orderId]);
+  await propagateChain(order, newEnd);
+  await propagateMachineShift(order.machine_id, orderId, newEnd);
+}
 
-// GET /api/orders/gantt — orders grouped by machine for Gantt display
-router.get('/gantt', authenticateToken, (req, res) => {
-  const { date_from, date_to } = req.query;
-  let sql = "SELECT * FROM orders WHERE status != 'cancelled'";
-  const params = [];
-  if (date_from && date_to) {
-    sql += ' AND planned_start <= ? AND planned_end >= ?';
-    params.push(date_to, date_from);
-  } else {
-    if (date_from) { sql += ' AND planned_end >= ?'; params.push(date_from); }
-    if (date_to) { sql += ' AND planned_start <= ?'; params.push(date_to); }
-  }
-  sql += ' ORDER BY machine_id, planned_start ASC';
-  const orders = ordersDb.prepare(sql).all(...params);
+/** Earliest time >= fromTime when the machine is free (after its last open order). */
+async function getMachineAvailableTime(machineId, fromTime) {
+  const latest = await db.get(`
+    SELECT planned_end FROM orders
+    WHERE machine_id = ? AND status IN ('pending','active') AND planned_end::timestamp > ?::timestamp
+    ORDER BY planned_end::timestamp DESC LIMIT 1`, [machineId, fromTime]);
+  return latest ? latest.planned_end : fromTime;
+}
 
-  const { productionDb } = require('../db/init');
+// ─── MRP: soft allocation of raw materials ─────────────────────────────────
 
-  // Attach delays and current_phase
-  const result = orders.map(order => {
-    const delays = ordersDb.prepare(`
-      SELECT od.*, dr.name as reason_name, dr.category as reason_category
-      FROM order_delays od
-      LEFT JOIN delay_reasons dr ON od.delay_reason_id = dr.id
-      WHERE od.order_id = ? 
-      ORDER BY od.created_at
-    `).all(order.id);
+/**
+ * Explodes the BOM (recursively through semi-finished items), reserves
+ * available raw-material stock for the order and creates purchase
+ * recommendations for anything missing.
+ */
+async function allocateMaterialsForOrder(orderId, bomId, orderQuantity) {
+  if (!bomId) return;
+  const needs = new Map(); // itemId -> qty
 
-    const allocations = productionDb.prepare(`
-      SELECT * FROM machine_allocations WHERE order_id = ? ORDER BY start_time ASC
-    `).all(order.id);
-
-    let actions = [];
-    if (allocations.length > 0) {
-      const allocIds = allocations.map(a => a.id).join(',');
-      actions = productionDb.prepare(`
-        SELECT * FROM operator_actions WHERE allocation_id IN (${allocIds}) ORDER BY timestamp ASC
-      `).all();
+  async function explode(currentBomId, qty, depth, path) {
+    if (depth > MAX_BOM_DEPTH || path.has(currentBomId)) {
+      throw badRequest('The BOM structure contains a loop or is nested too deeply');
     }
-
-    // Keep current_phase for legacy compatibility if needed
-    let current_phase = allocations.length > 0 ? allocations[allocations.length - 1].phase : null;
-    if (actions.length > 0) {
-      const lastAction = actions[actions.length - 1];
-      if (lastAction.action_type.includes('_start')) {
-        current_phase = lastAction.action_type.replace('_start', '');
+    const positions = await db.all(`
+      SELECT bp.item_id, bp.quantity AS bom_quantity, i.type AS item_type
+      FROM bom_positions bp JOIN items i ON bp.item_id = i.id
+      WHERE bp.bom_id = ?`, [currentBomId]);
+    for (const pos of positions) {
+      const required = pos.bom_quantity * qty;
+      if (pos.item_type === 'raw_material') {
+        needs.set(pos.item_id, (needs.get(pos.item_id) || 0) + required);
+      } else if (pos.item_type === 'semi_finished') {
+        const sub = await db.get('SELECT id FROM boms WHERE parent_item_id = ? ORDER BY id LIMIT 1', [pos.item_id]);
+        if (sub) await explode(sub.id, required, depth + 1, new Set([...path, currentBomId]));
       }
     }
+  }
+  await explode(bomId, orderQuantity, 1, new Set());
 
-    return { ...order, delays, current_phase, allocations, actions };
-  });
-  res.json(result);
+  for (const [itemId, required] of needs) {
+    if (required <= 0) continue;
+    await db.run(`
+      INSERT INTO stock_levels (item_id, quantity, allocated_quantity) VALUES (?, 0, 0)
+      ON CONFLICT (item_id) DO NOTHING`, [itemId]);
+    const stock = await db.get('SELECT quantity, allocated_quantity FROM stock_levels WHERE item_id = ? FOR UPDATE', [itemId]);
+    const available = Math.max(0, (stock.quantity || 0) - (stock.allocated_quantity || 0));
+    const toAllocate = Math.min(available, required);
+    const deficit = required - toAllocate;
+
+    if (toAllocate > 0) {
+      await db.run('UPDATE stock_levels SET allocated_quantity = allocated_quantity + ? WHERE item_id = ?', [toAllocate, itemId]);
+      await db.run(`
+        INSERT INTO order_material_allocations (order_id, item_id, allocated_qty) VALUES (?, ?, ?)
+        ON CONFLICT (order_id, item_id) DO UPDATE SET allocated_qty = order_material_allocations.allocated_qty + EXCLUDED.allocated_qty`,
+      [orderId, itemId, toAllocate]);
+    }
+    if (deficit > 0) {
+      const exists = await db.get(
+        "SELECT id FROM purchase_recommendations WHERE triggering_order_id = ? AND item_id = ? AND status = 'pending'", [orderId, itemId]);
+      if (!exists) {
+        await db.run('INSERT INTO purchase_recommendations (item_id, recommended_qty, triggering_order_id) VALUES (?, ?, ?)',
+          [itemId, deficit, orderId]);
+      }
+    }
+  }
+}
+
+async function releaseAllocationsForOrder(orderId) {
+  const allocations = await db.all('SELECT * FROM order_material_allocations WHERE order_id = ?', [orderId]);
+  for (const a of allocations) {
+    await db.run('UPDATE stock_levels SET allocated_quantity = GREATEST(0, allocated_quantity - ?) WHERE item_id = ?',
+      [a.allocated_qty, a.item_id]);
+  }
+  await db.run('DELETE FROM order_material_allocations WHERE order_id = ?', [orderId]);
+  await db.run("DELETE FROM purchase_recommendations WHERE triggering_order_id = ? AND status = 'pending'", [orderId]);
+}
+
+// ─── Read routes ────────────────────────────────────────────────────────────
+
+// GET /api/orders/delay-reasons
+router.get('/delay-reasons', h(async (req, res) => {
+  res.json(await db.all('SELECT * FROM delay_reasons ORDER BY name ASC'));
+}));
+
+const listQuery = v.z.object({
+  machine_id: v.optId,
+  status: v.z.enum(['pending', 'active', 'done', 'cancelled']).optional(),
+  order_type: v.z.enum(['production', 'maintenance']).optional(),
+  date_from: v.optDateTime.or(v.optDate),
+  date_to: v.optDateTime.or(v.optDate),
 });
+
+// GET /api/orders
+router.get('/', h(async (req, res) => {
+  const q = v.query(req, listQuery);
+  const params = [];
+  let sql = 'SELECT * FROM orders WHERE 1=1';
+  if (q.machine_id) { sql += ' AND machine_id = ?'; params.push(q.machine_id); }
+  if (q.status) { sql += ' AND status = ?'; params.push(q.status); }
+  if (q.order_type) { sql += ' AND order_type = ?'; params.push(q.order_type); }
+  if (q.date_from) { sql += ' AND planned_start::timestamp >= ?::timestamp'; params.push(q.date_from); }
+  if (q.date_to) { sql += ' AND planned_end::timestamp <= ?::timestamp'; params.push(q.date_to); }
+  res.json(await db.all(`${sql} ORDER BY planned_start::timestamp ASC, id ASC`, params));
+}));
+
+// GET /api/orders/gantt — orders with delays, allocations and operator actions
+router.get('/gantt', h(async (req, res) => {
+  const q = v.query(req, v.z.object({ date_from: v.optDateTime.or(v.optDate), date_to: v.optDateTime.or(v.optDate) }));
+  const params = [];
+  let sql = "SELECT * FROM orders WHERE status <> 'cancelled'";
+  if (q.date_from && q.date_to) {
+    sql += ' AND planned_start::timestamp <= ?::timestamp AND planned_end::timestamp >= ?::timestamp';
+    params.push(q.date_to, q.date_from);
+  } else {
+    if (q.date_from) { sql += ' AND planned_end::timestamp >= ?::timestamp'; params.push(q.date_from); }
+    if (q.date_to) { sql += ' AND planned_start::timestamp <= ?::timestamp'; params.push(q.date_to); }
+  }
+  const orders = await db.all(`${sql} ORDER BY machine_id, planned_start::timestamp ASC`, params);
+  if (!orders.length) return res.json([]);
+
+  const ids = orders.map((o) => o.id);
+  const delays = await db.all(`
+    SELECT od.*, dr.name AS reason_name, dr.category AS reason_category
+    FROM order_delays od LEFT JOIN delay_reasons dr ON od.delay_reason_id = dr.id
+    WHERE od.order_id = ANY(?::int[]) ORDER BY od.created_at, od.id`, [ids]);
+  const allocations = await db.all(
+    'SELECT * FROM machine_allocations WHERE order_id = ANY(?::int[]) ORDER BY start_time ASC, id ASC', [ids]);
+  const allocIds = allocations.map((a) => a.id);
+  const actions = allocIds.length ? await db.all(
+    'SELECT * FROM operator_actions WHERE allocation_id = ANY(?::int[]) ORDER BY timestamp ASC, id ASC', [allocIds]) : [];
+
+  res.json(orders.map((order) => {
+    const oAllocs = allocations.filter((a) => a.order_id === order.id);
+    const oAllocIds = new Set(oAllocs.map((a) => a.id));
+    const oActions = actions.filter((a) => oAllocIds.has(a.allocation_id));
+    let currentPhase = oAllocs.length ? oAllocs[oAllocs.length - 1].phase : null;
+    const last = oActions[oActions.length - 1];
+    if (last && last.action_type.endsWith('_start')) currentPhase = last.action_type.replace('_start', '');
+    return {
+      ...order,
+      delays: delays.filter((d) => d.order_id === order.id),
+      current_phase: currentPhase,
+      allocations: oAllocs,
+      actions: oActions,
+    };
+  }));
+}));
 
 // GET /api/orders/:id
-router.get('/:id', authenticateToken, (req, res) => {
-  const order = ordersDb.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
-  if (!order) return res.status(404).json({ error: 'Comanda nu a fost găsită' });
-  const delays = ordersDb.prepare('SELECT * FROM order_delays WHERE order_id = ? ORDER BY created_at').all(order.id);
+router.get('/:id', h(async (req, res) => {
+  const order = await db.get('SELECT * FROM orders WHERE id = ?', [v.paramId(req)]);
+  if (!order) throw notFound('Order');
+  const delays = await db.all('SELECT * FROM order_delays WHERE order_id = ? ORDER BY created_at, id', [order.id]);
   res.json({ ...order, delays });
+}));
+
+// ─── Create ─────────────────────────────────────────────────────────────────
+
+const newOrderSchema = v.z.object({
+  machine_id: v.optId,
+  product_name: v.optStr(300),
+  item_id: v.optId,
+  bom_id: v.optId,
+  quantity: v.z.coerce.number().int().positive(),
+  planned_start: v.dateTime,
+  planned_end: v.optDateTime,
+  order_type: v.z.enum(['production', 'maintenance']).default('production'),
+  is_fixed_time: v.z.preprocess((x) => !!x && x !== '0' && x !== 'false', v.z.boolean()).default(false),
+  route_overrides: v.z.array(v.z.preprocess((x) => (x === '' ? null : x), v.z.coerce.number().min(0).nullable())).optional(),
 });
 
-// ─── MRP ALLOCATION LOGIC (Recursive) ───
-function allocateMaterialsForOrder(orderId, bomId, orderQuantity) {
-  if (!bomId) return;
-  console.log(`[MRP] Starting recursive allocation for Order ${orderId} (BOM ${bomId}, Order Qty ${orderQuantity})`);
-
-  const aggregatedNeeds = {}; // { itemId: { itemName: string, totalQty: number } }
-
-  // Helper for recursive explosion
-  function explode(currentBomId, currentQty) {
-    const positions = ordersDb.prepare(`
-      SELECT bp.item_id, bp.quantity as bom_quantity, bp.node_type, i.name as item_name, i.type as item_type
-      FROM bom_positions bp
-      JOIN items i ON bp.item_id = i.id
-      WHERE bp.bom_id = ?
-    `).all(currentBomId);
-
-    for (const pos of positions) {
-      const requiredTotal = pos.bom_quantity * currentQty;
-      
-      if (pos.item_type === 'raw_material') {
-        if (!aggregatedNeeds[pos.item_id]) {
-          aggregatedNeeds[pos.item_id] = { itemName: pos.item_name, totalQty: 0 };
-        }
-        aggregatedNeeds[pos.item_id].totalQty += requiredTotal;
-      } 
-      else if (pos.item_type === 'semi_finished') {
-        const subBom = ordersDb.prepare('SELECT id FROM boms WHERE parent_item_id = ? LIMIT 1').get(pos.item_id);
-        if (subBom) {
-          explode(subBom.id, requiredTotal);
-        }
-      }
-    }
-  }
-
-  function processRawMaterial(itemId, itemName, requiredTotal) {
-    if (requiredTotal <= 0) return;
-
-    const stock = ordersDb.prepare('SELECT * FROM stock_levels WHERE item_id = ?').get(itemId);
-    const totalPhysical = stock ? stock.quantity : 0;
-    const totalReserved = stock ? (stock.allocated_quantity || 0) : 0;
-    const available = Math.max(0, totalPhysical - totalReserved);
-
-    let qtyToAllocate = 0;
-    let deficit = 0;
-
-    if (available >= requiredTotal) {
-      qtyToAllocate = requiredTotal;
-    } else {
-      qtyToAllocate = available;
-      deficit = requiredTotal - available;
-    }
-
-    if (qtyToAllocate > 0) {
-      if (stock) {
-        ordersDb.prepare('UPDATE stock_levels SET allocated_quantity = allocated_quantity + ? WHERE item_id = ?').run(qtyToAllocate, itemId);
-      } else {
-        ordersDb.prepare('INSERT INTO stock_levels (item_id, quantity, allocated_quantity) VALUES (?, 0, ?)').run(itemId, qtyToAllocate);
-      }
-      ordersDb.prepare('INSERT INTO order_material_allocations (order_id, item_id, allocated_qty) VALUES (?, ?, ?)').run(orderId, itemId, qtyToAllocate);
-    }
-
-    if (deficit > 0) {
-      const exists = ordersDb.prepare("SELECT id FROM purchase_recommendations WHERE triggering_order_id = ? AND item_id = ? AND status = 'pending'").get(orderId, itemId);
-      if (!exists) {
-        ordersDb.prepare(`
-          INSERT INTO purchase_recommendations (item_id, recommended_qty, triggering_order_id) 
-          VALUES (?, ?, ?)
-        `).run(itemId, deficit, orderId);
-      }
-    }
-  }
-
-  // 1. Calculate all aggregated needs
-  explode(bomId, orderQuantity);
-
-  // 2. Process aggregated raw materials to avoid UNIQUE constraint errors
-  for (const [itemIdStr, data] of Object.entries(aggregatedNeeds)) {
-    processRawMaterial(parseInt(itemIdStr), data.itemName, data.totalQty);
-  }
-}
-
-// ─── Helper: Find next free slot on machine ───
-function getMachineAvailableTime(machineId, fromTime) {
-  // SQLite string comparison works perfectly for YYYY-MM-DD HH:MM:SS
-  const latestOrder = ordersDb.prepare(`
-    SELECT planned_end FROM orders 
-    WHERE machine_id = ? AND status IN ('pending', 'active')
-    AND planned_end > ?
-    ORDER BY planned_end DESC LIMIT 1
-  `).get(machineId, fromTime);
-  
-  if (latestOrder) {
-    console.log(`[Scheduler] Machine ${machineId} is busy until ${latestOrder.planned_end}. Pushing from ${fromTime}`);
-    return latestOrder.planned_end;
-  }
-  return fromTime;
-}
-
-// POST /api/orders — create order(s)
-router.post('/', authenticateToken, requireRole('planner', 'administrator'), (req, res) => {
-  const { orders } = req.body; // array of orders
-  if (!orders || !Array.isArray(orders) || orders.length === 0) {
-    return res.status(400).json({ error: 'Lista de comenzi este obligatorie' });
-  }
-
+// POST /api/orders — create one or more orders (items with a routing are split into one order per step)
+router.post('/', requireRole(...PLANNERS), h(async (req, res) => {
+  const { orders } = v.body(req, v.z.object({ orders: v.z.array(newOrderSchema).min(1).max(200) }));
   const created = [];
-  const insertStmt = ordersDb.prepare(`
-    INSERT INTO orders (machine_id, product_name, item_id, bom_id, quantity, planned_start, planned_end, status, order_type, created_by, parent_order_id, routing_sequence, is_fixed_time)
-    VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)
-  `);
 
-  const transaction = ordersDb.transaction(() => {
-    for (const o of orders) {
-      const { machine_id, product_name, item_id, bom_id, quantity, planned_start, planned_end, order_type, is_fixed_time } = o;
+  const insert = (o, machineId, name, start, end, parentId, sequence) => db.get(`
+    INSERT INTO orders (machine_id, product_name, item_id, bom_id, quantity, planned_start, planned_end, status, order_type,
+                        created_by, parent_order_id, routing_sequence, is_fixed_time)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?) RETURNING id`,
+  [machineId, name, o.item_id ?? null, o.bom_id ?? null, o.quantity, start, end, o.order_type,
+    req.user.id, parentId, sequence, o.is_fixed_time ? 1 : 0]);
 
-      // Check if item has a route
-      const route = item_id 
-        ? ordersDb.prepare('SELECT * FROM item_routes WHERE item_id = ? ORDER BY sequence ASC').all(item_id)
-        : [];
+  for (const o of orders) {
+    let productName = o.product_name;
+    if (!productName && o.item_id) productName = (await db.get('SELECT name FROM items WHERE id = ?', [o.item_id]))?.name;
+    if (!productName) throw badRequest('product_name or item_id is required');
 
-      if (route.length > 0) {
-        // ─── EXPLOSION MODE with Conflict Prevention ───
-        let lastEnd = planned_start;
-        let firstParentId = null;
+    const route = o.item_id
+      ? await db.all('SELECT * FROM item_routes WHERE item_id = ? ORDER BY sequence ASC', [o.item_id])
+      : [];
 
-        for (let i = 0; i < route.length; i++) {
-          const step = route[i];
-
-          // 1. Calculate Earliest Start (after previous step)
-          const earliestStart = lastEnd;
-
-          // 2. Adjust for Machine Availability (Finite Capacity)
-          const actualStart = getMachineAvailableTime(step.machine_id, earliestStart);
-
-          // 3. Duration Calculation (Check for manual overrides)
-          let baseDuration = step.process_time_min || 0;
-          if (o.route_overrides && o.route_overrides[i] !== undefined && o.route_overrides[i] !== null) {
-            baseDuration = parseInt(o.route_overrides[i]);
-          }
-
-          const durationMins = is_fixed_time ? baseDuration : baseDuration * quantity;
-          const actualEnd = addMinutes(actualStart, durationMins || 60);
-
-          const result = insertStmt.run(
-            step.machine_id,
-            `${product_name} [${i+1}/${route.length}]`,
-            item_id,
-            bom_id || null,
-            quantity,
-            actualStart,
-            actualEnd,
-            order_type || 'production',
-            req.user.id,
-            firstParentId,
-            step.sequence,
-            is_fixed_time ? 1 : 0
-          );
-
-          if (i === 0) firstParentId = result.lastInsertRowid;
-          
-          created.push({ id: result.lastInsertRowid, machine_id: step.machine_id, product_name: `${product_name} [${i+1}/${route.length}]`, item_id, bom_id, quantity, planned_start: actualStart, planned_end: actualEnd });
-          lastEnd = actualEnd;
-          
-          if (i === 0) {
-              allocateMaterialsForOrder(result.lastInsertRowid, bom_id, quantity);
-          }
+    if (route.length) {
+      // Routing mode: one order per step, each starting when the previous step and its machine are free.
+      let lastEnd = o.planned_start;
+      let rootId = null;
+      for (const [i, step] of route.entries()) {
+        const start = await getMachineAvailableTime(step.machine_id, lastEnd);
+        const override = o.route_overrides?.[i];
+        const baseMinutes = override !== undefined && override !== null ? override : (step.process_time_min || 0);
+        const minutes = (o.is_fixed_time ? baseMinutes : baseMinutes * o.quantity) || 60;
+        const end = addMinutes(start, minutes);
+        const name = `${productName} [${i + 1}/${route.length}]`;
+        const row = await insert(o, step.machine_id, name, start, end, rootId, step.sequence);
+        if (i === 0) {
+          rootId = row.id;
+          await allocateMaterialsForOrder(row.id, o.bom_id, o.quantity);
         }
-      } else {
-        // ─── STANDARD MODE (No route) with Conflict Prevention ───
-        if (!machine_id || !product_name || !quantity || !planned_start) {
-          throw new Error('Câmpurile obligatorii lipsesc');
-        }
-        
-        const actualStart = getMachineAvailableTime(machine_id, planned_start);
-        let actualEnd = planned_end;
-        
-        // If end not provided or overlapped, re-calculate
-        if (!actualEnd || new Date(actualEnd) <= new Date(actualStart)) {
-            actualEnd = addMinutes(actualStart, 60); // Default 1h if unknown
-        } else {
-            // Keep duration but shift start
-            const duration = (new Date(planned_end.replace(' ','T')) - new Date(planned_start.replace(' ','T'))) / 60000;
-            actualEnd = addMinutes(actualStart, duration);
-        }
-
-        const result = insertStmt.run(machine_id, product_name, item_id || null, bom_id || null, quantity, actualStart, actualEnd, order_type || 'production', req.user.id, null, 0);
-        created.push({ id: result.lastInsertRowid, machine_id, product_name, item_id, bom_id, quantity, planned_start: actualStart, planned_end: actualEnd, order_type: order_type || 'production' });
-        
-        allocateMaterialsForOrder(result.lastInsertRowid, bom_id, quantity);
+        created.push({ id: row.id, machine_id: step.machine_id, product_name: name, item_id: o.item_id ?? null,
+          bom_id: o.bom_id ?? null, quantity: o.quantity, planned_start: start, planned_end: end });
+        lastEnd = end;
       }
-    }
-  });
-
-  try {
-      transaction();
-      res.status(201).json({ created, message: `${created.length} comandă/comenzi create.` });
-  } catch(e) {
-      res.status(400).json({ error: e.message });
-  }
-});
-
-// PUT /api/orders/:id
-router.put('/:id', authenticateToken, requireRole('planner', 'administrator'), (req, res) => {
-  const { machine_id, product_name, item_id, bom_id, quantity, planned_start, planned_end, status, order_type } = req.body;
-  const order = ordersDb.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
-  if (!order) return res.status(404).json({ error: 'Comanda nu a fost găsită' });
-
-  ordersDb.prepare(`
-    UPDATE orders SET machine_id=?, product_name=?, item_id=?, bom_id=?, quantity=?, planned_start=?, planned_end=?, status=?, order_type=? WHERE id=?
-  `).run(
-    machine_id || order.machine_id,
-    product_name || order.product_name,
-    item_id !== undefined ? item_id : order.item_id,
-    bom_id !== undefined ? bom_id : order.bom_id,
-    quantity ?? order.quantity,
-    planned_start || order.planned_start,
-    planned_end || order.planned_end,
-    status || order.status,
-    order_type || order.order_type,
-    req.params.id
-  );
-
-  // If time changed, propagate to machine and routing chain
-  if (planned_start || planned_end) {
-    const finalStart = planned_start || order.planned_start;
-    const finalEnd = planned_end || order.planned_end;
-    
-    // Propagate to chain
-    if (order.parent_order_id || ordersDb.prepare('SELECT id FROM orders WHERE parent_order_id = ? LIMIT 1').get(order.id)) {
-      const rootId = order.parent_order_id || order.id;
-      const chainSteps = ordersDb.prepare(`
-        SELECT * FROM orders 
-        WHERE (parent_order_id = ? OR id = ?) AND routing_sequence > ?
-        AND status IN ('pending','active')
-        ORDER BY routing_sequence ASC
-      `).all(rootId, rootId, order.routing_sequence);
-
-      let lastChainEnd = finalEnd;
-      for (const step of chainSteps) {
-        const stepDurationMins = (new Date(step.planned_end.replace(' ','T')) - new Date(step.planned_start.replace(' ','T'))) / 60000;
-        const newStepStart = lastChainEnd;
-        const newStepEnd = addMinutes(newStepStart, stepDurationMins);
-        ordersDb.prepare('UPDATE orders SET planned_start = ?, planned_end = ? WHERE id = ?').run(newStepStart, newStepEnd, step.id);
-        propagateMachineShift(step.machine_id, step.id, newStepStart);
-        lastChainEnd = newStepEnd;
-      }
-    }
-
-    // Propagate to machine
-    propagateMachineShift(machine_id || order.machine_id, req.params.id, finalEnd);
-  }
-
-  res.json({ message: 'Comanda actualizată și planul re-aliniat' });
-});
-
-function releaseAllocationsForOrder(orderId) {
-  const allocations = ordersDb.prepare('SELECT * FROM order_material_allocations WHERE order_id = ?').all(orderId);
-  for (const alloc of allocations) {
-    ordersDb.prepare('UPDATE stock_levels SET allocated_quantity = allocated_quantity - ? WHERE item_id = ?').run(alloc.allocated_qty, alloc.item_id);
-  }
-  ordersDb.prepare('DELETE FROM order_material_allocations WHERE order_id = ?').run(orderId);
-  // Optional: Also delete pending purchase recommendations triggered by this order
-  ordersDb.prepare("DELETE FROM purchase_recommendations WHERE triggering_order_id = ? AND status = 'pending'").run(orderId);
-}
-
-// DELETE /api/orders/:id (cancel)
-router.delete('/:id', authenticateToken, requireRole('planner', 'administrator'), (req, res) => {
-  const order = ordersDb.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
-  if (!order) return res.status(404).json({ error: 'Comanda nu a fost găsită' });
-  
-  const transaction = ordersDb.transaction(() => {
-    ordersDb.prepare("UPDATE orders SET status='cancelled' WHERE id=?").run(req.params.id);
-    releaseAllocationsForOrder(req.params.id);
-  });
-
-  try {
-    transaction();
-    res.json({ message: 'Comanda anulată și alocările eliberate' });
-  } catch(e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// POST /api/orders/:id/delay — add delay to order and propagate
-router.post('/:id/delay', authenticateToken, (req, res) => {
-  const { delay_minutes, reason, delay_reason_id, corrective_action, source } = req.body;
-  if (!delay_minutes || delay_minutes <= 0) return res.status(400).json({ error: 'Minutele de întârziere trebuie să fie pozitive' });
-
-  const order = ordersDb.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
-  if (!order) return res.status(404).json({ error: 'Comanda nu a fost găsită' });
-
-  // Check for duplicate delay from same source on same order
-  if (source === 'shift_responsible') {
-    const alreadyLogged = ordersDb.prepare("SELECT id FROM order_delays WHERE order_id = ? AND source = 'operator'").get(order.id);
-    if (alreadyLogged) {
-      // Log it but mark as not applied (anti-duplicate)
-      ordersDb.prepare('INSERT INTO order_delays (order_id, delay_minutes, reason, delay_reason_id, corrective_action, reported_by, source, applied) VALUES (?,?,?,?,?,?,?,0)')
-        .run(order.id, delay_minutes, reason || '', delay_reason_id || null, corrective_action || '', req.user.id, source);
-      return res.json({ message: 'Delay înregistrat (nu aplicat — deja logat de operator)', applied: false });
+    } else {
+      if (!o.machine_id) throw badRequest('machine_id is required for items without a routing');
+      const start = await getMachineAvailableTime(o.machine_id, o.planned_start);
+      const requested = o.planned_end ? diffMinutes(o.planned_end, o.planned_start) : 0;
+      const end = addMinutes(start, requested > 0 ? requested : 60);
+      const row = await insert(o, o.machine_id, productName, start, end, null, 0);
+      await allocateMaterialsForOrder(row.id, o.bom_id, o.quantity);
+      created.push({ id: row.id, machine_id: o.machine_id, product_name: productName, item_id: o.item_id ?? null,
+        bom_id: o.bom_id ?? null, quantity: o.quantity, planned_start: start, planned_end: end, order_type: o.order_type });
     }
   }
+  res.status(201).json({ created, message: `${created.length} order(s) created` });
+}));
 
-  // Insert delay record
-  ordersDb.prepare('INSERT INTO order_delays (order_id, delay_minutes, reason, delay_reason_id, corrective_action, reported_by, source, applied) VALUES (?,?,?,?,?,?,?,1)')
-    .run(order.id, delay_minutes, reason || '', delay_reason_id || null, corrective_action || '', req.user.id, source || 'system');
+// ─── Update / cancel ────────────────────────────────────────────────────────
 
-  // Propagate to current order + subsequent orders on same machine
-  propagateDelay(order.machine_id, order.id, delay_minutes);
-
-  res.json({ message: `Delay de ${delay_minutes} minute aplicat și propagat`, applied: true });
+const updateSchema = v.z.object({
+  machine_id: v.optId,
+  product_name: v.optStr(300),
+  item_id: v.optId,
+  bom_id: v.optId,
+  quantity: v.z.coerce.number().int().positive().optional(),
+  planned_start: v.optDateTime,
+  planned_end: v.optDateTime,
+  status: v.z.enum(['pending', 'active', 'done', 'cancelled']).optional(),
+  order_type: v.z.enum(['production', 'maintenance']).optional(),
 });
+
+// PUT /api/orders/:id — edit an order; time changes re-align the plan
+router.put('/:id', requireRole(...PLANNERS), h(async (req, res) => {
+  const id = v.paramId(req);
+  const b = v.body(req, updateSchema);
+  const order = await db.get('SELECT * FROM orders WHERE id = ? FOR UPDATE', [id]);
+  if (!order) throw notFound('Order');
+
+  const next = {
+    machine_id: b.machine_id ?? order.machine_id,
+    product_name: b.product_name || order.product_name,
+    item_id: b.item_id !== undefined ? b.item_id : order.item_id,
+    bom_id: b.bom_id !== undefined ? b.bom_id : order.bom_id,
+    quantity: b.quantity ?? order.quantity,
+    planned_start: b.planned_start || order.planned_start,
+    planned_end: b.planned_end || order.planned_end,
+    status: b.status || order.status,
+    order_type: b.order_type || order.order_type,
+  };
+  if (diffMinutes(next.planned_end, next.planned_start) <= 0) throw badRequest('planned_end must be after planned_start');
+
+  await db.run(`
+    UPDATE orders SET machine_id=?, product_name=?, item_id=?, bom_id=?, quantity=?, planned_start=?, planned_end=?, status=?, order_type=?
+    WHERE id=?`,
+  [next.machine_id, next.product_name, next.item_id, next.bom_id, next.quantity, next.planned_start, next.planned_end,
+    next.status, next.order_type, id]);
+
+  // Keep material reservations consistent with the order.
+  const isRoot = !order.parent_order_id;
+  if (next.status === 'cancelled' && order.status !== 'cancelled') {
+    await releaseAllocationsForOrder(id);
+  } else if (isRoot && next.status === 'pending'
+    && (next.quantity !== order.quantity || next.bom_id !== order.bom_id)) {
+    await releaseAllocationsForOrder(id);
+    await allocateMaterialsForOrder(id, next.bom_id, next.quantity);
+  }
+
+  if (b.planned_start || b.planned_end) {
+    await propagateChain({ ...order, ...next }, next.planned_end);
+    await propagateMachineShift(next.machine_id, id, next.planned_end);
+  }
+  res.json({ message: 'Order updated and plan re-aligned' });
+}));
+
+// DELETE /api/orders/:id — cancel order and release reserved material
+router.delete('/:id', requireRole(...PLANNERS), h(async (req, res) => {
+  const id = v.paramId(req);
+  const r = await db.run("UPDATE orders SET status = 'cancelled' WHERE id = ?", [id]);
+  if (!r.rowCount) throw notFound('Order');
+  await releaseAllocationsForOrder(id);
+  res.json({ message: 'Order cancelled and reservations released' });
+}));
+
+// ─── Delays ─────────────────────────────────────────────────────────────────
+
+// POST /api/orders/:id/delay — log a delay and push the schedule
+router.post('/:id/delay', h(async (req, res) => {
+  const id = v.paramId(req);
+  const b = v.body(req, v.z.object({
+    delay_minutes: v.z.coerce.number().int().positive().max(60 * 24 * 30),
+    reason: v.optStr(2000),
+    delay_reason_id: v.optId,
+    corrective_action: v.optStr(2000),
+    source: v.z.enum(['operator', 'shift_responsible', 'system']).default('system'),
+  }));
+  const order = await db.get('SELECT * FROM orders WHERE id = ? FOR UPDATE', [id]);
+  if (!order) throw notFound('Order');
+
+  const insertDelay = (applied) => db.run(`
+    INSERT INTO order_delays (order_id, delay_minutes, reason, delay_reason_id, corrective_action, reported_by, source, applied)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+  [id, b.delay_minutes, b.reason ?? '', b.delay_reason_id ?? null, b.corrective_action ?? '', req.user.id, b.source, applied]);
+
+  // A shift lead reporting a delay the operator already logged must not delay the plan twice.
+  if (b.source === 'shift_responsible') {
+    const already = await db.get("SELECT id FROM order_delays WHERE order_id = ? AND source = 'operator' LIMIT 1", [id]);
+    if (already) {
+      await insertDelay(0);
+      return res.json({ message: 'Delay recorded (not applied: already logged by the operator)', applied: false });
+    }
+  }
+  await insertDelay(1);
+  await propagateDelay(id, b.delay_minutes);
+  return res.json({ message: `Delay of ${b.delay_minutes} minutes applied to the plan`, applied: true });
+}));
 
 // GET /api/orders/:id/delays
-router.get('/:id/delays', authenticateToken, (req, res) => {
-  const delays = ordersDb.prepare('SELECT * FROM order_delays WHERE order_id = ? ORDER BY created_at DESC').all(req.params.id);
-  res.json(delays);
-});
+router.get('/:id/delays', h(async (req, res) => {
+  res.json(await db.all('SELECT * FROM order_delays WHERE order_id = ? ORDER BY created_at DESC, id DESC', [v.paramId(req)]));
+}));
 
-// GET /api/orders/:id/materials
-router.get('/:id/materials', authenticateToken, (req, res) => {
-  const order = ordersDb.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
-  if (!order) return res.status(404).json({ error: 'Comanda nu a fost găsită' });
-  if (!order.bom_id) return res.json([]); 
-
-  const { itemsDb } = require('../db/init');
-  // Fetch all positions, including departments/phantoms
-  const positions = itemsDb.prepare(`
-    SELECT 
-      bp.id,
-      bp.parent_position_id,
-      bp.node_type,
-      bp.department,
-      bp.level,
-      bp.quantity as bom_quantity, 
-      bp.position_code, 
-      bp.location, 
-      i.item_code, 
-      i.name as item_name, 
-      i.uom
-    FROM bom_positions bp
-    LEFT JOIN items i ON bp.item_id = i.id
+// GET /api/orders/:id/materials — BOM positions with quantities for this order
+router.get('/:id/materials', h(async (req, res) => {
+  const order = await db.get('SELECT * FROM orders WHERE id = ?', [v.paramId(req)]);
+  if (!order) throw notFound('Order');
+  if (!order.bom_id) return res.json([]);
+  const positions = await db.all(`
+    SELECT bp.id, bp.parent_position_id, bp.node_type, bp.department, bp.level, bp.quantity AS bom_quantity,
+           bp.position_code, bp.location, i.item_code, i.name AS item_name, i.uom
+    FROM bom_positions bp LEFT JOIN items i ON bp.item_id = i.id
     WHERE bp.bom_id = ?
-    ORDER BY bp.level ASC, bp.sort_order ASC, bp.position_code ASC
-  `).all(order.bom_id);
-
-  // Multiply by order quantity and attach to result
-  const materials = positions.map(p => ({
+    ORDER BY bp.level ASC, bp.sort_order ASC, bp.position_code ASC`, [order.bom_id]);
+  return res.json(positions.map((p) => ({
     ...p,
-    required_quantity: p.node_type === 'component' ? (p.bom_quantity * order.quantity) : null
-  }));
+    required_quantity: p.node_type === 'component' ? p.bom_quantity * order.quantity : null,
+  })));
+}));
 
-  res.json(materials);
-});
-
-// GET /api/orders/:id/chain — get all orders in the same routing chain
-router.get('/:id/chain', authenticateToken, (req, res) => {
-  const order = ordersDb.prepare('SELECT id, parent_order_id FROM orders WHERE id = ?').get(req.params.id);
-  if (!order) return res.status(404).json({ error: 'Comanda nu a fost găsită' });
-
+// GET /api/orders/:id/chain — all orders of the same routing chain
+router.get('/:id/chain', h(async (req, res) => {
+  const order = await db.get('SELECT id, parent_order_id FROM orders WHERE id = ?', [v.paramId(req)]);
+  if (!order) throw notFound('Order');
   const rootId = order.parent_order_id || order.id;
-  const chain = ordersDb.prepare(`
-    SELECT o.*, m.name as machine_name
-    FROM orders o
-    LEFT JOIN machines m ON o.machine_id = m.id
+  res.json(await db.all(`
+    SELECT o.*, m.name AS machine_name
+    FROM orders o LEFT JOIN machines m ON o.machine_id = m.id
     WHERE o.id = ? OR o.parent_order_id = ?
-    ORDER BY o.routing_sequence ASC, o.planned_start ASC
-  `).all(rootId, rootId);
-
-  res.json(chain);
-});
+    ORDER BY o.routing_sequence ASC, o.planned_start::timestamp ASC`, [rootId, rootId]));
+}));
 
 module.exports = router;
+module.exports.propagateDelay = propagateDelay;
+module.exports.propagateMachineShift = propagateMachineShift;

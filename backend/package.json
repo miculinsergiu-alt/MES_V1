@@ -1,25 +1,41 @@
 {
   "name": "nova-mes-backend",
   "version": "1.0.0",
-  "description": "NOVA MES Backend",
+  "description": "NOVA manufacturing ERP backend",
   "main": "server.js",
   "scripts": {
     "dev": "nodemon server.js",
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node --test --test-concurrency=4 \"tests/**/*.test.js\"",
+    "migrate": "node -e \"require('./db').initDb().then(()=>require('./db').closeDb())\"",
+    "seed:demo": "node scripts/seed-demo.js",
+    "create-company": "node scripts/create-company.js",
+    "import:sqlite": "node scripts/import-sqlite.js",
+    "export-company": "node scripts/export-company.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@electric-sql/pglite": "^0.5.16",
     "bcryptjs": "^2.4.3",
-    "better-sqlite3": "^9.6.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
-    "express": "^4.18.3",
+    "express": "^5.3.0",
+    "express-rate-limit": "^8.7.4",
+    "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.2",
-    "socket.io": "^4.8.3"
+    "pg": "^8.23.1",
+    "socket.io": "^4.8.3",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
-    "nodemon": "^3.1.0"
+    "better-sqlite3": "^12.11.1",
+    "nodemon": "^3.1.0",
+    "socket.io-client": "^4.8.4",
+    "supertest": "^7.3.2"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

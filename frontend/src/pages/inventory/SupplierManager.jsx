@@ -165,11 +165,13 @@ function SupplierModal({ supplier, onClose, onSave }) {
     email: '',
     phone: '',
     address: '',
+    vat_number: '',
     active: 1
   });
+  const [vatCheck, setVatCheck] = useState(null); // { status: 'checking' | 'valid' | 'invalid' | 'error', text }
 
   useEffect(() => {
-    if (supplier) setFormData(supplier);
+    if (supplier) setFormData({ ...supplier, vat_number: supplier.vat_number || '' });
   }, [supplier]);
 
   const handleSubmit = async (e) => {
@@ -180,7 +182,30 @@ function SupplierModal({ supplier, onClose, onSave }) {
       toast.success('Furnizor salvat cu succes');
       onSave();
     } catch (err) {
-      toast.error('Eroare la salvare');
+      toast.error(err.response?.data?.error || 'Eroare la salvare');
+    }
+  };
+
+  // Live check of the EU VAT ID against the official VIES service.
+  const checkVat = async () => {
+    const vat = (formData.vat_number || '').trim();
+    if (!vat) return;
+    setVatCheck({ status: 'checking', text: '…' });
+    try {
+      const res = await api.get(`/suppliers/validate-vat/${encodeURIComponent(vat)}`);
+      if (res.data.isValid) {
+        setVatCheck({ status: 'valid', text: res.data.name ? `✓ ${res.data.name}` : '✓ VIES' });
+        setFormData((prev) => ({
+          ...prev,
+          vat_number: res.data.vat_number,
+          name: prev.name || res.data.name || '',
+          address: prev.address || res.data.address || '',
+        }));
+      } else {
+        setVatCheck({ status: 'invalid', text: '✗ VIES' });
+      }
+    } catch (err) {
+      setVatCheck({ status: 'error', text: err.response?.data?.error || 'VIES' });
     }
   };
 
@@ -210,6 +235,25 @@ function SupplierModal({ supplier, onClose, onSave }) {
           <div className="space-y-1">
             <label className="text-xs font-bold uppercase text-muted-foreground">Adresă</label>
             <Input value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-bold uppercase text-muted-foreground" htmlFor="vat-input">VAT ID / USt-IdNr.</label>
+            <div className="flex gap-2">
+              <Input
+                id="vat-input"
+                placeholder="DE123456789"
+                value={formData.vat_number}
+                onChange={e => { setFormData({...formData, vat_number: e.target.value}); setVatCheck(null); }}
+              />
+              <Button type="button" variant="secondary" onClick={checkVat} disabled={!formData.vat_number || vatCheck?.status === 'checking'}>
+                VIES
+              </Button>
+            </div>
+            {vatCheck && (
+              <p className={`text-xs ${vatCheck.status === 'valid' ? 'text-emerald-600' : vatCheck.status === 'checking' ? 'text-muted-foreground' : 'text-red-600'}`}>
+                {vatCheck.text}
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <input type="checkbox" checked={!!formData.active} onChange={e => setFormData({...formData, active: e.target.checked ? 1 : 0})} />

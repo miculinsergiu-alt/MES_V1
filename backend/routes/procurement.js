@@ -1,231 +1,170 @@
 const express = require('express');
+const db = require('../db');
+const { h } = require('../lib/handler');
+const v = require('../lib/validate');
+const { notFound, conflict, badRequest } = require('../lib/errors');
+const { authenticateToken, requireRole } = require('../middleware/auth');
+
 const router = express.Router();
-const { db } = require('../db/init');
-const { authenticateToken } = require('../middleware/auth');
+router.use(authenticateToken);
 
-// --- Purchase Recommendations (MRP) ---
-router.get('/recommendations', authenticateToken, (req, res) => {
-  try {
-    const recommendations = db.prepare(`
-      SELECT pr.*, i.name as item_name, i.item_code, i.uom, o.product_name as triggering_order_name
-      FROM purchase_recommendations pr
-      JOIN items i ON pr.item_id = i.id
-      LEFT JOIN orders o ON pr.triggering_order_id = o.id
-      WHERE pr.status = 'pending'
-      ORDER BY pr.created_at DESC
-    `).all();
-    res.json(recommendations);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+const BUYERS = ['administrator', 'planner', 'material_planner', 'warehouse_manager'];
+
+// ─── Purchase recommendations (from MRP) ────────────────────────────────────
+
+router.get('/recommendations', h(async (req, res) => {
+  res.json(await db.all(`
+    SELECT pr.*, i.name AS item_name, i.item_code, i.uom, o.product_name AS triggering_order_name
+    FROM purchase_recommendations pr
+    JOIN items i ON pr.item_id = i.id
+    LEFT JOIN orders o ON pr.triggering_order_id = o.id
+    WHERE pr.status = 'pending'
+    ORDER BY pr.created_at DESC, pr.id DESC`));
+}));
+
+router.delete('/recommendations/:id', requireRole(...BUYERS), h(async (req, res) => {
+  const r = await db.run("DELETE FROM purchase_recommendations WHERE id = ? AND status = 'pending'", [v.paramId(req)]);
+  if (!r.rowCount) throw notFound('Open recommendation');
+  res.json({ message: 'Recommendation deleted' });
+}));
+
+// POST /api/procurement/recommendations/:id/convert — turn a recommendation into a purchase order
+router.post('/recommendations/:id/convert', requireRole(...BUYERS), h(async (req, res) => {
+  const id = v.paramId(req);
+  const b = v.body(req, v.z.object({ supplier_id: v.id, expected_date: v.optDate }));
+
+  const rec = await db.get('SELECT * FROM purchase_recommendations WHERE id = ? FOR UPDATE', [id]);
+  if (!rec) throw notFound('Recommendation');
+  if (rec.status !== 'pending') throw conflict('This recommendation has already been processed');
+
+  // Price: the supplier's agreed price for this item if known, else the item's purchase cost.
+  const price = await db.get(`
+    SELECT COALESCE(
+      (SELECT purchase_price FROM item_suppliers WHERE item_id = ? AND supplier_id = ?),
+      (SELECT acquisition_cost FROM items WHERE id = ?)) AS unit_price`, [rec.item_id, b.supplier_id, rec.item_id]);
+
+  const po = await db.get(`
+    INSERT INTO purchase_orders (supplier_id, expected_date, created_by, status)
+    VALUES (?, ?, ?, 'ordered') RETURNING id`, [b.supplier_id, b.expected_date ?? null, req.user.id]);
+  await db.run('INSERT INTO purchase_order_items (po_id, item_id, quantity_ordered, unit_price) VALUES (?, ?, ?, ?)',
+    [po.id, rec.item_id, rec.recommended_qty, price?.unit_price ?? 0]);
+  await db.run("UPDATE purchase_recommendations SET status = 'converted' WHERE id = ?", [id]);
+  res.json({ id: po.id, message: 'Recommendation converted to purchase order' });
+}));
+
+// ─── Purchase orders ────────────────────────────────────────────────────────
+
+router.get('/purchase-orders', h(async (req, res) => {
+  res.json(await db.all(`
+    SELECT po.*, s.name AS supplier_name
+    FROM purchase_orders po JOIN suppliers s ON po.supplier_id = s.id
+    ORDER BY po.created_at DESC, po.id DESC`));
+}));
+
+router.post('/purchase-orders', requireRole(...BUYERS), h(async (req, res) => {
+  const b = v.body(req, v.z.object({
+    supplier_id: v.id,
+    expected_date: v.optDate,
+    items: v.z.array(v.z.object({
+      item_id: v.id,
+      quantity_ordered: v.posNum,
+      unit_price: v.nonNeg.default(0),
+    })).min(1, 'At least one item is required'),
+  }));
+  const po = await db.get('INSERT INTO purchase_orders (supplier_id, expected_date, created_by) VALUES (?, ?, ?) RETURNING id',
+    [b.supplier_id, b.expected_date ?? null, req.user.id]);
+  for (const item of b.items) {
+    await db.run('INSERT INTO purchase_order_items (po_id, item_id, quantity_ordered, unit_price) VALUES (?, ?, ?, ?)',
+      [po.id, item.item_id, item.quantity_ordered, item.unit_price]);
   }
+  res.json({ id: po.id });
+}));
+
+router.get('/purchase-orders/:id/items', h(async (req, res) => {
+  res.json(await db.all(`
+    SELECT poi.*, i.name, i.item_code, i.uom
+    FROM purchase_order_items poi JOIN items i ON poi.item_id = i.id
+    WHERE poi.po_id = ? ORDER BY poi.id`, [v.paramId(req)]));
+}));
+
+// ─── Goods receipt ──────────────────────────────────────────────────────────
+
+const receiptSchema = v.z.object({
+  po_id: v.optId,
+  document_reference: v.optStr(200),
+  notes: v.optStr(5000),
+  items: v.z.array(v.z.object({
+    item_id: v.id,
+    lot_number: v.z.string().trim().min(1, 'Lot number is required').max(200),
+    quantity_received: v.posNum,
+    location_id: v.optId,
+    quality_status: v.z.enum(['ok', 'quarantine', 'rejected']).default('ok'),
+    expiration_date: v.optDate,
+  })).min(1, 'At least one item is required'),
 });
 
-router.delete('/recommendations/:id', authenticateToken, (req, res) => {
-  try {
-    const result = db.prepare(`DELETE FROM purchase_recommendations WHERE id = ? AND status = 'pending'`).run(req.params.id);
-    if (result.changes === 0) {
-      return res.status(404).json({ error: 'Recomandarea nu a fost găsită sau nu poate fi ștearsă.' });
-    }
-    res.json({ message: 'Recomandare ștearsă cu succes.' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+// POST /api/procurement/receipts — book incoming goods into stock
+router.post('/receipts', requireRole(...BUYERS), h(async (req, res) => {
+  const b = v.body(req, receiptSchema);
 
-router.post('/recommendations/:id/convert', authenticateToken, (req, res) => {
-  const { supplier_id, expected_date } = req.body;
-  
-  if (!supplier_id) {
-    return res.status(400).json({ error: 'Furnizorul este obligatoriu' });
+  if (b.po_id) {
+    const po = await db.get('SELECT id, status FROM purchase_orders WHERE id = ? FOR UPDATE', [b.po_id]);
+    if (!po) throw notFound('Purchase order');
+    if (['received', 'cancelled'].includes(po.status)) throw conflict(`Purchase order is already ${po.status}`);
   }
 
-  const sId = parseInt(supplier_id);
-  const uId = parseInt(req.user.id);
+  const receipt = await db.get(`
+    INSERT INTO goods_receipts (po_id, received_by, document_reference, notes) VALUES (?, ?, ?, ?) RETURNING id`,
+  [b.po_id ?? null, req.user.id, b.document_reference ?? null, b.notes ?? null]);
 
-  console.log(`[PROCUREMENT] Converting Rec ${req.params.id} to PO for Supplier ${sId} by User ${uId}`);
-
-  const transaction = db.transaction(() => {
-    const recommendation = db.prepare(`
-      SELECT pr.*, i.name as item_name, i.item_code, o.product_name as triggering_order_name
-      FROM purchase_recommendations pr
-      JOIN items i ON pr.item_id = i.id
-      LEFT JOIN orders o ON pr.triggering_order_id = o.id
-      WHERE pr.id = ?
-    `).get(req.params.id);
-
-    if (!recommendation) throw new Error('Recomandarea nu a fost gasita');
-    if (recommendation.status !== 'pending') throw new Error('Recomandarea a fost deja procesata');
-
-    // 1. Create PO
-    const poResult = db.prepare(`
-      INSERT INTO purchase_orders (supplier_id, expected_date, created_by, status)
-      VALUES (?, ?, ?, 'ordered')
-    `).run(sId, expected_date || null, uId);
-    
-    const poId = poResult.lastInsertRowid;
-
-    // 2. Add Item to PO
-    db.prepare(`
-      INSERT INTO purchase_order_items (po_id, item_id, quantity_ordered, unit_price)
-      VALUES (?, ?, ?, (SELECT acquisition_cost FROM items WHERE id = ?))
-    `).run(poId, recommendation.item_id, recommendation.recommended_qty, recommendation.item_id);
-
-    // 3. Mark Recommendation as Converted
-    db.prepare(`UPDATE purchase_recommendations SET status = 'converted' WHERE id = ?`).run(recommendation.id);
-    
-    return poId;
-  });
-
-  try {
-    const poId = transaction();
-    res.json({ id: poId, message: 'Recomandare convertită cu succes în PO' });
-  } catch (err) {
-    console.error('ERROR CONVERTING REC:', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// --- Purchase Orders ---
-router.get('/purchase-orders', (req, res) => {
-  try {
-    const pos = db.prepare(`
-      SELECT po.*, s.name as supplier_name 
-      FROM purchase_orders po
-      JOIN suppliers s ON po.supplier_id = s.id
-      ORDER BY po.created_at DESC
-    `).all();
-    res.json(pos);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-router.post('/purchase-orders', authenticateToken, (req, res) => {
-  const { supplier_id, expected_date, items } = req.body;
-  const created_by = req.user.id;
-
-  const transaction = db.transaction(() => {
-    const sId = parseInt(supplier_id);
-    const poResult = db.prepare(`
-      INSERT INTO purchase_orders (supplier_id, expected_date, created_by)
-      VALUES (?, ?, ?)
-    `).run(sId, expected_date, created_by);
-    
-    const poId = poResult.lastInsertRowid;
-    const stmt = db.prepare(`
-      INSERT INTO purchase_order_items (po_id, item_id, quantity_ordered, unit_price)
-      VALUES (?, ?, ?, ?)
-    `);
-    
-    for (const item of items) {
-      stmt.run(poId, item.item_id, item.quantity_ordered, item.unit_price);
-    }
-    return poId;
-  });
-
-  try {
-    const poId = transaction();
-    res.json({ id: poId });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-router.get('/purchase-orders/:id/items', (req, res) => {
-  try {
-    const items = db.prepare(`
-      SELECT poi.*, i.name, i.item_code, i.uom
-      FROM purchase_order_items poi
-      JOIN items i ON poi.item_id = i.id
-      WHERE poi.po_id = ?
-    `).all(req.params.id);
-    res.json(items);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// --- Goods Receipt (Recepție Marfă) ---
-router.post('/receipts', authenticateToken, (req, res) => {
-  const { po_id, document_reference, notes, items } = req.body;
-  const received_by = req.user.id;
-  
-  const transaction = db.transaction(() => {
-    // 1. Create Receipt Header
-    const safePoId = po_id && po_id !== '' ? parseInt(po_id) : null;
-    const receiptResult = db.prepare(`
-      INSERT INTO goods_receipts (po_id, received_by, document_reference, notes)
-      VALUES (?, ?, ?, ?)
-    `).run(safePoId, received_by, document_reference, notes);
-    
-    const receiptId = receiptResult.lastInsertRowid;
-    
-    for (const item of items) {
-      const safeLocId = item.location_id && item.location_id !== '' ? parseInt(item.location_id) : null;
-      // 2. Create Receipt Item
-      db.prepare(`
-        INSERT INTO goods_receipt_items (receipt_id, item_id, lot_number, quantity_received, location_id, quality_status, expiration_date)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `).run(receiptId, item.item_id, item.lot_number, item.quantity_received, safeLocId, item.quality_status || 'ok', item.expiration_date || null);
-
-      // 3. Update/Create Inventory Lot
-      db.prepare(`
-        INSERT INTO inventory_lots (item_id, lot_number, quantity, expiration_date)
-        VALUES (?, ?, ?, ?)
-        ON CONFLICT(lot_number) DO UPDATE SET quantity = quantity + EXCLUDED.quantity
-      `).run(item.item_id, item.lot_number, item.quantity_received, item.expiration_date);
-
-      // 4. Update Stock Level (Main table)
-      db.prepare(`
-        INSERT INTO stock_levels (item_id, quantity, last_updated)
-        VALUES (?, ?, datetime('now', 'localtime'))
-        ON CONFLICT(item_id) DO UPDATE SET quantity = quantity + EXCLUDED.quantity, last_updated = datetime('now', 'localtime')
-      `).run(item.item_id, item.quantity_received);
-
-      // 5. Update PO Item received quantity
-      if (po_id) {
-        db.prepare(`
-          UPDATE purchase_order_items 
-          SET quantity_received = quantity_received + ?
-          WHERE po_id = ? AND item_id = ?
-        `).run(item.quantity_received, po_id, item.item_id);
-      }
-
-      // 6. Log Transaction
-      db.prepare(`
-        INSERT INTO stock_transactions (item_id, lot_id, quantity, type, reference_type, reference_id, user_id)
-        VALUES (?, (SELECT id FROM inventory_lots WHERE lot_number = ?), ?, 'in', 'receipt', ?, ?)
-      `).run(item.item_id, item.lot_number, item.quantity_received, receiptId, received_by);
-
-      // 7. If Quality Status is Quarantine, log it
-      if (item.quality_status === 'quarantine') {
-        db.prepare(`
-          INSERT INTO quarantine_logs (item_id, lot_number, quantity, reason, reported_by)
-          VALUES (?, ?, ?, ?, ?)
-        `).run(item.item_id, item.lot_number, item.quantity_received, 'Recepție cu probleme/Carantină', received_by);
-      }
+  for (const item of b.items) {
+    const existingLot = await db.get('SELECT id, item_id FROM inventory_lots WHERE lot_number = ?', [item.lot_number]);
+    if (existingLot && existingLot.item_id !== item.item_id) {
+      throw badRequest(`Lot number ${item.lot_number} is already used for a different item`);
     }
 
-    // 8. Update PO Status if all items received
-    if (po_id) {
-      const pendingItems = db.prepare(`
-        SELECT COUNT(*) as count FROM purchase_order_items 
-        WHERE po_id = ? AND quantity_received < quantity_ordered
-      `).get(po_id).count;
-      
-      const status = pendingItems === 0 ? 'received' : 'partial';
-      db.prepare('UPDATE purchase_orders SET status = ? WHERE id = ?').run(status, po_id);
+    const receiptItem = await db.get(`
+      INSERT INTO goods_receipt_items (receipt_id, item_id, lot_number, quantity_received, location_id, quality_status, expiration_date)
+      VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+    [receipt.id, item.item_id, item.lot_number, item.quantity_received, item.location_id ?? null, item.quality_status, item.expiration_date ?? null]);
+
+    // Rejected goods are documented but not added to stock.
+    if (item.quality_status === 'rejected') continue;
+
+    const lot = await db.get(`
+      INSERT INTO inventory_lots (item_id, lot_number, quantity, expiration_date) VALUES (?, ?, ?, ?)
+      ON CONFLICT (company_id, lot_number) DO UPDATE SET quantity = inventory_lots.quantity + EXCLUDED.quantity
+      RETURNING id`, [item.item_id, item.lot_number, item.quantity_received, item.expiration_date ?? null]);
+
+    await db.run(`
+      INSERT INTO stock_levels (item_id, quantity, last_updated) VALUES (?, ?, nova_now())
+      ON CONFLICT (item_id) DO UPDATE SET quantity = stock_levels.quantity + EXCLUDED.quantity, last_updated = nova_now()`,
+    [item.item_id, item.quantity_received]);
+
+    if (b.po_id) {
+      await db.run('UPDATE purchase_order_items SET quantity_received = quantity_received + ? WHERE po_id = ? AND item_id = ?',
+        [item.quantity_received, b.po_id, item.item_id]);
     }
 
-    return receiptId;
-  });
+    await db.run(`
+      INSERT INTO stock_transactions (item_id, lot_id, quantity, type, reference_type, reference_id, user_id)
+      VALUES (?, ?, ?, 'in', 'receipt', ?, ?)`,
+    [item.item_id, lot.id, item.quantity_received, receipt.id, req.user.id]);
 
-  try {
-    const receiptId = transaction();
-    res.json({ id: receiptId });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    if (item.quality_status === 'quarantine') {
+      await db.run(`
+        INSERT INTO quarantine_logs (receipt_item_id, item_id, lot_number, quantity, reason, reported_by)
+        VALUES (?, ?, ?, ?, ?, ?)`,
+      [receiptItem.id, item.item_id, item.lot_number, item.quantity_received, 'Goods receipt: quality issue / quarantine', req.user.id]);
+    }
   }
-});
+
+  if (b.po_id) {
+    const pending = await db.get(
+      'SELECT COUNT(*) AS count FROM purchase_order_items WHERE po_id = ? AND quantity_received < quantity_ordered', [b.po_id]);
+    await db.run('UPDATE purchase_orders SET status = ? WHERE id = ?', [pending.count === 0 ? 'received' : 'partial', b.po_id]);
+  }
+  res.json({ id: receipt.id });
+}));
 
 module.exports = router;

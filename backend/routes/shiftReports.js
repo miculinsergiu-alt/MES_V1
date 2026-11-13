@@ -1,132 +1,127 @@
 const express = require('express');
-const { shiftReportsDb } = require('../db/init');
+const db = require('../db');
+const { h } = require('../lib/handler');
+const v = require('../lib/validate');
+const { notFound } = require('../lib/errors');
+const { formatLocal, parseLocal } = require('../lib/time');
 const { authenticateToken, requireRole } = require('../middleware/auth');
+
 const router = express.Router();
+router.use(authenticateToken);
 
-// GET /api/shift-reports — all shift reports
-router.get('/', authenticateToken, requireRole('area_supervisor','shift_responsible','administrator'), (req, res) => {
-  const { shift_id, date_from, date_to } = req.query;
-  let sql = 'SELECT * FROM shift_reports WHERE 1=1';
+/** Time window of a shift on a given date (night shifts end the next day). */
+function shiftWindow(reportDate, shift) {
+  const start = `${reportDate} ${shift.start_time || '00:00'}:00`;
+  let end = `${reportDate} ${shift.end_time || '23:59'}:00`;
+  if (shift.end_time && shift.start_time && shift.end_time < shift.start_time) {
+    end = formatLocal(parseLocal(end) + 24 * 3600 * 1000);
+  }
+  return { start, end };
+}
+
+async function operatorDelayAlreadyLogged(orderId, delayMinutes) {
+  if (!orderId || !(delayMinutes > 0)) return 0;
+  const existing = await db.get("SELECT id FROM order_delays WHERE order_id = ? AND source = 'operator' LIMIT 1", [orderId]);
+  return existing ? 1 : 0;
+}
+
+// GET /api/shift-reports — reports, including delays operators logged during the shift
+router.get('/', requireRole('area_supervisor', 'shift_responsible', 'administrator'), h(async (req, res) => {
+  const q = v.query(req, v.z.object({ shift_id: v.optId, date_from: v.optDate, date_to: v.optDate }));
   const params = [];
-  if (shift_id) { sql += ' AND shift_id = ?'; params.push(shift_id); }
-  if (date_from) { sql += ' AND report_date >= ?'; params.push(date_from); }
-  if (date_to) { sql += ' AND report_date <= ?'; params.push(date_to); }
-  sql += ' ORDER BY report_date DESC, created_at DESC';
-  const reports = shiftReportsDb.prepare(sql).all(...params);
+  let sql = 'SELECT * FROM shift_reports WHERE 1=1';
+  if (q.shift_id) { sql += ' AND shift_id = ?'; params.push(q.shift_id); }
+  if (q.date_from) { sql += ' AND report_date >= ?'; params.push(q.date_from); }
+  if (q.date_to) { sql += ' AND report_date <= ?'; params.push(q.date_to); }
+  const reports = await db.all(`${sql} ORDER BY report_date DESC, created_at DESC LIMIT 500`, params);
 
-  const result = reports.map(r => {
-    const issues = shiftReportsDb.prepare('SELECT * FROM report_issues WHERE report_id = ? ORDER BY id').all(r.id);
-    
-    // AUTO-FETCH DELAYS FROM OPERATORS IF NOT ALREADY IN REPORT
-    const { ordersDb } = require('../db/init');
-    const shift = shiftReportsDb.prepare('SELECT * FROM shifts WHERE id = ?').get(r.shift_id);
-    
+  const shifts = new Map((await db.all('SELECT * FROM shifts')).map((s) => [s.id, s]));
+  const result = [];
+  for (const r of reports) {
+    const issues = await db.all('SELECT * FROM report_issues WHERE report_id = ? ORDER BY id', [r.id]);
+    const shift = shifts.get(r.shift_id);
     if (shift) {
-        // Construct shift interval for that date
-        const shiftStart = `${r.report_date} ${shift.start_time}:00`;
-        let shiftEnd = `${r.report_date} ${shift.end_time}:00`;
-        if (shift.end_time < shift.start_time) {
-            // Night shift ends next day
-            const nextDay = new Date(new Date(r.report_date).getTime() + 86400000).toISOString().split('T')[0];
-            shiftEnd = `${nextDay} ${shift.end_time}:00`;
+      const { start, end } = shiftWindow(r.report_date, shift);
+      const operatorDelays = await db.all(`
+        SELECT od.*, o.product_name, o.machine_id
+        FROM order_delays od JOIN orders o ON od.order_id = o.id
+        WHERE od.source = 'operator' AND od.created_at BETWEEN ? AND ?`, [start, end]);
+      for (const od of operatorDelays) {
+        const exists = issues.some((iss) => iss.order_id === od.order_id && iss.delay_minutes === od.delay_minutes);
+        if (!exists) {
+          issues.push({
+            id: `auto-${od.id}`,
+            report_id: r.id,
+            machine_id: od.machine_id,
+            order_id: od.order_id,
+            description: `[AUTO-OPERATOR] ${od.reason || ''}`.trim(),
+            delay_minutes: od.delay_minutes,
+            delay_already_logged: 1,
+            is_auto: true,
+          });
         }
-
-        const operatorDelays = ordersDb.prepare(`
-            SELECT od.*, o.product_name, o.machine_id 
-            FROM order_delays od
-            JOIN orders o ON od.order_id = o.id
-            WHERE od.source = 'operator' 
-            AND od.created_at BETWEEN ? AND ?
-        `).all(shiftStart, shiftEnd);
-
-        for (const od of operatorDelays) {
-            const alreadyExists = issues.some(iss => iss.order_id === od.order_id && iss.delay_minutes === od.delay_minutes);
-            if (!alreadyExists) {
-                issues.push({
-                    id: `auto-${od.id}`,
-                    report_id: r.id,
-                    machine_id: od.machine_id,
-                    order_id: od.order_id,
-                    description: `[AUTO-OPERATOR] ${od.reason}`,
-                    delay_minutes: od.delay_minutes,
-                    delay_already_logged: 1,
-                    is_auto: true
-                });
-            }
-        }
+      }
     }
-
-    return { ...r, issues };
-  });
+    result.push({ ...r, issues });
+  }
   res.json(result);
-});
+}));
 
 // GET /api/shift-reports/:id
-router.get('/:id', authenticateToken, (req, res) => {
-  const report = shiftReportsDb.prepare('SELECT * FROM shift_reports WHERE id = ?').get(req.params.id);
-  if (!report) return res.status(404).json({ error: 'Raportul nu a fost găsit' });
-  const issues = shiftReportsDb.prepare('SELECT * FROM report_issues WHERE report_id = ? ORDER BY id').all(report.id);
+router.get('/:id', requireRole('area_supervisor', 'shift_responsible', 'administrator'), h(async (req, res) => {
+  const report = await db.get('SELECT * FROM shift_reports WHERE id = ?', [v.paramId(req)]);
+  if (!report) throw notFound('Shift report');
+  const issues = await db.all('SELECT * FROM report_issues WHERE report_id = ? ORDER BY id', [report.id]);
   res.json({ ...report, issues });
+}));
+
+const issueSchema = v.z.object({
+  machine_id: v.optId,
+  order_id: v.optId,
+  description: v.str(5000),
+  delay_minutes: v.z.coerce.number().int().min(0).default(0),
 });
 
-// POST /api/shift-reports — create shift report
-router.post('/', authenticateToken, requireRole('shift_responsible','administrator'), (req, res) => {
-  const { shift_id, report_date, general_notes, issues } = req.body;
-  if (!shift_id || !report_date) return res.status(400).json({ error: 'Schimbul și data sunt obligatorii' });
-
-  const result = shiftReportsDb.prepare(`
+// POST /api/shift-reports — create a shift report with issues
+router.post('/', requireRole('shift_responsible', 'administrator'), h(async (req, res) => {
+  const b = v.body(req, v.z.object({
+    shift_id: v.id,
+    report_date: v.date,
+    general_notes: v.optStr(10000),
+    issues: v.z.array(issueSchema).optional(),
+  }));
+  const report = await db.get(`
     INSERT INTO shift_reports (shift_id, shift_responsible_id, report_date, general_notes)
-    VALUES (?,?,?,?)
-  `).run(shift_id, req.user.id, report_date, general_notes || '');
-
-  const reportId = result.lastInsertRowid;
-
-  if (issues && Array.isArray(issues)) {
-    for (const issue of issues) {
-      const { machine_id, order_id, description, delay_minutes } = issue;
-      // Check if delay already logged by operator for this order
-      let alreadyLogged = 0;
-      if (order_id && delay_minutes > 0) {
-        const { ordersDb } = require('../db/init');
-        const existing = ordersDb.prepare("SELECT id FROM order_delays WHERE order_id = ? AND source = 'operator'").get(order_id);
-        if (existing) alreadyLogged = 1;
-      }
-
-      shiftReportsDb.prepare(`
-        INSERT INTO report_issues (report_id, machine_id, order_id, description, delay_minutes, delay_already_logged)
-        VALUES (?,?,?,?,?,?)
-      `).run(reportId, machine_id || null, order_id || null, description, delay_minutes || 0, alreadyLogged);
-    }
+    VALUES (?, ?, ?, ?) RETURNING id`, [b.shift_id, req.user.id, b.report_date, b.general_notes ?? '']);
+  for (const issue of b.issues || []) {
+    const logged = await operatorDelayAlreadyLogged(issue.order_id, issue.delay_minutes);
+    await db.run(`
+      INSERT INTO report_issues (report_id, machine_id, order_id, description, delay_minutes, delay_already_logged)
+      VALUES (?, ?, ?, ?, ?, ?)`,
+    [report.id, issue.machine_id ?? null, issue.order_id ?? null, issue.description, issue.delay_minutes, logged]);
   }
+  res.status(201).json({ id: report.id, message: 'Shift report created' });
+}));
 
-  res.status(201).json({ id: reportId, message: 'Raport de schimb creat cu succes' });
-});
+// PUT /api/shift-reports/:id — update notes
+router.put('/:id', requireRole('shift_responsible', 'administrator'), h(async (req, res) => {
+  const b = v.body(req, v.z.object({ general_notes: v.optStr(10000) }));
+  const r = await db.run('UPDATE shift_reports SET general_notes = ? WHERE id = ?', [b.general_notes ?? '', v.paramId(req)]);
+  if (!r.rowCount) throw notFound('Shift report');
+  res.json({ message: 'Shift report updated' });
+}));
 
-// PUT /api/shift-reports/:id — update report
-router.put('/:id', authenticateToken, requireRole('shift_responsible','administrator'), (req, res) => {
-  const { general_notes } = req.body;
-  shiftReportsDb.prepare('UPDATE shift_reports SET general_notes=? WHERE id=?').run(general_notes, req.params.id);
-  res.json({ message: 'Raport actualizat' });
-});
-
-// POST /api/shift-reports/:id/issues — add issue to existing report
-router.post('/:id/issues', authenticateToken, requireRole('shift_responsible','administrator'), (req, res) => {
-  const { machine_id, order_id, description, delay_minutes } = req.body;
-  if (!description) return res.status(400).json({ error: 'Descrierea problemei este obligatorie' });
-
-  let alreadyLogged = 0;
-  if (order_id && delay_minutes > 0) {
-    const { ordersDb } = require('../db/init');
-    const existing = ordersDb.prepare("SELECT id FROM order_delays WHERE order_id = ? AND source = 'operator'").get(order_id);
-    if (existing) alreadyLogged = 1;
-  }
-
-  const result = shiftReportsDb.prepare(`
+// POST /api/shift-reports/:id/issues — add an issue to a report
+router.post('/:id/issues', requireRole('shift_responsible', 'administrator'), h(async (req, res) => {
+  const reportId = v.paramId(req);
+  const b = v.body(req, issueSchema);
+  if (!(await db.get('SELECT id FROM shift_reports WHERE id = ?', [reportId]))) throw notFound('Shift report');
+  const logged = await operatorDelayAlreadyLogged(b.order_id, b.delay_minutes);
+  const row = await db.get(`
     INSERT INTO report_issues (report_id, machine_id, order_id, description, delay_minutes, delay_already_logged)
-    VALUES (?,?,?,?,?,?)
-  `).run(req.params.id, machine_id || null, order_id || null, description, delay_minutes || 0, alreadyLogged);
-
-  res.status(201).json({ id: result.lastInsertRowid, delay_already_logged: alreadyLogged });
-});
+    VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
+  [reportId, b.machine_id ?? null, b.order_id ?? null, b.description, b.delay_minutes, logged]);
+  res.status(201).json({ id: row.id, delay_already_logged: logged });
+}));
 
 module.exports = router;

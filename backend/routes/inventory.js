@@ -1,86 +1,77 @@
 const express = require('express');
+const db = require('../db');
+const { h } = require('../lib/handler');
+const v = require('../lib/validate');
+const { notFound, badRequest } = require('../lib/errors');
+const { authenticateToken, requireRole } = require('../middleware/auth');
+
 const router = express.Router();
-const { db } = require('../db/init');
-const { authenticateToken } = require('../middleware/auth');
+router.use(authenticateToken);
 
-// Internal Transfer
-router.post('/transfers', authenticateToken, (req, res) => {
-  const { from_warehouse_id, to_warehouse_id, items, created_by } = req.body;
-  
-  const transaction = db.transaction(() => {
-    const transferResult = db.prepare(`
-      INSERT INTO stock_transfers (from_warehouse_id, to_warehouse_id, created_by, completed_at)
-      VALUES (?, ?, ?, datetime('now', 'localtime'))
-    `).run(from_warehouse_id, to_warehouse_id, created_by);
-    
-    const transferId = transferResult.lastInsertRowid;
-    
-    for (const item of items) {
-      // 1. Log Transfer Item
-      db.prepare(`
-        INSERT INTO stock_transfer_items (transfer_id, item_id, lot_number, quantity, from_location_id, to_location_id)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `).run(transferId, item.item_id, item.lot_number, item.quantity, item.from_location_id, item.to_location_id);
+// POST /api/inventory/transfers — move lots between warehouses/locations
+router.post('/transfers', requireRole('administrator', 'warehouse_manager', 'material_planner', 'planner'), h(async (req, res) => {
+  const b = v.body(req, v.z.object({
+    from_warehouse_id: v.optId,
+    to_warehouse_id: v.optId,
+    items: v.z.array(v.z.object({
+      item_id: v.id,
+      lot_number: v.optStr(200),
+      quantity: v.posNum,
+      from_location_id: v.optId,
+      to_location_id: v.optId,
+    })).min(1, 'At least one item is required'),
+  }));
 
-      // 2. Log Transactions (Out from source, In to destination - though overall stock same, locations change)
-      // Actually, we update the location_id in goods_receipt_items for the specific lot if we track per location
-      // Or we just log it in transactions. In our schema, stock_levels doesn't have multiple locations per item easily without a pivot.
-      // But we have warehouse_locations.
-      
-      db.prepare(`
-        INSERT INTO stock_transactions (item_id, lot_id, quantity, type, reference_type, reference_id, user_id)
-        VALUES (?, (SELECT id FROM inventory_lots WHERE lot_number = ?), ?, 'adjustment', 'transfer_out', ?, ?)
-      `).run(item.item_id, item.lot_number, -item.quantity, transferId, created_by);
+  const transfer = await db.get(`
+    INSERT INTO stock_transfers (from_warehouse_id, to_warehouse_id, created_by, completed_at)
+    VALUES (?, ?, ?, nova_now()) RETURNING id`,
+  [b.from_warehouse_id ?? null, b.to_warehouse_id ?? null, req.user.id]);
 
-      db.prepare(`
-        INSERT INTO stock_transactions (item_id, lot_id, quantity, type, reference_type, reference_id, user_id)
-        VALUES (?, (SELECT id FROM inventory_lots WHERE lot_number = ?), ?, 'adjustment', 'transfer_in', ?, ?)
-      `).run(item.item_id, item.lot_number, item.quantity, transferId, created_by);
-      
-      // Update location of the lot in receipt records if needed
-      if (item.to_location_id) {
-          db.prepare(`
-            UPDATE goods_receipt_items 
-            SET location_id = ? 
-            WHERE lot_number = ? AND item_id = ?
-          `).run(item.to_location_id, item.lot_number, item.item_id);
-      }
+  for (const item of b.items) {
+    let lotId = null;
+    if (item.lot_number) {
+      const lot = await db.get('SELECT id, item_id, quantity FROM inventory_lots WHERE lot_number = ?', [item.lot_number]);
+      if (!lot) throw badRequest(`Lot ${item.lot_number} not found`);
+      if (lot.item_id !== item.item_id) throw badRequest(`Lot ${item.lot_number} belongs to a different item`);
+      if (lot.quantity < item.quantity) throw badRequest(`Lot ${item.lot_number} has only ${lot.quantity} in stock`);
+      lotId = lot.id;
     }
-    return transferId;
-  });
 
-  try {
-    const transferId = transaction();
-    res.json({ id: transferId });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    await db.run(`
+      INSERT INTO stock_transfer_items (transfer_id, item_id, lot_number, quantity, from_location_id, to_location_id)
+      VALUES (?, ?, ?, ?, ?, ?)`,
+    [transfer.id, item.item_id, item.lot_number ?? null, item.quantity, item.from_location_id ?? null, item.to_location_id ?? null]);
+
+    // Total stock is unchanged; both movements are logged for traceability.
+    for (const [qty, ref] of [[-item.quantity, 'transfer_out'], [item.quantity, 'transfer_in']]) {
+      await db.run(`
+        INSERT INTO stock_transactions (item_id, lot_id, quantity, type, reference_type, reference_id, user_id)
+        VALUES (?, ?, ?, 'adjustment', ?, ?, ?)`,
+      [item.item_id, lotId, qty, ref, transfer.id, req.user.id]);
+    }
+
+    if (item.to_location_id && item.lot_number) {
+      await db.run('UPDATE goods_receipt_items SET location_id = ? WHERE lot_number = ? AND item_id = ?',
+        [item.to_location_id, item.lot_number, item.item_id]);
+    }
   }
-});
+  res.json({ id: transfer.id });
+}));
 
-// Lot Traceability
-router.get('/traceability/:lotNumber', (req, res) => {
-  try {
-    const lot = db.prepare(`
-      SELECT il.*, i.name as item_name, i.item_code, i.uom
-      FROM inventory_lots il
-      JOIN items i ON il.item_id = i.id
-      WHERE il.lot_number = ?
-    `).get(req.params.lotNumber);
-
-    if (!lot) return res.status(404).json({ error: 'Lot not found' });
-
-    const transactions = db.prepare(`
-      SELECT st.*, u.first_name || ' ' || u.last_name as user_name
-      FROM stock_transactions st
-      LEFT JOIN users u ON st.user_id = u.id
-      WHERE st.lot_id = ?
-      ORDER BY st.created_at ASC
-    `).all(lot.id);
-
-    res.json({ lot, transactions });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+// GET /api/inventory/traceability/:lotNumber
+router.get('/traceability/:lotNumber', h(async (req, res) => {
+  const { lotNumber } = v.params(req, v.z.object({ lotNumber: v.z.string().min(1).max(200) }));
+  const lot = await db.get(`
+    SELECT il.*, i.name AS item_name, i.item_code, i.uom
+    FROM inventory_lots il JOIN items i ON il.item_id = i.id
+    WHERE il.lot_number = ?`, [lotNumber]);
+  if (!lot) throw notFound('Lot');
+  const transactions = await db.all(`
+    SELECT st.*, u.first_name || ' ' || u.last_name AS user_name
+    FROM stock_transactions st LEFT JOIN users u ON st.user_id = u.id
+    WHERE st.lot_id = ?
+    ORDER BY st.created_at ASC, st.id ASC`, [lot.id]);
+  res.json({ lot, transactions });
+}));
 
 module.exports = router;

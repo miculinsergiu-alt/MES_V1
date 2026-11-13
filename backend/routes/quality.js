@@ -1,74 +1,57 @@
 const express = require('express');
+const db = require('../db');
+const { h } = require('../lib/handler');
+const v = require('../lib/validate');
+const { notFound, conflict } = require('../lib/errors');
+const { authenticateToken, requireRole } = require('../middleware/auth');
+
 const router = express.Router();
-const { db } = require('../db/init');
+router.use(authenticateToken);
 
-// List quarantine logs
-router.get('/quarantine', (req, res) => {
-  try {
-    const logs = db.prepare(`
-      SELECT ql.*, i.name as item_name, i.item_code, i.uom, u.first_name || ' ' || u.last_name as reporter_name
-      FROM quarantine_logs ql
-      JOIN items i ON ql.item_id = i.id
-      JOIN users u ON ql.reported_by = u.id
-      WHERE ql.status = 'pending'
-      ORDER BY ql.created_at DESC
-    `).all();
-    res.json(logs);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+const QUALITY_ROLES = ['administrator', 'warehouse_manager', 'material_planner', 'area_supervisor', 'planner'];
+
+// GET /api/quality/quarantine — open quarantine cases
+router.get('/quarantine', h(async (req, res) => {
+  res.json(await db.all(`
+    SELECT ql.*, i.name AS item_name, i.item_code, i.uom, u.first_name || ' ' || u.last_name AS reporter_name
+    FROM quarantine_logs ql
+    JOIN items i ON ql.item_id = i.id
+    JOIN users u ON ql.reported_by = u.id
+    WHERE ql.status = 'pending'
+    ORDER BY ql.created_at DESC`));
+}));
+
+// PUT /api/quality/quarantine/:id/resolve — release or scrap a quarantined lot
+router.put('/quarantine/:id/resolve', requireRole(...QUALITY_ROLES), h(async (req, res) => {
+  const id = v.paramId(req);
+  const b = v.body(req, v.z.object({
+    decision: v.z.enum(['released', 'scrapped']),
+    notes: v.optStr(2000),
+  }));
+
+  const log = await db.get('SELECT * FROM quarantine_logs WHERE id = ? FOR UPDATE', [id]);
+  if (!log) throw notFound('Quarantine case');
+  if (log.status !== 'pending') throw conflict('This quarantine case has already been decided');
+
+  await db.run('UPDATE quarantine_logs SET status = ?, decision_by = ?, decision_at = nova_now() WHERE id = ?',
+    [b.decision, req.user.id, id]);
+
+  if (b.decision === 'scrapped') {
+    // Stock was booked in at goods receipt; remove the scrapped quantity again.
+    const lot = await db.get('SELECT id FROM inventory_lots WHERE lot_number = ?', [log.lot_number]);
+    if (lot) await db.run('UPDATE inventory_lots SET quantity = quantity - ? WHERE id = ?', [log.quantity, lot.id]);
+    await db.run('UPDATE stock_levels SET quantity = quantity - ?, last_updated = nova_now() WHERE item_id = ?', [log.quantity, log.item_id]);
+    await db.run(`
+      INSERT INTO stock_transactions (item_id, lot_id, quantity, type, reference_type, reference_id, user_id)
+      VALUES (?, ?, ?, 'out', 'scrap', ?, ?)`,
+    [log.item_id, lot?.id ?? null, -log.quantity, id, req.user.id]);
   }
-});
 
-// Resolve quarantine
-router.put('/quarantine/:id/resolve', (req, res) => {
-  const { decision, decision_by, notes } = req.body;
-  
-  const transaction = db.transaction(() => {
-    const log = db.prepare('SELECT * FROM quarantine_logs WHERE id = ?').get(req.params.id);
-    if (!log) throw new Error('Quarantine log not found');
-
-    db.prepare(`
-      UPDATE quarantine_logs 
-      SET status = ?, decision_by = ?, decision_at = datetime('now', 'localtime')
-      WHERE id = ?
-    `).run(decision, decision_by, req.params.id);
-
-    if (decision === 'scrapped') {
-      // Deduct from stock if it was already added during receipt
-      db.prepare(`
-        UPDATE inventory_lots 
-        SET quantity = quantity - ? 
-        WHERE lot_number = ?
-      `).run(log.quantity, log.lot_number);
-
-      db.prepare(`
-        UPDATE stock_levels 
-        SET quantity = quantity - ? 
-        WHERE item_id = ?
-      `).run(log.quantity, log.item_id);
-
-      db.prepare(`
-        INSERT INTO stock_transactions (item_id, lot_id, quantity, type, reference_type, reference_id, user_id)
-        VALUES (?, (SELECT id FROM inventory_lots WHERE lot_number = ?), ?, 'out', 'scrap', ?, ?)
-      `).run(log.item_id, log.lot_number, log.quantity, req.params.id, decision_by);
-    }
-    // If 'released', we don't need to do anything to stock as it was already added in 'in' status
-    // but marked as 'quarantine' in goods_receipt_items. 
-    // Usually, we'd update quality_status in goods_receipt_items too.
-    if (log.receipt_item_id) {
-        db.prepare('UPDATE goods_receipt_items SET quality_status = ? WHERE id = ?')
-          .run(decision === 'released' ? 'ok' : 'rejected', log.receipt_item_id);
-    }
-
-    return true;
-  });
-
-  try {
-    transaction();
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  if (log.receipt_item_id) {
+    await db.run('UPDATE goods_receipt_items SET quality_status = ? WHERE id = ?',
+      [b.decision === 'released' ? 'ok' : 'rejected', log.receipt_item_id]);
   }
-});
+  res.json({ success: true });
+}));
 
 module.exports = router;

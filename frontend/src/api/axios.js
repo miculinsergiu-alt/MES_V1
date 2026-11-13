@@ -14,10 +14,13 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401 || err.response?.status === 403) {
+    // 401 = not logged in / session expired -> back to login.
+    // 403 = logged in but not allowed (role) -> let the screen show the error.
+    const isLoginCall = err.config?.url?.includes('/auth/login');
+    if (err.response?.status === 401 && !isLoginCall) {
       localStorage.removeItem('sf_token');
       localStorage.removeItem('sf_user');
-      window.location.href = '/login';
+      if (window.location.pathname !== '/login') window.location.href = '/login';
     }
     return Promise.reject(err);
   }

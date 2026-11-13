@@ -1,28 +1,51 @@
 const jwt = require('jsonwebtoken');
-const { usersDb } = require('../db/init');
+const config = require('../config');
+const { unauthorized, forbidden } = require('../lib/errors');
 
+const ROLES = ['administrator', 'planner', 'area_supervisor', 'shift_responsible', 'operator', 'warehouse_manager', 'material_planner'];
+
+function signToken(user, company) {
+  return jwt.sign(
+    {
+      id: user.id,
+      company_id: company.id,
+      company_code: company.code,
+      timezone: company.timezone,
+      badge_number: user.badge_number,
+      role: user.role,
+      first_name: user.first_name,
+      last_name: user.last_name,
+    },
+    config.jwtSecret,
+    { expiresIn: config.jwtExpiresIn },
+  );
+}
+
+function verifyToken(token) {
+  const decoded = jwt.verify(token, config.jwtSecret);
+  if (!decoded.company_id || !decoded.id) throw new Error('Token without company');
+  return decoded;
+}
+
+/** Requires a valid Bearer token; sets req.user (incl. company_id). */
 function authenticateToken(req, res, next) {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  if (!token) return res.status(401).json({ error: 'Token lipsă' });
-
+  const header = req.headers.authorization || '';
+  const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+  if (!token) return next(unauthorized('Missing token'));
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
-    next();
-  } catch (err) {
-    return res.status(403).json({ error: 'Token invalid sau expirat' });
+    req.user = verifyToken(token);
+    return next();
+  } catch {
+    return next(unauthorized('Invalid or expired token'));
   }
 }
 
 function requireRole(...roles) {
   return (req, res, next) => {
-    if (!req.user) return res.status(401).json({ error: 'Neautentificat' });
-    if (!roles.includes(req.user.role)) {
-      return res.status(403).json({ error: 'Acces interzis pentru rolul tău' });
-    }
-    next();
+    if (!req.user) return next(unauthorized());
+    if (!roles.includes(req.user.role)) return next(forbidden());
+    return next();
   };
 }
 
-module.exports = { authenticateToken, requireRole };
+module.exports = { authenticateToken, requireRole, signToken, verifyToken, ROLES };

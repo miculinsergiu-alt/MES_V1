@@ -142,13 +142,11 @@
     "total_nodes": "Total Nodes",
     "level": "Level",
     "signature": "Signature / Stamp",
-    "verified_by": "Verified",
+    "verified_by": "Verified by Supervisor",
     "received_prod": "Received Production",
     "expand_hint": "Click on nodes to expand/collapse",
     "expand_all": "Expand all / Collapse",
-    "phantom": "Phantom / Dept",
-    "verified_by": "Verified by Supervisor",
-    "signature": "Signature / Stamp"
+    "phantom": "Phantom / Dept"
   },
   "common": {
     "item": "Item",
@@ -399,7 +397,9 @@
     "error_fill": "Complete all fields",
     "welcome": "Welcome, {{name}}!",
     "auth_error": "Authentication error",
-    "rights": "All rights reserved."
+    "rights": "All rights reserved.",
+    "company": "Company Code",
+    "company_placeholder": "e.g. ACME"
   },
   "shift": {
     "report_form_hint": "Shift Report form available for the Active Shift.",

@@ -1,143 +1,117 @@
 const express = require('express');
-const { db } = require('../db/init');
+const db = require('../db');
+const { h } = require('../lib/handler');
+const v = require('../lib/validate');
+const { notFound, conflict } = require('../lib/errors');
 const { authenticateToken, requireRole } = require('../middleware/auth');
+
 const router = express.Router();
+router.use(authenticateToken);
 
-// GET /api/shifts — list all shifts with responsible info
-router.get('/', authenticateToken, (req, res) => {
-  const shifts = db.prepare(`
-    SELECT s.*, u.first_name, u.last_name, u.badge_number
-    FROM shifts s
-    LEFT JOIN users u ON s.shift_responsible_id = u.id
-    ORDER BY s.start_time ASC
-  `).all();
-  res.json(shifts);
-});
+const SCHEDULERS = ['planner', 'administrator', 'area_supervisor', 'shift_responsible'];
 
-// GET /api/shifts/:id - detailed shift with members
-router.get('/:id', authenticateToken, (req, res) => {
-  const shift = db.prepare('SELECT * FROM shifts WHERE id = ?').get(req.params.id);
-  if (!shift) return res.status(404).json({ error: 'Schimbul nu a fost găsit' });
+// ─── Operator schedule (must be registered before /:id) ─────────────────────
 
-  const members = db.prepare(`
-    SELECT u.id, u.first_name, u.last_name, u.badge_number, u.role
-    FROM shift_members sm
-    JOIN users u ON sm.user_id = u.id
-    WHERE sm.shift_id = ?
-  `).all(req.params.id);
-
-  res.json({ ...shift, members });
-});
-
-// POST /api/shifts - create shift + members
-router.post('/', authenticateToken, requireRole('administrator', 'area_supervisor'), (req, res) => {
-  const { name, shift_responsible_id, start_time, end_time, members } = req.body;
-  if (!name || !shift_responsible_id) return res.status(400).json({ error: 'Numele și Responsabilul sunt obligatorii' });
-
-  const transaction = db.transaction(() => {
-    const info = db.prepare(`
-      INSERT INTO shifts (name, shift_responsible_id, start_time, end_time)
-      VALUES (?, ?, ?, ?)
-    `).run(name, shift_responsible_id, start_time || '06:00', end_time || '14:00');
-
-    const shiftId = info.lastInsertRowid;
-    if (members && Array.isArray(members)) {
-      const stmt = db.prepare('INSERT INTO shift_members (shift_id, user_id) VALUES (?, ?)');
-      for (const userId of members) {
-        stmt.run(shiftId, userId);
-      }
-    }
-    return shiftId;
-  });
-
-  try {
-    const id = transaction();
-    res.status(201).json({ id, message: 'Schimb creat cu succes' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// PUT /api/shifts/:id - update shift + members
-router.put('/:id', authenticateToken, requireRole('administrator', 'area_supervisor'), (req, res) => {
-  const { name, shift_responsible_id, start_time, end_time, members } = req.body;
-  
-  const transaction = db.transaction(() => {
-    db.prepare(`
-      UPDATE shifts SET name = ?, shift_responsible_id = ?, start_time = ?, end_time = ?
-      WHERE id = ?
-    `).run(name, shift_responsible_id, start_time, end_time, req.params.id);
-
-    db.prepare('DELETE FROM shift_members WHERE shift_id = ?').run(req.params.id);
-    if (members && Array.isArray(members)) {
-      const stmt = db.prepare('INSERT INTO shift_members (shift_id, user_id) VALUES (?, ?)');
-      for (const userId of members) {
-        stmt.run(req.params.id, userId);
-      }
-    }
-  });
-
-  try {
-    transaction();
-    res.json({ message: 'Schimb actualizat' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// DELETE /api/shifts/:id
-router.delete('/:id', authenticateToken, requireRole('administrator', 'area_supervisor'), (req, res) => {
-  db.prepare('DELETE FROM shifts WHERE id = ?').run(req.params.id);
-  res.json({ message: 'Schimb șters' });
-});
-
-// ─── SCHEDULE ROUTES ────────────────────────────────────────────────────────
-
-// GET /api/shifts/schedule — get operator schedules
-router.get('/schedule', authenticateToken, (req, res) => {
-  const { date_from, date_to, machine_id } = req.query;
+// GET /api/shifts/schedule
+router.get('/schedule', h(async (req, res) => {
+  const q = v.query(req, v.z.object({ date_from: v.optDate, date_to: v.optDate, machine_id: v.optId }));
+  const params = [];
   let sql = `
-    SELECT os.*, u.first_name, u.last_name, u.badge_number, m.name as machine_name, s.name as shift_name
+    SELECT os.*, u.first_name, u.last_name, u.badge_number, m.name AS machine_name, s.name AS shift_name
     FROM operator_schedules os
     JOIN users u ON os.user_id = u.id
     JOIN machines m ON os.machine_id = m.id
     JOIN shifts s ON os.shift_id = s.id
-    WHERE 1=1
-  `;
-  const params = [];
-  if (date_from) { sql += ' AND os.work_date >= ?'; params.push(date_from); }
-  if (date_to) { sql += ' AND os.work_date <= ?'; params.push(date_to); }
-  if (machine_id) { sql += ' AND os.machine_id = ?'; params.push(machine_id); }
-  
-  const schedule = db.prepare(sql).all(...params);
-  res.json(schedule);
-});
+    WHERE 1=1`;
+  if (q.date_from) { sql += ' AND os.work_date >= ?'; params.push(q.date_from); }
+  if (q.date_to) { sql += ' AND os.work_date <= ?'; params.push(q.date_to); }
+  if (q.machine_id) { sql += ' AND os.machine_id = ?'; params.push(q.machine_id); }
+  res.json(await db.all(`${sql} ORDER BY os.work_date, s.start_time`, params));
+}));
 
 // POST /api/shifts/schedule
-router.post('/schedule', authenticateToken, requireRole('planner', 'administrator', 'area_supervisor', 'shift_responsible'), (req, res) => {
-  const { user_id, machine_id, shift_id, work_date } = req.body;
-  if (!user_id || !machine_id || !shift_id || !work_date) {
-    return res.status(400).json({ error: 'Toate câmpurile sunt obligatorii' });
-  }
-
-  try {
-    db.prepare(`
-      INSERT INTO operator_schedules (user_id, machine_id, shift_id, work_date)
-      VALUES (?, ?, ?, ?)
-    `).run(user_id, machine_id, shift_id, work_date);
-    res.status(201).json({ message: 'Programare salvată' });
-  } catch (err) {
-    if (err.message.includes('UNIQUE constraint failed')) {
-      return res.status(400).json({ error: 'Operatorul are deja o programare în acest schimb la această dată' });
-    }
-    res.status(500).json({ error: err.message });
-  }
-});
+router.post('/schedule', requireRole(...SCHEDULERS), h(async (req, res) => {
+  const b = v.body(req, v.z.object({ user_id: v.id, machine_id: v.id, shift_id: v.id, work_date: v.date }));
+  const row = await db.get(`
+    INSERT INTO operator_schedules (user_id, machine_id, shift_id, work_date) VALUES (?, ?, ?, ?)
+    ON CONFLICT (user_id, work_date, shift_id) DO NOTHING RETURNING id`,
+  [b.user_id, b.machine_id, b.shift_id, b.work_date]);
+  if (!row) throw conflict('This operator is already scheduled in this shift on this date');
+  res.status(201).json({ id: row.id, message: 'Schedule saved' });
+}));
 
 // DELETE /api/shifts/schedule/:id
-router.delete('/schedule/:id', authenticateToken, requireRole('planner', 'administrator', 'area_supervisor', 'shift_responsible'), (req, res) => {
-  db.prepare('DELETE FROM operator_schedules WHERE id = ?').run(req.params.id);
-  res.json({ message: 'Programare ștearsă' });
+router.delete('/schedule/:id', requireRole(...SCHEDULERS), h(async (req, res) => {
+  await db.run('DELETE FROM operator_schedules WHERE id = ?', [v.paramId(req)]);
+  res.json({ message: 'Schedule deleted' });
+}));
+
+// ─── Shifts ─────────────────────────────────────────────────────────────────
+
+// GET /api/shifts — all shifts with responsible person
+router.get('/', h(async (req, res) => {
+  res.json(await db.all(`
+    SELECT s.*, u.first_name, u.last_name, u.badge_number
+    FROM shifts s LEFT JOIN users u ON s.shift_responsible_id = u.id
+    ORDER BY s.start_time ASC NULLS LAST, s.id`));
+}));
+
+// GET /api/shifts/:id — shift with members
+router.get('/:id', h(async (req, res) => {
+  const id = v.paramId(req);
+  const shift = await db.get('SELECT * FROM shifts WHERE id = ?', [id]);
+  if (!shift) throw notFound('Shift');
+  const members = await db.all(`
+    SELECT u.id, u.first_name, u.last_name, u.badge_number, u.role
+    FROM shift_members sm JOIN users u ON sm.user_id = u.id
+    WHERE sm.shift_id = ? ORDER BY u.last_name`, [id]);
+  res.json({ ...shift, members });
+}));
+
+const shiftSchema = v.z.object({
+  name: v.str(100),
+  shift_responsible_id: v.id,
+  start_time: v.time.optional(),
+  end_time: v.time.optional(),
+  members: v.z.array(v.id).optional(),
 });
+
+async function setMembers(shiftId, members) {
+  await db.run('DELETE FROM shift_members WHERE shift_id = ?', [shiftId]);
+  for (const userId of new Set(members)) {
+    await db.run('INSERT INTO shift_members (shift_id, user_id) VALUES (?, ?) ON CONFLICT DO NOTHING', [shiftId, userId]);
+  }
+}
+
+// POST /api/shifts — create shift with members
+router.post('/', requireRole('administrator', 'area_supervisor'), h(async (req, res) => {
+  const b = v.body(req, shiftSchema);
+  const row = await db.get('INSERT INTO shifts (name, shift_responsible_id, start_time, end_time) VALUES (?, ?, ?, ?) RETURNING id',
+    [b.name, b.shift_responsible_id, b.start_time || '06:00', b.end_time || '14:00']);
+  if (b.members) await setMembers(row.id, b.members);
+  res.status(201).json({ id: row.id, message: 'Shift created' });
+}));
+
+// PUT /api/shifts/:id — update shift and members
+router.put('/:id', requireRole('administrator', 'area_supervisor'), h(async (req, res) => {
+  const id = v.paramId(req);
+  const b = v.body(req, shiftSchema.partial());
+  const s = await db.get('SELECT * FROM shifts WHERE id = ?', [id]);
+  if (!s) throw notFound('Shift');
+  await db.run('UPDATE shifts SET name = ?, shift_responsible_id = ?, start_time = ?, end_time = ? WHERE id = ?',
+    [b.name ?? s.name, b.shift_responsible_id ?? s.shift_responsible_id, b.start_time ?? s.start_time, b.end_time ?? s.end_time, id]);
+  if (b.members) await setMembers(id, b.members);
+  res.json({ message: 'Shift updated' });
+}));
+
+// DELETE /api/shifts/:id
+router.delete('/:id', requireRole('administrator', 'area_supervisor'), h(async (req, res) => {
+  const id = v.paramId(req);
+  const used = await db.get('SELECT id FROM shift_reports WHERE shift_id = ? LIMIT 1', [id]);
+  if (used) throw conflict('This shift has shift reports and cannot be deleted');
+  const r = await db.run('DELETE FROM shifts WHERE id = ?', [id]);
+  if (!r.rowCount) throw notFound('Shift');
+  res.json({ message: 'Shift deleted' });
+}));
 
 module.exports = router;

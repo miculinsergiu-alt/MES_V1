@@ -1,487 +1,352 @@
 const express = require('express');
-const { db } = require('../db/init');
+const db = require('../db');
+const { h } = require('../lib/handler');
+const v = require('../lib/validate');
+const { notFound, forbidden, AppError, badRequest } = require('../lib/errors');
+const { nowLocal, todayLocal, parseLocal, formatLocal, diffMinutes } = require('../lib/time');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 const { broadcast } = require('../services/socket');
-const router = express.Router();
+const { propagateDelay } = require('./orders');
 
-// ─── Helper: check operator conflict ───────────────────────────────────────
-function checkOperatorConflict(operatorId, startTime, endTime, excludeAllocationId = null) {
-  let sql = `
-    SELECT * FROM machine_allocations 
-    WHERE operator_id = ?
-    AND phase IN ('setup', 'working')
-    AND datetime(start_time) < datetime(?)
-    AND datetime(end_time) > datetime(?)
-  `;
-  const params = [operatorId, endTime, startTime];
-  if (excludeAllocationId) { sql += ' AND id != ?'; params.push(excludeAllocationId); }
-  
-  const allocations = db.prepare(sql).all(...params);
-  
-  return allocations.map(ma => {
-    const order = db.prepare('SELECT machine_id, product_name FROM orders WHERE id = ?').get(ma.order_id);
-    return { ...ma, machine_id: order?.machine_id, product_name: order?.product_name };
-  });
+const router = express.Router();
+router.use(authenticateToken);
+
+const ACTION_TYPES = ['setup_start', 'setup_end', 'working_start', 'working_end', 'supervision_start', 'supervision_end', 'delay_start', 'delay_end'];
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+/** Allocations of an operator (setup/working) that overlap [start, end). */
+async function findOperatorConflicts(operatorId, start, end) {
+  return db.all(`
+    SELECT ma.*, o.machine_id AS order_machine_id, o.product_name
+    FROM machine_allocations ma JOIN orders o ON ma.order_id = o.id
+    WHERE ma.operator_id = ? AND ma.phase IN ('setup','working')
+      AND ma.start_time::timestamp < ?::timestamp AND ma.end_time::timestamp > ?::timestamp`,
+  [operatorId, end, start]);
 }
 
-// ─── Helper: Deduct Stock based on BOM ─────────────────────────────────────
-function deductStock(orderId, producedQty, userId) {
-  const order = db.prepare('SELECT bom_id, parent_order_id, routing_sequence FROM orders WHERE id = ?').get(orderId);
-  if (!order) return;
+function overlapMinutes(start, end, conflicts) {
+  const s = parseLocal(start); const e = parseLocal(end);
+  const ms = conflicts.reduce((sum, c) => sum + Math.max(0, Math.min(e, parseLocal(c.end_time)) - Math.max(s, parseLocal(c.start_time))), 0);
+  return Math.ceil(ms / 60000);
+}
 
-  // RULE: Only deduct stock for the FIRST step of a routing chain (parent_order_id is NULL)
-  // Subsequent steps consume the "semi-finished" product conceptually, but we only track 
-  // raw material consumption at the start of the chain (e.g. Phase 1).
-  if (order.parent_order_id !== null) {
-    console.log(`[MRP] Skipping deduction for Order ${orderId} (Step ${order.routing_sequence}) - Not the first step.`);
-    return;
-  }
+/**
+ * Books raw-material consumption for produced quantity.
+ * Only the first step of a routing chain consumes material.
+ */
+async function deductStock(orderId, producedQty, userId) {
+  const order = await db.get('SELECT bom_id, parent_order_id FROM orders WHERE id = ?', [orderId]);
+  if (!order || order.parent_order_id !== null || !order.bom_id) return;
 
-  if (!order.bom_id) return;
+  const positions = await db.all(`
+    SELECT item_id, quantity FROM bom_positions
+    WHERE bom_id = ? AND node_type = 'component' AND item_id IS NOT NULL`, [order.bom_id]);
 
-  // We only deduct items that are components (not departments/phantoms)
-  const positions = db.prepare(`
-    SELECT item_id, quantity 
-    FROM bom_positions 
-    WHERE bom_id = ? AND node_type = 'component' AND item_id IS NOT NULL
-  `).all(order.bom_id);
-  
   for (const pos of positions) {
-    const requiredTotal = pos.quantity * producedQty;
-    if (requiredTotal <= 0) continue;
-    
-    // 1. Consume Allocation if it exists for this specific order
-    const allocation = db.prepare('SELECT * FROM order_material_allocations WHERE order_id = ? AND item_id = ?').get(orderId, pos.item_id);
-    let qtyToDeductFromAllocation = 0;
-    
-    if (allocation) {
-       // Only deduct what was originally allocated (prevent negative allocations if over-producing)
-       qtyToDeductFromAllocation = Math.min(allocation.allocated_qty, requiredTotal);
-       
-       if (qtyToDeductFromAllocation > 0) {
-           // Release from the soft allocation pool
-           db.prepare('UPDATE stock_levels SET allocated_quantity = MAX(0, allocated_quantity - ?) WHERE item_id = ?').run(qtyToDeductFromAllocation, pos.item_id);
-           
-           // Reduce the specific order's allocation record
-           const remainingAlloc = allocation.allocated_qty - qtyToDeductFromAllocation;
-           if (remainingAlloc <= 0) {
-               db.prepare('DELETE FROM order_material_allocations WHERE id = ?').run(allocation.id);
-           } else {
-               db.prepare('UPDATE order_material_allocations SET allocated_qty = ? WHERE id = ?').run(remainingAlloc, allocation.id);
-           }
-       }
+    const required = pos.quantity * producedQty;
+    if (required <= 0) continue;
+
+    const alloc = await db.get('SELECT * FROM order_material_allocations WHERE order_id = ? AND item_id = ? FOR UPDATE', [orderId, pos.item_id]);
+    if (alloc) {
+      const used = Math.min(alloc.allocated_qty, required);
+      if (used > 0) {
+        await db.run('UPDATE stock_levels SET allocated_quantity = GREATEST(0, allocated_quantity - ?) WHERE item_id = ?', [used, pos.item_id]);
+        const remaining = alloc.allocated_qty - used;
+        if (remaining <= 0) await db.run('DELETE FROM order_material_allocations WHERE id = ?', [alloc.id]);
+        else await db.run('UPDATE order_material_allocations SET allocated_qty = ? WHERE id = ?', [remaining, alloc.id]);
+      }
     }
 
-    // 2. Update actual physical stock level
-    db.prepare(`
-      INSERT INTO stock_levels (item_id, quantity, last_updated)
-      VALUES (?, ?, datetime('now', 'localtime'))
-      ON CONFLICT(item_id) DO UPDATE SET 
-        quantity = quantity - EXCLUDED.quantity, 
-        last_updated = datetime('now', 'localtime')
-    `).run(pos.item_id, requiredTotal);
-      
-    // 3. Log transaction
-    db.prepare(`
+    await db.run(`
+      INSERT INTO stock_levels (item_id, quantity, last_updated) VALUES (?, ?, nova_now())
+      ON CONFLICT (item_id) DO UPDATE SET quantity = stock_levels.quantity + EXCLUDED.quantity, last_updated = nova_now()`,
+    [pos.item_id, -required]);
+    await db.run(`
       INSERT INTO stock_transactions (item_id, quantity, type, reference_type, reference_id, user_id)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(pos.item_id, -requiredTotal, 'out', 'order_completion', orderId, userId);
+      VALUES (?, ?, 'out', 'order_completion', ?, ?)`, [pos.item_id, -required, orderId, userId]);
   }
 }
+
+async function getOwnedAllocation(req, allocationId) {
+  const alloc = await db.get('SELECT * FROM machine_allocations WHERE id = ?', [allocationId]);
+  if (!alloc) throw notFound('Allocation');
+  if (req.user.role === 'operator' && alloc.operator_id !== req.user.id) {
+    throw forbidden('This task is assigned to another operator');
+  }
+  return alloc;
+}
+
+// ─── Read routes ────────────────────────────────────────────────────────────
 
 // GET /api/production/allocations
-router.get('/allocations', authenticateToken, (req, res) => {
-  const { order_id, operator_id, machine_id } = req.query;
-  let sql = 'SELECT * FROM machine_allocations WHERE 1=1';
+router.get('/allocations', h(async (req, res) => {
+  const q = v.query(req, v.z.object({ order_id: v.optId, operator_id: v.optId, machine_id: v.optId }));
   const params = [];
-  if (order_id) { sql += ' AND order_id = ?'; params.push(order_id); }
-  if (operator_id) { sql += ' AND operator_id = ?'; params.push(operator_id); }
-  if (machine_id) { sql += ' AND machine_id = ?'; params.push(machine_id); }
-  sql += ' ORDER BY start_time ASC';
-  const allocations = db.prepare(sql).all(...params);
-  res.json(allocations);
-});
+  let sql = 'SELECT * FROM machine_allocations WHERE 1=1';
+  if (q.order_id) { sql += ' AND order_id = ?'; params.push(q.order_id); }
+  if (q.operator_id) { sql += ' AND operator_id = ?'; params.push(q.operator_id); }
+  if (q.machine_id) { sql += ' AND machine_id = ?'; params.push(q.machine_id); }
+  res.json(await db.all(`${sql} ORDER BY start_time::timestamp ASC, id ASC`, params));
+}));
 
-// GET /api/production/operator/:id
-router.get('/operator/:id', authenticateToken, (req, res) => {
-  const result = db.prepare(`
-    SELECT ma.*, o.product_name, o.quantity, o.planned_start, o.planned_end, o.status as order_status, o.item_id
-    FROM machine_allocations ma
-    JOIN orders o ON ma.order_id = o.id
-    WHERE ma.operator_id = ? AND o.status != 'cancelled'
-    ORDER BY o.planned_start ASC
-  `).all(req.params.id);
-
-  res.json(result);
-});
+// GET /api/production/operator/:id — tasks of an operator
+router.get('/operator/:id', h(async (req, res) => {
+  const operatorId = v.paramId(req);
+  if (req.user.role === 'operator' && operatorId !== req.user.id) throw forbidden();
+  res.json(await db.all(`
+    SELECT ma.*, o.product_name, o.quantity, o.planned_start, o.planned_end, o.status AS order_status, o.item_id
+    FROM machine_allocations ma JOIN orders o ON ma.order_id = o.id
+    WHERE ma.operator_id = ? AND o.status <> 'cancelled'
+    ORDER BY o.planned_start::timestamp ASC`, [operatorId]));
+}));
 
 // GET /api/production/machine/:id/status
-router.get('/machine/:id/status', authenticateToken, (req, res) => {
-  const now = formatLocal(new Date());
-  const activeOrder = db.prepare(`
+router.get('/machine/:id/status', h(async (req, res) => {
+  const machineId = v.paramId(req);
+  const now = nowLocal(req.user.timezone);
+  const activeOrder = await db.get(`
     SELECT * FROM orders WHERE machine_id = ? AND status = 'active'
-    ORDER BY planned_start ASC LIMIT 1
-  `).get(req.params.id);
+    ORDER BY planned_start::timestamp ASC LIMIT 1`, [machineId]);
 
   let currentAlloc = null;
+  let totals = { ok: 0, fail: 0 };
   if (activeOrder) {
-    currentAlloc = db.prepare(`
-      SELECT * FROM machine_allocations 
-      WHERE order_id = ? AND datetime(start_time) <= datetime(?) AND datetime(end_time) >= datetime(?)
-      LIMIT 1
-    `).get(activeOrder.id, now, now);
-
-    if (currentAlloc) {
-      const user = db.prepare('SELECT first_name, last_name, badge_number FROM users WHERE id = ?').get(currentAlloc.operator_id);
-      currentAlloc = { ...currentAlloc, ...user };
-    }
+    currentAlloc = await db.get(`
+      SELECT ma.*, u.first_name, u.last_name, u.badge_number
+      FROM machine_allocations ma LEFT JOIN users u ON ma.operator_id = u.id
+      WHERE ma.order_id = ? AND ma.start_time::timestamp <= ?::timestamp AND ma.end_time::timestamp >= ?::timestamp
+      LIMIT 1`, [activeOrder.id, now, now]) || null;
+    totals = await db.get('SELECT COALESCE(SUM(qty_ok),0) AS ok, COALESCE(SUM(qty_fail),0) AS fail FROM production_results WHERE order_id = ?', [activeOrder.id]);
   }
-
-  const results = activeOrder ? db.prepare('SELECT * FROM production_results WHERE order_id = ?').all(activeOrder.id) : [];
-  const totalOk = results.reduce((a,r) => a + r.qty_ok, 0);
-  const totalFail = results.reduce((a,r) => a + r.qty_fail, 0);
-  const produced = totalOk + totalFail;
+  const produced = totals.ok + totals.fail;
   const progress = activeOrder ? Math.round((produced / activeOrder.quantity) * 100) : 0;
+  res.json({ activeOrder: activeOrder || null, currentAlloc, progress, totalOk: totals.ok, totalFail: totals.fail, produced });
+}));
 
-  res.json({ activeOrder, currentAlloc, progress, totalOk, totalFail, produced });
-});
+// ─── Allocations ────────────────────────────────────────────────────────────
 
-// POST /api/production/allocations
-router.post('/allocations', authenticateToken, requireRole('shift_responsible','administrator'), (req, res) => {
-  const { order_id, operator_id, machine_id, start_time, end_time, phase, force_with_delay } = req.body;
-  if (!order_id || !operator_id || !machine_id || !start_time || !end_time) {
-    return res.status(400).json({ error: 'Câmpuri obligatorii lipsă' });
-  }
+// POST /api/production/allocations — assign an operator to an order
+router.post('/allocations', requireRole('shift_responsible', 'administrator'), h(async (req, res) => {
+  const b = v.body(req, v.z.object({
+    order_id: v.id,
+    operator_id: v.id,
+    machine_id: v.id,
+    start_time: v.dateTime,
+    end_time: v.dateTime,
+    phase: v.z.enum(['setup', 'working', 'supervision']).default('working'),
+    force_with_delay: v.z.coerce.boolean().default(false),
+  }));
+  if (diffMinutes(b.end_time, b.start_time) <= 0) throw badRequest('end_time must be after start_time');
+  const order = await db.get('SELECT * FROM orders WHERE id = ? FOR UPDATE', [b.order_id]);
+  if (!order) throw notFound('Order');
 
-  const conflicts = checkOperatorConflict(operator_id, start_time, end_time);
-  if (conflicts.length > 0 && !force_with_delay) {
-    const overlapMs = conflicts.reduce((total, c) => {
-      const overlapStart = new Date(Math.max(new Date(start_time), new Date(c.start_time)));
-      const overlapEnd = new Date(Math.min(new Date(end_time), new Date(c.end_time)));
-      return total + Math.max(0, overlapEnd - overlapStart);
-    }, 0);
-    const delayMinutes = Math.ceil(overlapMs / 60000);
-
-    return res.status(409).json({
-      error: 'Conflict de alocare',
-      conflicts,
-      delay_minutes: delayMinutes
+  const conflicts = await findOperatorConflicts(b.operator_id, b.start_time, b.end_time);
+  const delayMinutes = conflicts.length ? overlapMinutes(b.start_time, b.end_time, conflicts) : 0;
+  if (conflicts.length && !b.force_with_delay) {
+    // 409 lets the planner confirm the allocation with the resulting delay.
+    throw new AppError(409, 'ALLOCATION_CONFLICT', 'The operator is already allocated in this time window', {
+      conflicts: conflicts.map((c) => ({ ...c, machine_id: c.order_machine_id })),
+      delay_minutes: delayMinutes,
     });
   }
 
-  let delayMin = 0;
-  if (conflicts.length > 0 && force_with_delay) {
-    const overlapMs = conflicts.reduce((total, c) => {
-      const overlapStart = new Date(Math.max(new Date(start_time), new Date(c.start_time)));
-      const overlapEnd = new Date(Math.min(new Date(end_time), new Date(c.end_time)));
-      return total + Math.max(0, overlapEnd - overlapStart);
-    }, 0);
-    delayMin = Math.ceil(overlapMs / 60000);
-
-    const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(order_id);
-    if (order) {
-      const newEnd = new Date(new Date(order.planned_end).getTime() + delayMin * 60000).toISOString().replace('T',' ').substring(0,19);
-      db.prepare('UPDATE orders SET planned_end=? WHERE id=?').run(newEnd, order_id);
-      db.prepare('INSERT INTO order_delays (order_id, delay_minutes, reason, reported_by, source, applied) VALUES (?,?,?,?,?,1)')
-        .run(order_id, delayMin, 'Conflict alocare operator', req.user.id, 'system');
-    }
+  if (delayMinutes > 0) {
+    await db.run(`
+      INSERT INTO order_delays (order_id, delay_minutes, reason, reported_by, source, applied)
+      VALUES (?, ?, 'Operator allocation conflict', ?, 'system', 1)`, [b.order_id, delayMinutes, req.user.id]);
+    await propagateDelay(b.order_id, delayMinutes);
   }
 
-  const result = db.prepare(`
+  const row = await db.get(`
     INSERT INTO machine_allocations (order_id, operator_id, machine_id, start_time, end_time, phase, delay_confirmed, delay_minutes)
-    VALUES (?,?,?,?,?,?,?,?)
-  `).run(order_id, operator_id, machine_id, start_time, end_time, phase || 'working', conflicts.length > 0 ? 1 : 0, delayMin);
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+  [b.order_id, b.operator_id, b.machine_id, b.start_time, b.end_time, b.phase, conflicts.length ? 1 : 0, delayMinutes]);
+  await db.run("UPDATE orders SET status = 'active' WHERE id = ? AND status = 'pending'", [b.order_id]);
 
-  db.prepare("UPDATE orders SET status='active' WHERE id=? AND status='pending'").run(order_id);
+  broadcast('production:allocated', { order_id: b.order_id, machine_id: b.machine_id, operator_id: b.operator_id });
+  res.status(201).json({ id: row.id, delay_minutes: delayMinutes, message: 'Operator allocated' });
+}));
 
-  broadcast('production:allocated', { order_id, machine_id, operator_id });
-  res.status(201).json({ id: result.lastInsertRowid, delay_minutes: delayMin, message: 'Operator alocat cu succes' });
-});
+// ─── Shop-floor actions ─────────────────────────────────────────────────────
 
-function formatLocal(date) {
-  const d = new Date(date);
-  const z = n => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}:${z(d.getSeconds())}`;
-}
-
-// Helper to add minutes
-function addMinutes(dateStr, minutes) {
-  const d = new Date(dateStr.replace(' ', 'T'));
-  d.setMinutes(d.getMinutes() + minutes);
-  return formatLocal(d);
-}
-
-// Internal propagate function (Matching the logic in orders.js)
-function propagateScheduleShift(machineId, fromOrderId, delayMinutes) {
-  const { ordersDb } = require('../db/init');
-  const order = ordersDb.prepare('SELECT * FROM orders WHERE id = ?').get(fromOrderId);
-  if (!order) return;
-
-  // 1. Update current order
-  const newEnd = addMinutes(order.planned_end, delayMinutes);
-  ordersDb.prepare('UPDATE orders SET planned_end = ? WHERE id = ?').run(newEnd, fromOrderId);
-
-  // 2. Propagate to ALL future orders on same machine
-  const futureOrders = ordersDb.prepare(`
-    SELECT * FROM orders 
-    WHERE machine_id = ? AND id != ? AND status != 'cancelled'
-    AND datetime(planned_start) >= datetime(?)
-    ORDER BY planned_start ASC
-  `).all(machineId, fromOrderId, order.planned_start);
-
-  let lastEnd = newEnd;
-  for (const o of futureOrders) {
-    const startObj = new Date(o.planned_start.replace(' ','T'));
-    const endObj = new Date(o.planned_end.replace(' ','T'));
-    const duration = (endObj - startObj) / 60000;
-    
-    const newOStart = lastEnd;
-    const newOEnd = addMinutes(newOStart, duration);
-    ordersDb.prepare('UPDATE orders SET planned_start = ?, planned_end = ? WHERE id = ?').run(newOStart, newOEnd, o.id);
-    lastEnd = newOEnd;
+// POST /api/production/actions — operator starts/ends setup, work, supervision or a delay
+router.post('/actions', h(async (req, res) => {
+  const b = v.body(req, v.z.object({
+    allocation_id: v.id,
+    action_type: v.z.enum(ACTION_TYPES),
+    notes: v.optStr(2000),
+  }));
+  const tz = req.user.timezone;
+  const now = nowLocal(tz);
+  const alloc = await getOwnedAllocation(req, b.allocation_id);
+  const order = await db.get('SELECT * FROM orders WHERE id = ? FOR UPDATE', [alloc.order_id]);
+  if (!order) throw notFound('Order');
+  if (['done', 'cancelled'].includes(order.status) && b.action_type.endsWith('_start')) {
+    throw badRequest(`Order is already ${order.status}`);
   }
-}
 
-// POST /api/production/actions
-router.post('/actions', authenticateToken, (req, res) => {
-  const { allocation_id, action_type, notes } = req.body;
-  if (!allocation_id || !action_type) return res.status(400).json({ error: 'Câmpuri obligatorii lipsă' });
-  
-  db.transaction(() => {
-    db.prepare("INSERT INTO operator_actions (allocation_id, action_type, notes, timestamp) VALUES (?,?,?,datetime('now', 'localtime'))").run(allocation_id, action_type, notes || '');
+  await db.run('INSERT INTO operator_actions (allocation_id, action_type, notes, timestamp) VALUES (?, ?, ?, ?)',
+    [b.allocation_id, b.action_type, b.notes ?? '', now]);
 
-    // AUTOMATIC DELAY DETECTION
-    if (action_type === 'setup_start' || action_type === 'working_start') {
-      const alloc = db.prepare('SELECT * FROM machine_allocations WHERE id = ?').get(allocation_id);
-      const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(alloc.order_id);
-      
-      const now = new Date();
-      const plannedStart = new Date(order.planned_start.replace(' ', 'T'));
-      
-      // Update actual_start on first start action
-      if (!order.actual_start) {
-        db.prepare("UPDATE orders SET actual_start = datetime('now', 'localtime') WHERE id = ?").run(order.id);
-      }
+  if (b.action_type === 'setup_start' || b.action_type === 'working_start') {
+    if (!order.actual_start) await db.run('UPDATE orders SET actual_start = ? WHERE id = ?', [now, order.id]);
 
-      // If operator starts more than 1 minute late
-      if (now > plannedStart.getTime() + 60000) {
-        const delayMins = Math.ceil((now - plannedStart) / 60000);
-        
-        // Log the delay
-        db.prepare('INSERT INTO order_delays (order_id, delay_minutes, reason, reported_by, source, applied) VALUES (?,?,?,?,?,1)')
-          .run(order.id, delayMins, `Pornire întârziată (${action_type})`, req.user.id, 'operator');
-        
-        // Update current order start to actual
-        db.prepare('UPDATE orders SET planned_start = ? WHERE id = ?').run(formatLocal(now), order.id);
-        
-        // Propagate to shift everything
-        propagateScheduleShift(order.machine_id, order.id, delayMins);
-      }
+    // Late start (more than 1 minute): log it and push the plan.
+    const lateMinutes = Math.ceil(diffMinutes(now, order.planned_start));
+    if (lateMinutes > 1) {
+      await db.run(`
+        INSERT INTO order_delays (order_id, delay_minutes, reason, reported_by, source, applied)
+        VALUES (?, ?, ?, ?, 'operator', 1)`, [order.id, lateMinutes, `Late start (${b.action_type})`, req.user.id]);
+      await db.run('UPDATE orders SET planned_start = ? WHERE id = ?', [now, order.id]);
+      await propagateDelay(order.id, lateMinutes);
     }
+  }
 
-    if (action_type === 'working_end') {
-      const alloc = db.prepare('SELECT * FROM machine_allocations WHERE id = ?').get(allocation_id);
-      db.prepare("UPDATE orders SET actual_end = datetime('now', 'localtime'), status = 'done' WHERE id = ?").run(alloc.order_id);
-      broadcast('order:completed', { order_id: alloc.order_id });
+  if (b.action_type === 'working_end') {
+    await db.run("UPDATE orders SET actual_end = ?, status = 'done' WHERE id = ?", [now, order.id]);
+    broadcast('order:completed', { order_id: order.id });
+  }
+
+  if (b.action_type.endsWith('_end')) {
+    const phase = b.action_type.replace('_end', '');
+    const start = await db.get(`
+      SELECT timestamp FROM operator_actions WHERE allocation_id = ? AND action_type = ?
+      ORDER BY timestamp DESC, id DESC LIMIT 1`, [b.allocation_id, `${phase}_start`]);
+    if (start && phase !== 'delay') {
+      const hours = Math.max(0, diffMinutes(now, start.timestamp)) / 60;
+      await db.run('UPDATE machines SET total_running_hours = total_running_hours + ? WHERE id = ?', [hours, alloc.machine_id]);
     }
+  }
 
-    if (action_type.endsWith('_end')) {
-      const phase = action_type.replace('_end', '');
-      const startAction = db.prepare(`
-        SELECT timestamp FROM operator_actions 
-        WHERE allocation_id = ? AND action_type = ? 
-        ORDER BY timestamp DESC LIMIT 1
-      `).get(allocation_id, `${phase}_start`);
+  broadcast('production:action', { allocation_id: b.allocation_id, action_type: b.action_type });
+  res.status(201).json({ message: 'Action recorded' });
+}));
 
-      if (startAction) {
-        const durationHours = (new Date() - new Date(startAction.timestamp)) / 3600000;
-        const alloc = db.prepare('SELECT machine_id FROM machine_allocations WHERE id = ?').get(allocation_id);
-        if (alloc) {
-          db.prepare('UPDATE machines SET total_running_hours = total_running_hours + ? WHERE id = ?')
-            .run(durationHours, alloc.machine_id);
-        }
-      }
+// POST /api/production/results — report good/scrap quantities
+router.post('/results', h(async (req, res) => {
+  const b = v.body(req, v.z.object({
+    order_id: v.id,
+    qty_ok: v.z.coerce.number().int().min(0).default(0),
+    qty_fail: v.z.coerce.number().int().min(0).default(0),
+    defects: v.z.array(v.z.object({
+      reason_id: v.id,
+      quantity: v.z.coerce.number().int().min(0),
+      notes: v.optStr(2000),
+    })).optional(),
+  }));
+  if (b.qty_ok + b.qty_fail === 0) throw badRequest('Enter a quantity');
+
+  const order = await db.get('SELECT * FROM orders WHERE id = ? FOR UPDATE', [b.order_id]);
+  if (!order) throw notFound('Order');
+  if (order.status === 'cancelled') throw badRequest('Order is cancelled');
+  if (req.user.role === 'operator') {
+    const assigned = await db.get('SELECT id FROM machine_allocations WHERE order_id = ? AND operator_id = ? LIMIT 1', [order.id, req.user.id]);
+    if (!assigned) throw forbidden('You are not assigned to this order');
+  }
+
+  const result = await db.get('INSERT INTO production_results (order_id, operator_id, qty_ok, qty_fail) VALUES (?, ?, ?, ?) RETURNING id',
+    [order.id, req.user.id, b.qty_ok, b.qty_fail]);
+  for (const d of b.defects || []) {
+    if (d.quantity > 0) {
+      await db.run('INSERT INTO defect_logs (result_id, reason_id, quantity, notes) VALUES (?, ?, ?, ?)', [result.id, d.reason_id, d.quantity, d.notes ?? '']);
     }
-  })();
+  }
 
-  broadcast('production:action', { allocation_id, action_type });
-  res.status(201).json({ message: 'Acțiune înregistrată' });
-});
+  await deductStock(order.id, b.qty_ok + b.qty_fail, req.user.id);
 
-// POST /api/production/results
-router.post('/results', authenticateToken, (req, res) => {
-  const { order_id, qty_ok, qty_fail, defects } = req.body;
-  if (!order_id) return res.status(400).json({ error: 'order_id obligatoriu' });
+  const total = await db.get('SELECT COALESCE(SUM(qty_ok + qty_fail), 0) AS produced FROM production_results WHERE order_id = ?', [order.id]);
+  if (total.produced >= order.quantity && order.status !== 'done') {
+    await db.run("UPDATE orders SET status = 'done', actual_end = ? WHERE id = ?", [nowLocal(req.user.timezone), order.id]);
+    broadcast('order:completed', { order_id: order.id });
+  }
 
-  db.transaction(() => {
-    const result = db.prepare('INSERT INTO production_results (order_id, operator_id, qty_ok, qty_fail) VALUES (?,?,?,?)')
-      .run(order_id, req.user.id, qty_ok || 0, qty_fail || 0);
-    
-    const resultId = result.lastInsertRowid;
+  broadcast('production:results', { order_id: order.id, qty_ok: b.qty_ok, qty_fail: b.qty_fail });
+  res.status(201).json({ message: 'Results recorded' });
+}));
 
-    if (defects && Array.isArray(defects)) {
-      const stmt = db.prepare('INSERT INTO defect_logs (result_id, reason_id, quantity, notes) VALUES (?,?,?,?)');
-      for (const d of defects) {
-        if (d.quantity > 0) stmt.run(resultId, d.reason_id, d.quantity, d.notes || '');
-      }
-    }
-
-    // Deduct stock
-    deductStock(order_id, (qty_ok || 0) + (qty_fail || 0), req.user.id);
-
-    // Check if order is complete
-    const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(order_id);
-    if (order) {
-      const results = db.prepare('SELECT * FROM production_results WHERE order_id = ?').all(order_id);
-      const totalProduced = results.reduce((a, r) => a + r.qty_ok + r.qty_fail, 0);
-      if (totalProduced >= order.quantity) {
-        db.prepare("UPDATE orders SET status='done', actual_end=datetime('now', 'localtime') WHERE id=?").run(order_id);
-        broadcast('order:completed', { order_id });
-      }
-    }
-  })();
-
-  broadcast('production:results', { order_id, qty_ok, qty_fail });
-  res.status(201).json({ message: 'Rezultate înregistrate' });
-});
-
-router.get('/performance', authenticateToken, requireRole('area_supervisor','administrator'), (req, res) => {
-  const byMachine = db.prepare(`
-    SELECT machine_id, COUNT(*) as total_orders,
-    SUM(CASE WHEN status='done' THEN 1 ELSE 0 END) as completed,
-    SUM(CASE WHEN status='done' AND datetime(actual_end) <= datetime(planned_end) THEN 1 ELSE 0 END) as on_time
-    FROM orders WHERE status != 'cancelled'
-    GROUP BY machine_id
-  `).all();
-
-  const byOperator = db.prepare(`
-    SELECT operator_id, COUNT(*) as total_allocations
-    FROM machine_allocations GROUP BY operator_id
-  `).all();
-
+// GET /api/production/performance
+router.get('/performance', requireRole('area_supervisor', 'administrator'), h(async (req, res) => {
+  const byMachine = await db.all(`
+    SELECT machine_id, COUNT(*) AS total_orders,
+      SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) AS completed,
+      SUM(CASE WHEN status = 'done' AND actual_end::timestamp <= planned_end::timestamp THEN 1 ELSE 0 END) AS on_time
+    FROM orders WHERE status <> 'cancelled'
+    GROUP BY machine_id`);
+  const byOperator = await db.all('SELECT operator_id, COUNT(*) AS total_allocations FROM machine_allocations GROUP BY operator_id');
   res.json({ byMachine, byOperator });
-});
+}));
 
 // GET /api/production/actions/:allocation_id
-router.get('/actions/:allocation_id', authenticateToken, (req, res) => {
-  const actions = db.prepare('SELECT * FROM operator_actions WHERE allocation_id = ? ORDER BY timestamp ASC').all(req.params.allocation_id);
-  res.json(actions);
-});
+router.get('/actions/:allocation_id', h(async (req, res) => {
+  res.json(await db.all('SELECT * FROM operator_actions WHERE allocation_id = ? ORDER BY timestamp ASC, id ASC',
+    [v.paramId(req, 'allocation_id')]));
+}));
 
 // GET /api/production/results/:order_id
-router.get('/results/:order_id', authenticateToken, (req, res) => {
-  const results = db.prepare('SELECT * FROM production_results WHERE order_id = ? ORDER BY completed_at DESC').all(req.params.order_id);
+router.get('/results/:order_id', h(async (req, res) => {
+  const results = await db.all('SELECT * FROM production_results WHERE order_id = ? ORDER BY completed_at DESC, id DESC',
+    [v.paramId(req, 'order_id')]);
   const totals = results.reduce((acc, r) => ({ ok: acc.ok + r.qty_ok, fail: acc.fail + r.qty_fail }), { ok: 0, fail: 0 });
   res.json({ results, totals });
-});
+}));
 
 // GET /api/production/defect-reasons
-router.get('/defect-reasons', authenticateToken, (req, res) => {
-  const reasons = db.prepare('SELECT * FROM defect_reasons ORDER BY name').all();
-  res.json(reasons);
-});
+router.get('/defect-reasons', h(async (req, res) => {
+  res.json(await db.all('SELECT * FROM defect_reasons ORDER BY name'));
+}));
 
-// POST /api/production/optimize — calculate best allocations based on skills
-router.post('/optimize', authenticateToken, requireRole('shift_responsible', 'administrator'), (req, res) => {
-  const { shift_id, date } = req.body;
-  if (!shift_id) return res.status(400).json({ error: 'shift_id is required' });
+// POST /api/production/optimize — suggest operator allocations based on skills
+router.post('/optimize', requireRole('shift_responsible', 'administrator'), h(async (req, res) => {
+  const b = v.body(req, v.z.object({ shift_id: v.id, date: v.optDate }));
+  const targetDate = b.date || todayLocal(req.user.timezone);
 
-  // 1. Get operators in this shift WITH their skills
-  const operatorsRaw = db.prepare(`
+  const operators = await db.all(`
     SELECT u.id, u.first_name, u.last_name, u.badge_number
-    FROM shift_members sm
-    JOIN users u ON sm.user_id = u.id
-    WHERE sm.shift_id = ? AND u.role = 'operator' AND u.active = 1
-  `).all(shift_id);
+    FROM shift_members sm JOIN users u ON sm.user_id = u.id
+    WHERE sm.shift_id = ? AND u.role = 'operator' AND u.active = 1`, [b.shift_id]);
+  if (!operators.length) throw badRequest('No operators found in this shift');
+  const skills = await db.all('SELECT user_id, machine_id FROM operator_skills WHERE user_id = ANY(?::int[])', [operators.map((o) => o.id)]);
 
-  const operators = operatorsRaw.map(op => {
-    const skills = db.prepare('SELECT machine_id FROM operator_skills WHERE user_id = ?').all(op.id);
-    return { ...op, machine_skills: skills.map(s => s.machine_id) };
-  });
+  const orders = await db.all(`
+    SELECT * FROM orders
+    WHERE status IN ('pending','active')
+      AND (planned_start::timestamp::date = ?::date OR planned_end::timestamp::date = ?::date)
+    ORDER BY planned_start::timestamp ASC`, [targetDate, targetDate]);
+  if (!orders.length) throw badRequest('No open orders found for this date');
 
-  if (operators.length === 0) return res.status(400).json({ error: 'No operators found in this shift' });
-
-  // 2. Get pending orders
-  const d = new Date();
-  const todayLocal = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  const targetDate = date || todayLocal;
-  const orders = db.prepare(`
-    SELECT * FROM orders 
-    WHERE status IN ('pending', 'active') 
-    AND (date(planned_start) = date(?) OR date(planned_end) = date(?))
-    ORDER BY planned_start ASC
-  `).all(targetDate, targetDate);
-
-  if (orders.length === 0) return res.status(400).json({ error: 'No pending orders found' });
-
-  // 3. Skill-Aware Allocation Algorithm
+  const freeAt = new Map(operators.map((o) => [o.id, null]));
   const suggested = [];
-  const operatorFreeTime = {}; // userId -> timestamp
-  operators.forEach(op => { operatorFreeTime[op.id] = null; });
-
   for (const order of orders) {
-    // Find operators who HAVE THE SKILL for this specific machine
-    const skilledOperators = operators.filter(op => op.machine_skills.includes(order.machine_id));
-    
-    if (skilledOperators.length === 0) {
-      suggested.push({
-        order_id: order.id,
-        product_name: order.product_name,
-        machine_id: order.machine_id,
-        error: 'Niciun operator cu skill pe acest utilaj'
-      });
+    const skilled = operators.filter((op) => skills.some((s) => s.user_id === op.id && s.machine_id === order.machine_id));
+    if (!skilled.length) {
+      suggested.push({ order_id: order.id, product_name: order.product_name, machine_id: order.machine_id, error: 'No operator with a skill for this machine' });
       continue;
     }
-
-    // Among skilled operators, find the one who is free earliest
-    let bestOperator = null;
-    let earliestTime = Infinity;
-
-    for (const op of skilledOperators) {
-      const freeAt = operatorFreeTime[op.id] ? new Date(operatorFreeTime[op.id].replace(' ','T')) : new Date(0);
-      if (freeAt < earliestTime) {
-        earliestTime = freeAt;
-        bestOperator = op;
-      }
+    let best = null; let bestFree = Infinity;
+    for (const op of skilled) {
+      const f = freeAt.get(op.id) ? parseLocal(freeAt.get(op.id)) : 0;
+      if (f < bestFree) { bestFree = f; best = op; }
     }
-
-    if (bestOperator) {
-      const orderStart = new Date(order.planned_start.replace(' ','T'));
-      const orderEnd = new Date(order.planned_end.replace(' ','T'));
-      
-      let actualStart = orderStart;
-      let delayMinutes = 0;
-
-      if (earliestTime > orderStart) {
-        actualStart = earliestTime;
-        delayMinutes = Math.ceil((earliestTime - orderStart) / 60000);
-      }
-
-      const actualEnd = new Date(actualStart.getTime() + (orderEnd - orderStart));
-
-      suggested.push({
-        order_id: order.id,
-        product_name: order.product_name,
-        machine_id: order.machine_id,
-        operator_id: bestOperator.id,
-        operator_name: `${bestOperator.first_name} ${bestOperator.last_name}`,
-        planned_start: order.planned_start,
-        suggested_start: formatLocal(actualStart),
-        suggested_end: formatLocal(actualEnd),
-        delay_minutes: delayMinutes,
-        is_skill_match: true
-      });
-
-      operatorFreeTime[bestOperator.id] = formatLocal(actualEnd);
-    }
+    const orderStart = parseLocal(order.planned_start);
+    const orderEnd = parseLocal(order.planned_end);
+    const actualStart = Math.max(orderStart, bestFree);
+    const actualEnd = actualStart + (orderEnd - orderStart);
+    suggested.push({
+      order_id: order.id,
+      product_name: order.product_name,
+      machine_id: order.machine_id,
+      operator_id: best.id,
+      operator_name: `${best.first_name} ${best.last_name}`,
+      planned_start: order.planned_start,
+      suggested_start: formatLocal(actualStart),
+      suggested_end: formatLocal(actualEnd),
+      delay_minutes: Math.max(0, Math.ceil((actualStart - orderStart) / 60000)),
+      is_skill_match: true,
+    });
+    freeAt.set(best.id, formatLocal(actualEnd));
   }
-
-  res.json({
-    date: targetDate,
-    operators_count: operators.length,
-    orders_count: orders.length,
-    suggested
-  });
-});
+  res.json({ date: targetDate, operators_count: operators.length, orders_count: orders.length, suggested });
+}));
 
 module.exports = router;

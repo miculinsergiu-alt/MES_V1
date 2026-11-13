@@ -142,13 +142,11 @@
     "total_nodes": "Total Noduri",
     "level": "Nivel",
     "signature": "Semnătură / Ștampilă",
-    "verified_by": "Verificat",
+    "verified_by": "Verificat Supervizor",
     "received_prod": "Primit Producție",
     "expand_hint": "Click pe noduri pentru a le extinde/restrânge",
     "expand_all": "Extinde tot / Restrânge",
     "phantom": "Phantom / Dept",
-    "verified_by": "Verificat Supervizor",
-    "received_prod": "Primit Producție",
     "levels": "nivele",
     "pos": "poz."
   },
@@ -401,7 +399,9 @@
     "error_fill": "Completați toate câmpurile",
     "welcome": "Bun venit, {{name}}!",
     "auth_error": "Eroare la autentificare",
-    "rights": "Toate drepturile rezervate."
+    "rights": "Toate drepturile rezervate.",
+    "company": "Cod Companie",
+    "company_placeholder": "ex. ACME"
   },
   "shift": {
     "report_form_hint": "Formular Raport Schimb disponibil pentru Schimbul Activ.",

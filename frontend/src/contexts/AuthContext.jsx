@@ -9,8 +9,8 @@ export function AuthProvider({ children }) {
   });
   const [loading, setLoading] = useState(false);
 
-  const login = async (badge_number, password) => {
-    const res = await api.post('/auth/login', { badge_number, password });
+  const login = async (company_code, badge_number, password) => {
+    const res = await api.post('/auth/login', { company_code, badge_number, password });
     localStorage.setItem('sf_token', res.data.token);
     localStorage.setItem('sf_user', JSON.stringify(res.data.user));
     setUser(res.data.user);

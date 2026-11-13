@@ -1,61 +1,54 @@
 const express = require('express');
-const { db } = require('../db/init');
+const db = require('../db');
+const { h } = require('../lib/handler');
+const v = require('../lib/validate');
+const { notFound } = require('../lib/errors');
 const { authenticateToken, requireRole } = require('../middleware/auth');
+
 const router = express.Router();
+router.use(authenticateToken);
 
-// GET /api/stock — get all stock levels
-router.get('/', authenticateToken, (req, res) => {
-  const stock = db.prepare(`
-    SELECT sl.*, i.item_code, i.name as item_name, i.type, i.uom
-    FROM stock_levels sl
-    JOIN items i ON sl.item_id = i.id
-    ORDER BY i.item_code ASC
-  `).all();
-  res.json(stock);
-});
+// GET /api/stock — all stock levels
+router.get('/', h(async (req, res) => {
+  res.json(await db.all(`
+    SELECT sl.*, i.item_code, i.name AS item_name, i.type, i.uom
+    FROM stock_levels sl JOIN items i ON sl.item_id = i.id
+    ORDER BY i.item_code ASC`));
+}));
 
-// POST /api/stock/adjust — manual stock adjustment
-router.post('/adjust', authenticateToken, requireRole('planner', 'administrator'), (req, res) => {
-  const { item_id, quantity, location, notes } = req.body;
-  if (!item_id || quantity === undefined) return res.status(400).json({ error: 'item_id and quantity are required' });
+// POST /api/stock/adjust — set the counted quantity of an item (inventory correction)
+router.post('/adjust', requireRole('planner', 'administrator', 'warehouse_manager'), h(async (req, res) => {
+  const b = v.body(req, v.z.object({
+    item_id: v.id,
+    quantity: v.nonNeg,
+    location: v.optStr(200),
+    notes: v.optStr(2000),
+  }));
+  const item = await db.get('SELECT id FROM items WHERE id = ?', [b.item_id]);
+  if (!item) throw notFound('Item');
 
-  try {
-    db.transaction(() => {
-      // Update or insert stock level
-      const existing = db.prepare('SELECT id, quantity FROM stock_levels WHERE item_id = ?').get(item_id);
-      if (existing) {
-        db.prepare('UPDATE stock_levels SET quantity = ?, location = ?, last_updated = datetime("now") WHERE item_id = ?')
-          .run(quantity, location || null, item_id);
-      } else {
-        db.prepare('INSERT INTO stock_levels (item_id, quantity, location) VALUES (?, ?, ?)')
-          .run(item_id, quantity, location || null);
-      }
+  const existing = await db.get('SELECT quantity FROM stock_levels WHERE item_id = ? FOR UPDATE', [b.item_id]);
+  await db.run(`
+    INSERT INTO stock_levels (item_id, quantity, location, last_updated) VALUES (?, ?, ?, nova_now())
+    ON CONFLICT (item_id) DO UPDATE SET quantity = EXCLUDED.quantity, location = EXCLUDED.location, last_updated = nova_now()`,
+  [b.item_id, b.quantity, b.location || null]);
 
-      // Log transaction
-      const diff = existing ? quantity - existing.quantity : quantity;
-      db.prepare(`
-        INSERT INTO stock_transactions (item_id, quantity, type, reference_type, user_id)
-        VALUES (?, ?, ?, ?, ?)
-      `).run(item_id, diff, 'adjustment', 'manual', req.user.id);
-    })();
+  const diff = b.quantity - (existing?.quantity ?? 0);
+  await db.run(`
+    INSERT INTO stock_transactions (item_id, quantity, type, reference_type, user_id)
+    VALUES (?, ?, 'adjustment', 'manual', ?)`, [b.item_id, diff, req.user.id]);
 
-    res.json({ message: 'Stock adjusted successfully' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+  res.json({ message: 'Stock adjusted' });
+}));
 
 // GET /api/stock/transactions/:item_id
-router.get('/transactions/:item_id', authenticateToken, (req, res) => {
-  const transactions = db.prepare(`
+router.get('/transactions/:item_id', h(async (req, res) => {
+  res.json(await db.all(`
     SELECT st.*, u.first_name, u.last_name
-    FROM stock_transactions st
-    LEFT JOIN users u ON st.user_id = u.id
+    FROM stock_transactions st LEFT JOIN users u ON st.user_id = u.id
     WHERE st.item_id = ?
-    ORDER BY st.created_at DESC
-    LIMIT 50
-  `).all(req.params.item_id);
-  res.json(transactions);
-});
+    ORDER BY st.created_at DESC, st.id DESC
+    LIMIT 50`, [v.paramId(req, 'item_id')]));
+}));
 
 module.exports = router;

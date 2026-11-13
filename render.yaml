@@ -1,17 +1,41 @@
+# Render Blueprint — NOVA in Frankfurt (EU), with managed PostgreSQL.
+#
+# Paid plans on purpose: the free web plan sleeps after inactivity and the
+# free database is deleted after 30 days. Paid Render PostgreSQL includes
+# automatic daily backups with point-in-time recovery.
+# Before going live with customer data, sign Render's Data Processing
+# Addendum (DPA / AVV) in the Render dashboard.
+
+databases:
+  - name: nova-db
+    region: frankfurt
+    plan: basic-256mb
+    databaseName: nova
+    user: nova
+    postgresMajorVersion: "16"
+    ipAllowList: [] # no access from the internet; only Render services in the same region
+
 services:
   - type: web
-    name: nova-mes
-    env: node
-    plan: free
-    buildCommand: npm install && npm run build --workspace=frontend
+    name: nova
+    runtime: node
+    region: frankfurt
+    plan: starter
+    buildCommand: npm ci && npm run build --workspace=frontend
     startCommand: npm start --workspace=backend
     healthCheckPath: /api/health
     envVars:
       - key: NODE_VERSION
-        value: 20
-      - key: PORT
-        value: 3001
-      - key: JWT_SECRET
-        generateValue: true
+        value: "22"
       - key: NODE_ENV
         value: production
+      - key: APP_TIMEZONE
+        value: Europe/Berlin
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: nova-db
+          property: connectionString # internal URL, private network
+      - key: DATABASE_SSL
+        value: "false"

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
-import { Factory, Lock, CreditCard, Loader, ArrowRight } from 'lucide-react';
+import { Factory, Lock, CreditCard, Loader, ArrowRight, Building2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
@@ -18,8 +18,15 @@ const ROLE_ROUTES = {
   area_supervisor: '/supervisor',
   shift_responsible: '/shift',
   operator: '/operator',
+  warehouse_manager: '/inventory',
   material_planner: '/inventory',
 };
+
+// Demo logins are only shown in development or on a dedicated demo site (VITE_SHOW_DEMO=true).
+const SHOW_DEMO = import.meta.env.DEV || import.meta.env.VITE_SHOW_DEMO === 'true';
+const DEMO_COMPANY = 'DEMO';
+const DEMO_PASSWORD = 'demo1234';
+const COMPANY_KEY = 'sf_company';
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 28 },
@@ -34,16 +41,21 @@ export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const [company, setCompany] = useState(() => {
+    try { return localStorage.getItem(COMPANY_KEY) || ''; } catch { return ''; }
+  });
   const [badge, setBadge] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!badge || !password) return toast.error(t('login.error_fill'));
+    if (!company || !badge || !password) return toast.error(t('login.error_fill'));
     setLoading(true);
     try {
-      const user = await login(badge.trim().toUpperCase(), password);
+      const companyCode = company.trim().toUpperCase();
+      const user = await login(companyCode, badge.trim().toUpperCase(), password);
+      try { localStorage.setItem(COMPANY_KEY, companyCode); } catch { /* storage unavailable */ }
       toast.success(t('login.welcome', { name: user.first_name }));
       navigate(ROLE_ROUTES[user.role] || '/');
     } catch (err) {
@@ -87,6 +99,22 @@ export default function LoginPage() {
           <Card className="p-8 md:p-10 border-border/50">
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground/80 ml-1" htmlFor="company-input">{t('login.company')}</label>
+                <div className="relative group">
+                  <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-accent transition-colors" size={18} />
+                  <Input
+                    id="company-input"
+                    className="pl-12 uppercase"
+                    placeholder={t('login.company_placeholder')}
+                    value={company}
+                    autoComplete="organization"
+                    onChange={e => setCompany(e.target.value)}
+                    autoFocus={!company}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground/80 ml-1">{t('login.badge')}</label>
                 <div className="relative group">
                   <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-accent transition-colors" size={18} />
@@ -94,9 +122,9 @@ export default function LoginPage() {
                     id="badge-input"
                     className="pl-12" 
                     placeholder="ADMIN001" 
-                    value={badge} 
+                    value={badge}
                     onChange={e => setBadge(e.target.value)}
-                    autoFocus
+                    autoFocus={!!company}
                   />
                 </div>
               </div>
@@ -128,24 +156,25 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            <div className="mt-10 pt-8 border-t border-border">
+            {SHOW_DEMO && <div className="mt-10 pt-8 border-t border-border">
               <div className="flex items-center justify-between mb-4">
                 <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground font-bold">{t('login.demo_credentials')}</span>
                 <div className="h-1 flex-1 bg-border/30 mx-4 rounded-full" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { role: t('roles.administrator'), badge: 'ADMIN001', pass: 'admin123' },
-                  { role: t('roles.planner'), badge: 'PLN001', pass: 'pass123' },
-                  { role: t('roles.area_supervisor'), badge: 'SPV001', pass: 'pass123' },
-                  { role: t('roles.shift_responsible'), badge: 'SHR001', pass: 'pass123' },
-                  { role: t('roles.operator'), badge: 'OPR001', pass: 'pass123' },
-                  { role: t('roles.material_planner'), badge: 'MAT001', pass: 'pass123' }
-                ].map((cred) => (
+                  { role: t('roles.administrator'), badge: 'ADMIN001' },
+                  { role: t('roles.planner'), badge: 'PLN001' },
+                  { role: t('roles.area_supervisor'), badge: 'SPV001' },
+                  { role: t('roles.shift_responsible'), badge: 'SHR001' },
+                  { role: t('roles.operator'), badge: 'OPR001' },
+                  { role: t('roles.material_planner'), badge: 'MAT001' }
+                ].map((cred) => ({ ...cred, pass: DEMO_PASSWORD })).map((cred) => (
                   <button
                     key={cred.badge}
                     type="button"
                     onClick={() => {
+                      setCompany(DEMO_COMPANY);
                       setBadge(cred.badge);
                       setPassword(cred.pass);
                     }}
@@ -159,7 +188,7 @@ export default function LoginPage() {
                   </button>
                 ))}
               </div>
-            </div>
+            </div>}
           </Card>
         </motion.div>
 

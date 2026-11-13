@@ -1,101 +1,83 @@
 const express = require('express');
-const { db, machinesDb } = require('../db/init');
-const { authenticateToken, requireRole } = require('../middleware/auth');
+const db = require('../db');
+const { h } = require('../lib/handler');
+const v = require('../lib/validate');
+const { diffMinutes, nowLocal, todayLocal } = require('../lib/time');
+const { authenticateToken } = require('../middleware/auth');
+
 const router = express.Router();
+router.use(authenticateToken);
 
-// GET /api/oee — Global OEE or by Machine
-router.get('/', authenticateToken, (req, res) => {
-  const { date_from, date_to, machine_id } = req.query;
-  
-  // Default to today (Local)
-  const d = new Date();
-  const todayLocal = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  const targetDate = date_from || todayLocal;
-  
-  let machines = machinesDb.prepare('SELECT * FROM machines WHERE active = 1').all();
-  if (machine_id) machines = machines.filter(m => m.id === parseInt(machine_id));
+const clamp01 = (x) => Math.min(1, Math.max(0, x));
 
-  const oeeResults = [];
+// GET /api/oee — OEE per machine for one day (default: today)
+router.get('/', h(async (req, res) => {
+  const q = v.query(req, v.z.object({ date_from: v.optDate, date_to: v.optDate, machine_id: v.optId }));
+  const tz = req.user.timezone;
+  const targetDate = q.date_from || todayLocal(tz);
+  const now = nowLocal(tz);
 
+  const params = [];
+  let machineSql = 'SELECT * FROM machines WHERE active = 1';
+  if (q.machine_id) { machineSql += ' AND id = ?'; params.push(q.machine_id); }
+  const machines = await db.all(`${machineSql} ORDER BY name`, params);
+
+  const orders = await db.all(`
+    SELECT o.*, i.production_time_min
+    FROM orders o LEFT JOIN items i ON o.item_id = i.id
+    WHERE o.status <> 'cancelled' AND o.planned_start::timestamp::date = ?::date`, [targetDate]);
+  const orderIds = orders.map((o) => o.id);
+  const allocs = orderIds.length ? await db.all(
+    "SELECT * FROM machine_allocations WHERE phase = 'working' AND order_id = ANY(?::int[])", [orderIds]) : [];
+  const allocIds = allocs.map((a) => a.id);
+  const actions = allocIds.length ? await db.all(`
+    SELECT allocation_id, action_type, MAX(timestamp) AS ts FROM operator_actions
+    WHERE allocation_id = ANY(?::int[]) AND action_type IN ('working_start','working_end')
+    GROUP BY allocation_id, action_type`, [allocIds]) : [];
+  const results = orderIds.length ? await db.all(
+    'SELECT order_id, SUM(qty_ok) AS ok, SUM(qty_fail) AS fail FROM production_results WHERE order_id = ANY(?::int[]) GROUP BY order_id',
+    [orderIds]) : [];
+
+  const actionTs = (allocId, type) => actions.find((a) => a.allocation_id === allocId && a.action_type === type)?.ts;
+  const resultFor = (orderId) => results.find((r) => r.order_id === orderId) || { ok: 0, fail: 0 };
+
+  const out = [];
   for (const m of machines) {
-    // Get all completed/active orders for this machine on the target date
-    const orders = db.prepare(`
-      SELECT o.*, i.production_time_min 
-      FROM orders o
-      LEFT JOIN items i ON o.item_id = i.id
-      WHERE o.machine_id = ? AND o.status != 'cancelled'
-      AND date(o.planned_start) = ?
-    `).all(m.id, targetDate);
-
-    if (orders.length === 0) continue;
-
-    let totalPlannedTimeMin = 0;
-    let totalOperatingTimeMin = 0;
-    let totalProduced = 0;
-    let totalOk = 0;
-    let idealTimeNeededMin = 0;
-
-    for (const o of orders) {
-      // Planned time
-      const pStart = new Date(o.planned_start.replace(' ', 'T'));
-      const pEnd = new Date(o.planned_end.replace(' ', 'T'));
-      totalPlannedTimeMin += (pEnd - pStart) / 60000;
-
-      // Operating time (Working phase only)
-      const allocs = db.prepare('SELECT * FROM machine_allocations WHERE order_id = ? AND phase = "working"').all(o.id);
-      for (const a of allocs) {
-        // Find end timestamp from operator_actions
-        const startAction = db.prepare("SELECT timestamp FROM operator_actions WHERE allocation_id = ? AND action_type = 'working_start' ORDER BY timestamp DESC LIMIT 1").get(a.id);
-        const endAction = db.prepare("SELECT timestamp FROM operator_actions WHERE allocation_id = ? AND action_type = 'working_end' ORDER BY timestamp DESC LIMIT 1").get(a.id);
-        
-        let startTs = startAction ? new Date(startAction.timestamp.replace(' ', 'T')) : new Date(a.start_time.replace(' ', 'T'));
-        let endTs = endAction ? new Date(endAction.timestamp.replace(' ', 'T')) : (o.status === 'active' ? new Date() : new Date(a.end_time.replace(' ', 'T')));
-        
-        totalOperatingTimeMin += (endTs - startTs) / 60000;
+    const mOrders = orders.filter((o) => o.machine_id === m.id);
+    if (!mOrders.length) continue;
+    let planned = 0; let operating = 0; let produced = 0; let ok = 0; let ideal = 0;
+    for (const o of mOrders) {
+      planned += Math.max(0, diffMinutes(o.planned_end, o.planned_start));
+      for (const a of allocs.filter((x) => x.order_id === o.id)) {
+        const start = actionTs(a.id, 'working_start') || a.start_time;
+        const end = actionTs(a.id, 'working_end') || (o.status === 'active' ? now : a.end_time);
+        operating += Math.max(0, diffMinutes(end, start));
       }
-
-      // Quality & Performance
-      const results = db.prepare('SELECT * FROM production_results WHERE order_id = ?').all(o.id);
-      for (const r of results) {
-        totalProduced += (r.qty_ok + r.qty_fail);
-        totalOk += r.qty_ok;
-      }
-      
-      // Ideal time
-      if (o.production_time_min) {
-        idealTimeNeededMin += (totalProduced * o.production_time_min);
-      }
+      const r = resultFor(o.id);
+      const orderProduced = (r.ok || 0) + (r.fail || 0);
+      produced += orderProduced;
+      ok += r.ok || 0;
+      if (o.production_time_min) ideal += orderProduced * o.production_time_min;
     }
-
-    // Availability = Operating Time / Planned Time
-    const availability = totalPlannedTimeMin > 0 ? (totalOperatingTimeMin / totalPlannedTimeMin) : 0;
-
-    // Performance = Ideal Time / Operating Time
-    const performance = totalOperatingTimeMin > 0 ? (idealTimeNeededMin / totalOperatingTimeMin) : 0;
-
-    // Quality = Good Pieces / Total Pieces
-    const quality = totalProduced > 0 ? (totalOk / totalProduced) : 0;
-
-    // OEE
-    const oee = availability * performance * quality;
-
-    oeeResults.push({
+    const availability = planned > 0 ? operating / planned : 0;
+    const performance = operating > 0 ? ideal / operating : 0;
+    const quality = produced > 0 ? ok / produced : 0;
+    out.push({
       machine_id: m.id,
       machine_name: m.name,
-      availability: Math.min(1, Math.max(0, availability)),
-      performance: Math.min(1, Math.max(0, performance)),
-      quality: Math.min(1, Math.max(0, quality)),
-      oee: Math.min(1, Math.max(0, oee)),
+      availability: clamp01(availability),
+      performance: clamp01(performance),
+      quality: clamp01(quality),
+      oee: clamp01(availability * performance * quality),
       metrics: {
-        planned_time_min: Math.round(totalPlannedTimeMin),
-        operating_time_min: Math.round(totalOperatingTimeMin),
-        total_produced: totalProduced,
-        total_ok: totalOk
-      }
+        planned_time_min: Math.round(planned),
+        operating_time_min: Math.round(operating),
+        total_produced: produced,
+        total_ok: ok,
+      },
     });
   }
-
-  res.json({ date: targetDate, results: oeeResults });
-});
+  res.json({ date: targetDate, results: out });
+}));
 
 module.exports = router;

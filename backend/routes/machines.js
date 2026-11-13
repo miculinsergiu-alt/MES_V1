@@ -1,84 +1,102 @@
 const express = require('express');
-const { machinesDb } = require('../db/init');
+const db = require('../db');
+const { h } = require('../lib/handler');
+const v = require('../lib/validate');
+const { notFound } = require('../lib/errors');
 const { authenticateToken, requireRole } = require('../middleware/auth');
-const router = express.Router();
 
-// GET /api/machines/areas — all areas with machines
-router.get('/areas', authenticateToken, (req, res) => {
-  const areas = machinesDb.prepare('SELECT * FROM areas ORDER BY id').all();
-  const result = areas.map(area => {
-    const machines = machinesDb.prepare('SELECT * FROM machines WHERE area_id = ? AND active = 1 ORDER BY id').all(area.id);
-    return { ...area, machines };
-  });
-  res.json(result);
-});
+const router = express.Router();
+router.use(authenticateToken);
+
+// GET /api/machines/areas — active areas with their active machines
+router.get('/areas', h(async (req, res) => {
+  const areas = await db.all('SELECT * FROM areas WHERE active = 1 ORDER BY id');
+  const machines = await db.all('SELECT * FROM machines WHERE active = 1 ORDER BY id');
+  res.json(areas.map((a) => ({ ...a, machines: machines.filter((m) => m.area_id === a.id) })));
+}));
 
 // GET /api/machines — flat list
-router.get('/', authenticateToken, (req, res) => {
-  const machines = machinesDb.prepare(`
-    SELECT m.*, a.name as area_name
+router.get('/', h(async (req, res) => {
+  res.json(await db.all(`
+    SELECT m.*, a.name AS area_name
     FROM machines m JOIN areas a ON m.area_id = a.id
-    WHERE m.active = 1 ORDER BY a.name, m.name
-  `).all();
-  res.json(machines);
-});
+    WHERE m.active = 1 ORDER BY a.name, m.name`));
+}));
 
 // GET /api/machines/:id
-router.get('/:id', authenticateToken, (req, res) => {
-  const machine = machinesDb.prepare(`
-    SELECT m.*, a.name as area_name
+router.get('/:id', h(async (req, res) => {
+  const machine = await db.get(`
+    SELECT m.*, a.name AS area_name
     FROM machines m JOIN areas a ON m.area_id = a.id
-    WHERE m.id = ?
-  `).get(req.params.id);
-  if (!machine) return res.status(404).json({ error: 'Utilajul nu a fost găsit' });
+    WHERE m.id = ?`, [v.paramId(req)]);
+  if (!machine) throw notFound('Machine');
   res.json(machine);
-});
+}));
+
+const areaSchema = v.z.object({ name: v.str(200), description: v.optStr(2000) });
 
 // POST /api/machines/areas — create area (admin)
-router.post('/areas', authenticateToken, requireRole('administrator'), (req, res) => {
-  const { name, description } = req.body;
-  if (!name) return res.status(400).json({ error: 'Numele ariei este obligatoriu' });
-  const result = machinesDb.prepare('INSERT INTO areas (name, description) VALUES (?,?)').run(name, description || '');
-  res.status(201).json({ id: result.lastInsertRowid, message: 'Arie creată' });
-});
+router.post('/areas', requireRole('administrator'), h(async (req, res) => {
+  const b = v.body(req, areaSchema);
+  const row = await db.get('INSERT INTO areas (name, description) VALUES (?, ?) RETURNING id', [b.name, b.description ?? '']);
+  res.status(201).json({ id: row.id, message: 'Area created' });
+}));
 
 // PUT /api/machines/areas/:id
-router.put('/areas/:id', authenticateToken, requireRole('administrator'), (req, res) => {
-  const { name, description } = req.body;
-  machinesDb.prepare('UPDATE areas SET name=?, description=? WHERE id=?').run(name, description, req.params.id);
-  res.json({ message: 'Arie actualizată' });
-});
+router.put('/areas/:id', requireRole('administrator'), h(async (req, res) => {
+  const b = v.body(req, areaSchema);
+  const r = await db.run('UPDATE areas SET name = ?, description = ? WHERE id = ?', [b.name, b.description ?? '', v.paramId(req)]);
+  if (!r.rowCount) throw notFound('Area');
+  res.json({ message: 'Area updated' });
+}));
 
-// DELETE /api/machines/areas/:id
-router.delete('/areas/:id', authenticateToken, requireRole('administrator'), (req, res) => {
-  machinesDb.prepare('UPDATE machines SET active=0 WHERE area_id=?').run(req.params.id);
-  machinesDb.prepare('DELETE FROM areas WHERE id=?').run(req.params.id);
-  res.json({ message: 'Arie ștearsă' });
+// DELETE /api/machines/areas/:id — deactivates the area and its machines
+// (history such as orders keeps referring to them, so nothing is hard-deleted)
+router.delete('/areas/:id', requireRole('administrator'), h(async (req, res) => {
+  const id = v.paramId(req);
+  const r = await db.run('UPDATE areas SET active = 0 WHERE id = ?', [id]);
+  if (!r.rowCount) throw notFound('Area');
+  await db.run('UPDATE machines SET active = 0 WHERE area_id = ?', [id]);
+  res.json({ message: 'Area deleted' });
+}));
+
+const machineSchema = v.z.object({
+  area_id: v.id,
+  name: v.str(200),
+  setup_time_min: v.nonNeg.default(30),
+  working_time_min: v.nonNeg.default(480),
+  supervision_time_min: v.nonNeg.default(30),
 });
 
 // POST /api/machines — create machine (admin)
-router.post('/', authenticateToken, requireRole('administrator'), (req, res) => {
-  const { area_id, name, setup_time_min, working_time_min, supervision_time_min } = req.body;
-  if (!area_id || !name) return res.status(400).json({ error: 'Aria și numele sunt obligatorii' });
-  const result = machinesDb.prepare('INSERT INTO machines (area_id, name, setup_time_min, working_time_min, supervision_time_min) VALUES (?,?,?,?,?)')
-    .run(area_id, name, setup_time_min || 30, working_time_min || 480, supervision_time_min || 30);
-  res.status(201).json({ id: result.lastInsertRowid, message: 'Utilaj creat' });
-});
+router.post('/', requireRole('administrator'), h(async (req, res) => {
+  const b = v.body(req, machineSchema);
+  const row = await db.get(
+    'INSERT INTO machines (area_id, name, setup_time_min, working_time_min, supervision_time_min) VALUES (?,?,?,?,?) RETURNING id',
+    [b.area_id, b.name, b.setup_time_min, b.working_time_min, b.supervision_time_min],
+  );
+  res.status(201).json({ id: row.id, message: 'Machine created' });
+}));
 
 // PUT /api/machines/:id
-router.put('/:id', authenticateToken, requireRole('administrator'), (req, res) => {
-  const { name, setup_time_min, working_time_min, supervision_time_min } = req.body;
-  const machine = machinesDb.prepare('SELECT * FROM machines WHERE id = ?').get(req.params.id);
-  if (!machine) return res.status(404).json({ error: 'Utilajul nu a fost găsit' });
-  machinesDb.prepare('UPDATE machines SET name=?, setup_time_min=?, working_time_min=?, supervision_time_min=? WHERE id=?')
-    .run(name || machine.name, setup_time_min ?? machine.setup_time_min, working_time_min ?? machine.working_time_min, supervision_time_min ?? machine.supervision_time_min, req.params.id);
-  res.json({ message: 'Utilaj actualizat' });
-});
+router.put('/:id', requireRole('administrator'), h(async (req, res) => {
+  const id = v.paramId(req);
+  const b = v.body(req, machineSchema.partial());
+  const m = await db.get('SELECT * FROM machines WHERE id = ?', [id]);
+  if (!m) throw notFound('Machine');
+  await db.run(
+    'UPDATE machines SET area_id = ?, name = ?, setup_time_min = ?, working_time_min = ?, supervision_time_min = ? WHERE id = ?',
+    [b.area_id ?? m.area_id, b.name ?? m.name, b.setup_time_min ?? m.setup_time_min,
+      b.working_time_min ?? m.working_time_min, b.supervision_time_min ?? m.supervision_time_min, id],
+  );
+  res.json({ message: 'Machine updated' });
+}));
 
-// DELETE /api/machines/:id
-router.delete('/:id', authenticateToken, requireRole('administrator'), (req, res) => {
-  machinesDb.prepare('UPDATE machines SET active = 0 WHERE id = ?').run(req.params.id);
-  res.json({ message: 'Utilaj dezactivat' });
-});
+// DELETE /api/machines/:id — deactivate
+router.delete('/:id', requireRole('administrator'), h(async (req, res) => {
+  const r = await db.run('UPDATE machines SET active = 0 WHERE id = ?', [v.paramId(req)]);
+  if (!r.rowCount) throw notFound('Machine');
+  res.json({ message: 'Machine deactivated' });
+}));
 
 module.exports = router;
