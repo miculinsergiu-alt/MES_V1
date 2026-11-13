@@ -66,6 +66,7 @@ app.use('/api/inventory', require('./routes/inventory'));
 app.use('/api/settings', require('./routes/settings'));
 app.use('/api/customers', require('./routes/customers'));
 app.use('/api/sales', require('./routes/sales'));
+app.use('/api/datev', require('./routes/datev'));
 
 app.use('/api', (req, res, next) => next(notFound(`API route ${req.method} ${req.path}`)));
 

@@ -103,6 +103,11 @@ router.get('/open-items', requireRole(...READERS), h(async (req, res) => {
   }));
 }));
 
+// GET /api/sales/dunning/proposals — overdue invoices due for their next reminder
+router.get('/dunning/proposals', requireRole(...ACCOUNTING), h(async (req, res) => {
+  res.json(await require('../services/dunning').proposals());
+}));
+
 // GET /api/sales/:id — document with lines, payments, files and related documents
 router.get('/:id', requireRole(...READERS), h(async (req, res) => {
   const doc = await sales.loadDocument(v.paramId(req));
@@ -184,6 +189,19 @@ router.post('/:id/payments', requireRole(...ACCOUNTING), h(async (req, res) => {
     notes: optText(2000),
   }));
   res.status(201).json(await sales.recordPayment(v.paramId(req), b, req.user.id));
+}));
+
+// ─── Payment reminders ──────────────────────────────────────────────────────
+
+// GET /api/sales/:id/dunning — reminders sent for an invoice
+router.get('/:id/dunning', requireRole(...READERS), h(async (req, res) => {
+  res.json(await require('../services/dunning').list(v.paramId(req)));
+}));
+
+// POST /api/sales/:id/dunning — send the next reminder level (force: before the usual waiting time)
+router.post('/:id/dunning', requireRole(...ACCOUNTING), h(async (req, res) => {
+  const { force } = v.body(req, v.z.object({ force: v.z.coerce.boolean().default(false) }));
+  res.status(201).json(await require('../services/dunning').createNotice(v.paramId(req), req.user.id, { force }));
 }));
 
 // ─── Files (PDF / e-invoice) ────────────────────────────────────────────────
