@@ -55,8 +55,9 @@ function paymentTermsNote(doc) {
   const parts = [];
   if (doc.due_date) parts.push(`Zahlbar bis ${doc.due_date.split('-').reverse().join('.')} ohne Abzug.`);
   if (doc.skonto_days && Number(doc.skonto_percent) > 0) {
-    // German XRechnung convention for early payment discount (CIUS rule BR-DE-18)
-    parts.push(`#SKONTO#TAGE=${doc.skonto_days}#PROZENT=${Number(doc.skonto_percent).toFixed(2)}#`);
+    // German XRechnung convention for early payment discount (rule BR-DE-18);
+    // the Skonto line must end with a line break.
+    parts.push(`#SKONTO#TAGE=${doc.skonto_days}#PROZENT=${Number(doc.skonto_percent).toFixed(2)}#\n`);
   }
   return parts.join('\n');
 }

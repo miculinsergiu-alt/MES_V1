@@ -8,7 +8,7 @@
  *   node scripts/validate-einvoices.js file1.xml file2.pdf ...
  *
  * Tools folder (NOVA_TOOLS, default ../../nova-tools) must contain:
- *   jdk-*/bin/java(.exe)            Java 17+ (or java on PATH)
+ *   jdk-<version>/bin/java(.exe)    Java 17+ (or java on PATH)
  *   kosit-validator.jar             validator-<version>-standalone.jar
  *   xrechnung-config/scenarios.xml  unzipped XRechnung validator configuration
  *   mustang-cli.jar                 Mustang-CLI-<version>.jar
