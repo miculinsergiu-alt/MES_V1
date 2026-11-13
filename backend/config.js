@@ -43,5 +43,9 @@ module.exports = {
   // Comma-separated list of allowed browser origins for cross-origin calls.
   // Not needed when the frontend is served by this server (production) or via the Vite proxy (development).
   corsOrigins: (process.env.CORS_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean),
+  // Self-service company registration. Off in production unless SIGNUP_ENABLED=true.
+  signupEnabled: process.env.SIGNUP_ENABLED ? process.env.SIGNUP_ENABLED === 'true' : !isProduction,
+  // Optional: registration only with this invitation code (e.g. for a closed beta).
+  signupInviteCode: process.env.SIGNUP_INVITE_CODE || null,
   trustProxy: process.env.TRUST_PROXY ? Number(process.env.TRUST_PROXY) || process.env.TRUST_PROXY : (isProduction ? 1 : false),
 };

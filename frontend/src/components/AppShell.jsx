@@ -131,6 +131,8 @@ export default function AppShell() {
   const groups = useMemo(() => navFor(user?.role), [user?.role]);
 
   if (!user) return <Navigate to="/login" replace />;
+  // New companies: the administrator goes through the setup wizard first.
+  if (user.role === 'administrator' && user.onboarding_completed === 0) return <Navigate to="/setup" replace />;
   const allowed = rolesFor(pathname);
   if (allowed && !allowed.includes(user.role)) return <Navigate to={homeFor(user.role)} replace />;
 

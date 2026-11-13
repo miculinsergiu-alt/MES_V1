@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import api from '../api/axios';
 import { useAuth } from '../contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
@@ -38,6 +39,11 @@ export default function LoginPage() {
   const [badge, setBadge] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [signupOpen, setSignupOpen] = useState(false);
+
+  useEffect(() => {
+    api.get('/auth/signup-config').then((r) => setSignupOpen(!!r.data.enabled)).catch(() => {});
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -146,6 +152,12 @@ export default function LoginPage() {
                 )}
               </Button>
             </form>
+
+            {signupOpen && (
+              <p className="mt-6 text-center text-sm">
+                <Link to="/signup" className="font-medium text-accent hover:underline">{t('onboarding.signup.link')}</Link>
+              </p>
+            )}
 
             {SHOW_DEMO && <div className="mt-10 pt-8 border-t border-border">
               <div className="flex items-center justify-between mb-4">

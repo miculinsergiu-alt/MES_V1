@@ -24,6 +24,8 @@ import IncomingInvoicesPage from './pages/sales/IncomingInvoicesPage';
 import { OpenItemsPage, DunningPage, DatevPage } from './pages/sales/OpenItemsPage';
 import HomePage from './pages/HomePage';
 import ImportPage from './pages/ImportPage';
+import SignupPage from './pages/SignupPage';
+import SetupWizard from './pages/SetupWizard';
 import './index.css';
 
 function RootRedirect() {
@@ -45,6 +47,8 @@ export default function App() {
           <Toaster position="top-right" toastOptions={{ style: { background: '#1a2235', color: '#f1f5f9', border: '1px solid rgba(255,255,255,0.1)' } }} />
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/signup" element={<SignupPage />} />
+            <Route path="/setup" element={<SetupWizard />} />
             <Route path="/" element={<RootRedirect />} />
 
             {/* Everything after login lives in one shell; access is checked there (navigation.js). */}

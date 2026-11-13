@@ -30,6 +30,7 @@ async function seedDemo() {
     code: DEMO_CODE,
     name: 'NOVA Demo GmbH',
     admin: { first_name: 'Admin', last_name: 'Demo', badge_number: 'ADMIN001', password: DEMO_PASSWORD },
+    onboardingCompleted: 1,
   });
   const hash = await bcrypt.hash(DEMO_PASSWORD, 10);
   await db.withContext({ companyId: company.id }, async () => {

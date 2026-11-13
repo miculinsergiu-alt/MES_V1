@@ -18,7 +18,7 @@ const DEFAULT_DELAY_REASONS = [
  * Creates a company with an administrator and default reason lists.
  * Returns { company, admin }.
  */
-async function createCompany({ code, name, timezone = 'Europe/Berlin', admin }) {
+async function createCompany({ code, name, timezone = 'Europe/Berlin', admin, onboardingCompleted = 0, signupEmail = null }) {
   const normalizedCode = String(code || '').trim().toUpperCase();
   if (!/^[A-Z0-9][A-Z0-9_-]{1,31}$/.test(normalizedCode)) {
     throw new Error('Company code must be 2-32 characters: letters, digits, "-" or "_"');
@@ -28,10 +28,21 @@ async function createCompany({ code, name, timezone = 'Europe/Berlin', admin }) 
 
   const passwordHash = await bcrypt.hash(admin.password, 10);
 
-  const company = await db.withContext({ system: true }, () => db.get(
-    'INSERT INTO companies (code, name, timezone) VALUES (?, ?, ?) RETURNING *', [normalizedCode, name, timezone]));
+  // One transaction: either the company with its administrator exists, or nothing.
+  return db.withContext({ system: true, timezone }, () => createCompanyInContext({
+    normalizedCode, name, timezone, admin, passwordHash, onboardingCompleted, signupEmail,
+  }));
+}
 
-  const adminUser = await db.withContext({ companyId: company.id, timezone }, async () => {
+/** Same as createCompany, but inside an already open (system) transaction. */
+async function createCompanyInContext({ normalizedCode, name, timezone, admin, passwordHash, onboardingCompleted, signupEmail }) {
+  const company = await db.get(
+    'INSERT INTO companies (code, name, timezone, onboarding_completed, signup_email) VALUES (?, ?, ?, ?, ?) RETURNING *',
+    [normalizedCode, name, timezone, onboardingCompleted, signupEmail]);
+  // New rows of this transaction belong to the new company.
+  await db.get("SELECT set_config('app.company_id', ?, true)", [String(company.id)]);
+
+  const adminUser = await (async () => {
     for (const reason of DEFAULT_DEFECT_REASONS) {
       await db.run('INSERT INTO defect_reasons (name) VALUES (?) ON CONFLICT DO NOTHING', [reason]);
     }
@@ -42,9 +53,9 @@ async function createCompany({ code, name, timezone = 'Europe/Berlin', admin }) 
       INSERT INTO users (first_name, last_name, badge_number, email, role, password_hash)
       VALUES (?, ?, ?, ?, 'administrator', ?) RETURNING id, badge_number`,
     [admin.first_name || 'Admin', admin.last_name || name, String(admin.badge_number || 'ADMIN001').toUpperCase(), admin.email || null, passwordHash]);
-  });
+  })();
 
   return { company, admin: adminUser };
 }
 
-module.exports = { createCompany, DEFAULT_DEFECT_REASONS, DEFAULT_DELAY_REASONS };
+module.exports = { createCompany, createCompanyInContext, DEFAULT_DEFECT_REASONS, DEFAULT_DELAY_REASONS };

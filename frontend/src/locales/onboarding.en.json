@@ -1,0 +1,27 @@
+{
+  "signup": {
+    "link": "Register a new company",
+    "title": "NOVA for your company",
+    "subtitle": "Register your company. You are logged in right away and guided through the setup.",
+    "company_name": "Company name", "company_code": "Company code (optional)", "company_code_hint": "Needed to log in. Leave empty for a suggestion.",
+    "first_name": "First name", "last_name": "Last name", "email": "E-mail", "password": "Password (min. 10 characters)", "invite_code": "Invitation code",
+    "submit": "Register company", "closed": "Registration is currently closed.", "back": "Back to login",
+    "done_title": "Your company has been created", "done_text": "Remember these login details for next time:", "continue": "Continue to setup"
+  },
+  "setup": {
+    "title": "Setup", "step": "Step {{n}} of {{total}}", "skip": "Skip", "next": "Next", "back": "Back", "finish": "Finish setup",
+    "steps": { "company": "Company", "bank": "Bank & invoices", "production": "Production & warehouse", "data": "Data", "team": "Team" },
+    "company_hint": "These details are printed on your invoices (required by German VAT law, § 14 UStG).",
+    "bank_hint": "Bank details and payment terms for your invoices.",
+    "production_hint": "Create your machines or workstations and a warehouse. One machine per line.",
+    "machines": "Machines / workstations", "machines_placeholder": "Laser cutter\nPress brake\nAssembly station 1", "area": "Area", "warehouse": "Warehouse",
+    "data_hint": "How would you like to start?",
+    "data_sample": "Load sample data", "data_sample_text": "A small example factory with machines, items, BOMs, a customer and a supplier – ideal for trying things out.",
+    "data_import": "Import my own data", "data_import_text": "Bring items, customers, suppliers and stock from Excel (after the setup).",
+    "data_empty": "Start empty", "data_empty_text": "You create everything yourself.",
+    "sample_loaded": "Sample data loaded",
+    "team_hint": "Create logins for your team. Everyone logs in with company code, badge number and password.",
+    "add_user": "Add person", "badge": "Badge number", "role": "Role", "password": "Initial password (min. 8 characters)",
+    "finished": "Setup finished – welcome to NOVA!"
+  }
+}

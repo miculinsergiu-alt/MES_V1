@@ -1,0 +1,27 @@
+{
+  "signup": {
+    "link": "Neues Unternehmen registrieren",
+    "title": "NOVA für Ihr Unternehmen",
+    "subtitle": "Registrieren Sie Ihr Unternehmen. Sie sind sofort angemeldet und werden durch die Einrichtung geführt.",
+    "company_name": "Firmenname", "company_code": "Firmenkennung (optional)", "company_code_hint": "Wird beim Anmelden benötigt. Leer lassen für einen Vorschlag.",
+    "first_name": "Vorname", "last_name": "Nachname", "email": "E-Mail", "password": "Passwort (mind. 10 Zeichen)", "invite_code": "Einladungscode",
+    "submit": "Unternehmen registrieren", "closed": "Die Registrierung ist derzeit geschlossen.", "back": "Zurück zur Anmeldung",
+    "done_title": "Ihr Unternehmen ist angelegt", "done_text": "Merken Sie sich diese Zugangsdaten für die nächste Anmeldung:", "continue": "Weiter zur Einrichtung"
+  },
+  "setup": {
+    "title": "Einrichtung", "step": "Schritt {{n}} von {{total}}", "skip": "Überspringen", "next": "Weiter", "back": "Zurück", "finish": "Einrichtung abschließen",
+    "steps": { "company": "Unternehmen", "bank": "Bank & Rechnungen", "production": "Produktion & Lager", "data": "Daten", "team": "Team" },
+    "company_hint": "Diese Angaben stehen auf Ihren Rechnungen (Pflichtangaben nach § 14 UStG).",
+    "bank_hint": "Bankverbindung und Zahlungsziel für Ihre Rechnungen.",
+    "production_hint": "Legen Sie Ihre Maschinen bzw. Arbeitsplätze und ein Lager an. Eine Maschine pro Zeile.",
+    "machines": "Maschinen / Arbeitsplätze", "machines_placeholder": "Laserschneidanlage\nAbkantpresse\nMontageplatz 1", "area": "Bereich", "warehouse": "Lager",
+    "data_hint": "Womit möchten Sie starten?",
+    "data_sample": "Beispieldaten laden", "data_sample_text": "Eine kleine Beispielfertigung mit Maschinen, Artikeln, Stücklisten, Kunde und Lieferant – ideal zum Ausprobieren.",
+    "data_import": "Eigene Daten importieren", "data_import_text": "Artikel, Kunden, Lieferanten und Bestände aus Excel übernehmen (nach der Einrichtung).",
+    "data_empty": "Leer starten", "data_empty_text": "Sie legen alles selbst an.",
+    "sample_loaded": "Beispieldaten geladen",
+    "team_hint": "Legen Sie Zugänge für Ihr Team an. Jede Person meldet sich mit Firmenkennung, Ausweisnummer und Passwort an.",
+    "add_user": "Person hinzufügen", "badge": "Ausweisnummer", "role": "Rolle", "password": "Startpasswort (mind. 8 Zeichen)",
+    "finished": "Einrichtung abgeschlossen – willkommen bei NOVA!"
+  }
+}
