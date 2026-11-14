@@ -5,11 +5,11 @@ import GanttTimeline from '../../components/GanttTimeline';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { format, addDays, subDays } from 'date-fns';
-import { ro, enUS } from 'date-fns/locale';
+import { dateLocaleFor } from '../../lib/dateLocale';
 
 export default function PlannerDashboard() {
   const { t, i18n } = useTranslation();
-  const dateLocale = i18n.language === 'ro' ? ro : enUS;
+  const dateLocale = dateLocaleFor(i18n.language);
   const [tab, setTab] = useState('gantt');
   const [orders, setOrders] = useState([]);
   const [machines, setMachines] = useState([]);
@@ -74,7 +74,7 @@ export default function PlannerDashboard() {
                 <span className="card-title">{t('supervisor.production_plan', { date: format(viewDate, 'EEEE, dd MMMM yyyy', { locale: dateLocale }) })}</span>
                 <div className="flex gap-2 items-center">
                   <button className="btn btn-ghost btn-sm" onClick={() => setViewDate(d => subDays(d,1))}><ChevronLeft size={14}/></button>
-                  <button className="btn btn-ghost btn-sm" onClick={() => setViewDate(new Date())}>{i18n.language === 'ro' ? 'Azi' : 'Today'}</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setViewDate(new Date())}>{t('common.today')}</button>
                   <input 
                     type="date" 
                     className="form-input" 

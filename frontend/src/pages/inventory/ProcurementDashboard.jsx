@@ -58,12 +58,12 @@ export default function ProcurementDashboard() {
 
   return (
     <div className="space-y-8">
-      <header className="flex justify-between items-end">
+      <header className="flex flex-wrap justify-between items-end gap-4">
         <div>
           <h2 className="font-display text-3xl text-foreground">{t('screens.procurement.title')}</h2>
           <p className="text-muted-foreground">{t('screens.procurement.subtitle')}</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <Button variant="secondary" onClick={() => setShowReceiptModal(true)}>
             <PackageCheck size={16} className="mr-2" /> {t('screens.procurement.new_receipt')}
           </Button>
@@ -92,7 +92,7 @@ export default function ProcurementDashboard() {
       {activeTab === 'pos' && (
         <div className="grid grid-cols-1 gap-4">
           {purchaseOrders.map(po => (
-            <Card key={po.id} className="p-6 flex justify-between items-center group hover:border-accent/50 transition-all">
+            <Card key={po.id} className="p-4 sm:p-6 flex flex-wrap gap-4 justify-between items-center group hover:border-accent/50 transition-all">
               <div className="flex items-center gap-6">
                 <div className="p-3 bg-muted rounded-2xl group-hover:bg-accent/10 transition-colors">
                   <ShoppingCart size={24} className="text-muted-foreground group-hover:text-accent" />
@@ -130,7 +130,7 @@ export default function ProcurementDashboard() {
       {activeTab === 'recommendations' && (
         <div className="grid grid-cols-1 gap-4">
           {recommendations.map(rec => (
-            <Card key={rec.id} className="p-6 flex justify-between items-center border-orange-200 bg-orange-50/30">
+            <Card key={rec.id} className="p-4 sm:p-6 flex flex-wrap gap-4 justify-between items-center border-orange-200 bg-orange-50/30">
               <div className="flex items-center gap-6">
                 <div className="p-3 bg-orange-100 text-orange-600 rounded-2xl">
                   <AlertTriangle size={24} />
@@ -209,8 +209,8 @@ function ConvertModal({ rec, onClose, onSave }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm" onClick={onClose}>
-      <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-3xl p-8 w-full max-w-md border border-border shadow-2xl" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/40 backdrop-blur-sm" onClick={onClose}>
+      <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-3xl p-5 sm:p-8 w-full max-w-md max-h-[92vh] overflow-y-auto border border-border shadow-2xl" onClick={e => e.stopPropagation()}>
         <h3 className="font-display text-2xl mb-2">{t('screens.procurement.convert')}</h3>
         <p className="text-sm text-muted-foreground mb-6">{t('screens.procurement.you_order')} <span className="font-bold text-foreground">{rec.recommended_qty} {rec.uom}</span> · <span className="font-bold text-foreground">{rec.item_name}</span></p>
         
@@ -268,11 +268,11 @@ function POModal({ onClose, onSave }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm" onClick={onClose}>
-      <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-3xl p-8 w-full max-w-4xl border border-border shadow-2xl overflow-y-auto max-h-[90vh]" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/40 backdrop-blur-sm" onClick={onClose}>
+      <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-3xl p-5 sm:p-8 w-full max-w-4xl border border-border shadow-2xl overflow-y-auto max-h-[90vh]" onClick={e => e.stopPropagation()}>
         <h3 className="font-display text-2xl mb-6">{t('screens.procurement.new_po')}</h3>
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
             <div className="space-y-1">
               <label className="text-xs font-bold uppercase text-muted-foreground">{t('screens.procurement.supplier')}</label>
               <select className="w-full h-11 rounded-xl border border-border px-3 bg-white" value={formData.supplier_id} onChange={e => setFormData({...formData, supplier_id: e.target.value})} required>
@@ -292,8 +292,8 @@ function POModal({ onClose, onSave }) {
               <Button type="button" variant="secondary" size="sm" onClick={addItem}><Plus size={14} className="mr-1"/> {t('screens.common.add_item')}</Button>
             </div>
             {formData.items.map((it, idx) => (
-              <div key={idx} className="grid grid-cols-12 gap-3 items-end">
-                <div className="col-span-6">
+              <div key={idx} className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+                <div className="sm:col-span-6">
                   <select className="w-full h-10 rounded-lg border border-border px-3 text-sm" value={it.item_id} onChange={e => {
                     const newItems = [...formData.items];
                     newItems[idx].item_id = e.target.value;
@@ -303,14 +303,14 @@ function POModal({ onClose, onSave }) {
                     {items.map(i => <option key={i.id} value={i.id}>{i.item_code} - {i.name}</option>)}
                   </select>
                 </div>
-                <div className="col-span-3">
+                <div className="sm:col-span-3">
                   <Input type="number" placeholder={t('screens.common.quantity')} value={it.quantity_ordered} onChange={e => {
                     const newItems = [...formData.items];
                     newItems[idx].quantity_ordered = parseFloat(e.target.value);
                     setFormData({...formData, items: newItems});
                   }} />
                 </div>
-                <div className="col-span-3">
+                <div className="sm:col-span-3">
                   <Input type="number" step="0.01" placeholder={t('screens.common.unit_price')} value={it.unit_price} onChange={e => {
                     const newItems = [...formData.items];
                     newItems[idx].unit_price = parseFloat(e.target.value);
@@ -446,8 +446,8 @@ function ReceiptModal({ po, onClose, onSave }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm" onClick={onClose}>
-      <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-3xl p-8 w-full max-w-6xl border border-border shadow-2xl overflow-y-auto max-h-[90vh]" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/40 backdrop-blur-sm" onClick={onClose}>
+      <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-3xl p-5 sm:p-8 w-full max-w-6xl border border-border shadow-2xl overflow-y-auto max-h-[90vh]" onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-start mb-8">
           <div>
             <h3 className="font-display text-2xl uppercase tracking-tighter">{t('screens.procurement.receipt_title')} {po ? `(PO #${po.id})` : ''}</h3>
@@ -472,7 +472,7 @@ function ReceiptModal({ po, onClose, onSave }) {
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-6 bg-muted/20 p-6 rounded-2xl border border-border/50">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 bg-muted/20 p-4 sm:p-6 rounded-2xl border border-border/50">
             <div className="space-y-1">
               <label className="text-xs font-bold uppercase text-muted-foreground">{t('screens.procurement.document_ref')}</label>
               <Input value={formData.document_reference} onChange={e => setFormData({...formData, document_reference: e.target.value})} required placeholder={t('screens.procurement.document_ref_ph')} />
@@ -486,7 +486,7 @@ function ReceiptModal({ po, onClose, onSave }) {
           <div className="space-y-10">
             {formData.items.map((item, itemIdx) => (
               <div key={itemIdx} className="space-y-4">
-                <div className="flex justify-between items-end border-b border-border pb-2">
+                <div className="flex flex-wrap gap-3 justify-between items-end border-b border-border pb-2">
                   <div>
                     <span className="font-mono text-[10px] font-black text-accent uppercase tracking-widest">{item.item_code}</span>
                     <h4 className="font-bold text-lg">{item.name}</h4>
@@ -508,8 +508,8 @@ function ReceiptModal({ po, onClose, onSave }) {
 
                 <div className="space-y-3">
                   {item.packages.map((pkg, pkgIdx) => (
-                    <div key={pkgIdx} className="grid grid-cols-12 gap-3 items-end bg-white p-4 rounded-xl border border-border/60 shadow-sm hover:border-accent/30 transition-all">
-                      <div className="col-span-3 space-y-1">
+                    <div key={pkgIdx} className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end bg-white p-4 rounded-xl border border-border/60 shadow-sm hover:border-accent/30 transition-all">
+                      <div className="sm:col-span-3 space-y-1">
                         <label className="text-[10px] font-bold uppercase text-muted-foreground">{t('screens.procurement.lot_number')}</label>
                         <div className="relative">
                           <Input 
@@ -522,7 +522,7 @@ function ReceiptModal({ po, onClose, onSave }) {
                           <QrCode size={16} className="absolute right-3 top-3 text-muted-foreground" />
                         </div>
                       </div>
-                      <div className="col-span-2 space-y-1">
+                      <div className="sm:col-span-2 space-y-1">
                         <label className="text-[10px] font-bold uppercase text-muted-foreground">{t('screens.common.quantity')}</label>
                         <Input 
                           type="number" 
@@ -531,7 +531,7 @@ function ReceiptModal({ po, onClose, onSave }) {
                           required 
                         />
                       </div>
-                      <div className="col-span-3 space-y-1">
+                      <div className="sm:col-span-3 space-y-1">
                         <label className="text-[10px] font-bold uppercase text-muted-foreground">{t('screens.common.location')}</label>
                         <select 
                           className="w-full h-10 rounded-lg border border-border px-3 text-sm" 
@@ -543,7 +543,7 @@ function ReceiptModal({ po, onClose, onSave }) {
                           {locations.map(l => <option key={l.id} value={l.id}>{l.whName} - {l.barcode}</option>)}
                         </select>
                       </div>
-                      <div className="col-span-3 space-y-1">
+                      <div className="sm:col-span-3 space-y-1">
                         <label className="text-[10px] font-bold uppercase text-muted-foreground">{t('screens.procurement.quality')}</label>
                         <select 
                           className={`w-full h-10 rounded-lg border px-3 text-sm font-bold ${pkg.quality_status === 'ok' ? 'border-green-200 text-green-700 bg-green-50' : 'border-orange-200 text-orange-700 bg-orange-50'}`} 
@@ -554,7 +554,7 @@ function ReceiptModal({ po, onClose, onSave }) {
                           <option value="quarantine">{t('screens.common.quarantine')}</option>
                         </select>
                       </div>
-                      <div className="col-span-1 pb-1">
+                      <div className="sm:col-span-1 pb-1">
                         {item.packages.length > 1 && (
                           <Button type="button" variant="ghost" size="sm" onClick={() => removePackage(itemIdx, pkgIdx)} className="text-red-500 hover:text-red-700 hover:bg-red-50">
                             <X size={16} />

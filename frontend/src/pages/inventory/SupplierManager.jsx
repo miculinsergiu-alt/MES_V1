@@ -72,7 +72,7 @@ export default function SupplierManager() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {filtered.map(sup => (
           <Card key={sup.id} className="p-6 group hover:border-blue-200 transition-all">
-            <div className="flex justify-between items-start mb-4">
+            <div className="flex flex-wrap gap-3 justify-between items-start mb-4">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-blue-50 rounded-2xl text-blue-600">
                   <Truck size={24} />
@@ -94,14 +94,14 @@ export default function SupplierManager() {
               </div>
             </div>
             
-            <div className="grid grid-cols-2 gap-4 text-sm mt-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4 text-sm mt-4">
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Phone size={14} /> {sup.phone || '-'}
               </div>
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Mail size={14} /> {sup.email || '-'}
               </div>
-              <div className="col-span-2 flex items-center gap-2 text-muted-foreground">
+              <div className="sm:col-span-2 flex items-center gap-2 text-muted-foreground">
                 <MapPin size={14} /> {sup.address || '-'}
               </div>
             </div>
@@ -188,8 +188,8 @@ function SupplierModal({ supplier, onClose, onSave }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm" onClick={onClose}>
-      <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-3xl p-8 w-full max-w-md border border-border shadow-2xl" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/40 backdrop-blur-sm" onClick={onClose}>
+      <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-3xl p-5 sm:p-8 w-full max-w-md max-h-[92vh] overflow-y-auto border border-border shadow-2xl" onClick={e => e.stopPropagation()}>
         <h3 className="font-display text-2xl mb-6">{supplier ? t('screens.suppliers.edit') : t('screens.suppliers.new')}</h3>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1">
@@ -286,8 +286,8 @@ function SupplierItemsModal({ supplier, onClose, onSave }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm" onClick={onClose}>
-      <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-3xl p-8 w-full max-w-3xl border border-border shadow-2xl flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/40 backdrop-blur-sm" onClick={onClose}>
+      <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-3xl p-5 sm:p-8 w-full max-w-3xl border border-border shadow-2xl flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-start mb-6">
           <div>
             <h3 className="font-display text-2xl flex items-center gap-2"><Package className="text-blue-600" /> {t('screens.suppliers.materials')}</h3>
@@ -330,8 +330,8 @@ function SupplierItemsModal({ supplier, onClose, onSave }) {
         <form onSubmit={handleAdd} className="bg-blue-50 p-6 rounded-2xl border border-blue-100 flex flex-col gap-4 relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-400 to-indigo-500"></div>
           <h4 className="text-xs font-black uppercase tracking-widest text-blue-800 flex items-center gap-2"><Plus size={14} /> {t('screens.suppliers.add_material')}</h4>
-          <div className="grid grid-cols-12 gap-4 items-end">
-            <div className="col-span-5 space-y-1">
+          <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-end">
+            <div className="sm:col-span-5 space-y-1">
               <label className="text-[10px] font-bold uppercase text-blue-700">{t('screens.common.material')}</label>
               <select className="w-full h-10 rounded-lg border border-blue-200 px-3 text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none" value={formData.item_id} onChange={e => setFormData({...formData, item_id: e.target.value})} required>
                 <option value="">{t('screens.common.choose_material')}</option>
@@ -340,7 +340,7 @@ function SupplierItemsModal({ supplier, onClose, onSave }) {
                 ))}
               </select>
             </div>
-            <div className="col-span-3 space-y-1">
+            <div className="sm:col-span-3 space-y-1">
               <label className="text-[10px] font-bold uppercase text-blue-700">{t('screens.common.purchase_price')}</label>
               <div className="flex">
                 <input type="number" step="0.01" className="w-full h-10 rounded-l-lg border border-blue-200 border-r-0 px-3 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:z-10 outline-none" value={formData.purchase_price} onChange={e => setFormData({...formData, purchase_price: parseFloat(e.target.value)})} required />
@@ -351,14 +351,14 @@ function SupplierItemsModal({ supplier, onClose, onSave }) {
                 </select>
               </div>
             </div>
-            <div className="col-span-2 space-y-1">
+            <div className="sm:col-span-2 space-y-1">
               <label className="text-[10px] font-bold uppercase text-blue-700">{t('screens.suppliers.lead_time')}</label>
               <div className="relative">
                 <input type="number" className="w-full h-10 rounded-lg border border-blue-200 px-3 text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none" value={formData.lead_time_days} onChange={e => setFormData({...formData, lead_time_days: parseInt(e.target.value) || 0})} required />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">{t('screens.common.days_short')}</span>
               </div>
             </div>
-            <div className="col-span-2">
+            <div className="sm:col-span-2">
               <Button type="submit" className="w-full h-10 bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/20"><Save size={16} className="mr-1"/> {t('common.save')}</Button>
             </div>
           </div>

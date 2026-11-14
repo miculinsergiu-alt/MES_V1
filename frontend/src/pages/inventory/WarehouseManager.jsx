@@ -48,7 +48,7 @@ export default function WarehouseManager() {
 
   return (
     <div className="space-y-8">
-      <header className="flex justify-between items-end">
+      <header className="flex flex-wrap justify-between items-end gap-4">
         <div>
           <h2 className="font-display text-3xl text-foreground">{t('screens.warehouse.title')}</h2>
           <p className="text-muted-foreground">{t('screens.warehouse.subtitle')}</p>
@@ -58,9 +58,9 @@ export default function WarehouseManager() {
         </Button>
       </header>
 
-      <div className="grid grid-cols-12 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
         {/* Warehouse List */}
-        <aside className="col-span-4 space-y-4">
+        <aside className="lg:col-span-4 space-y-3">
           {warehouses.map(wh => (
             <Card 
               key={wh.id} 
@@ -83,7 +83,7 @@ export default function WarehouseManager() {
         </aside>
 
         {/* Locations Grid */}
-        <main className="col-span-8 space-y-6">
+        <main className="lg:col-span-8 space-y-6">
           {selectedWarehouse ? (
             <Card className="p-6">
               <div className="flex justify-between items-center mb-6">
@@ -96,7 +96,7 @@ export default function WarehouseManager() {
                 </Button>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                 {locations.map(loc => (
                   <div key={loc.id} className="p-4 bg-muted/20 border border-border rounded-xl flex flex-col gap-2 group hover:bg-white hover:shadow-md transition-all">
                     <div className="flex justify-between items-start">
@@ -112,7 +112,7 @@ export default function WarehouseManager() {
                   </div>
                 ))}
                 {locations.length === 0 && (
-                  <div className="col-span-3 py-12 text-center text-muted-foreground italic">
+                  <div className="col-span-full py-12 text-center text-muted-foreground italic">
                     {t('screens.warehouse.no_locations')}
                   </div>
                 )}
@@ -161,8 +161,8 @@ function WarehouseModal({ onClose, onSave }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm" onClick={onClose}>
-      <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-3xl p-8 w-full max-w-md border border-border shadow-2xl" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/40 backdrop-blur-sm" onClick={onClose}>
+      <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-3xl p-5 sm:p-8 w-full max-w-md max-h-[92vh] overflow-y-auto border border-border shadow-2xl" onClick={e => e.stopPropagation()}>
         <h3 className="font-display text-2xl mb-6">{t('screens.warehouse.new_warehouse')}</h3>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1">
@@ -208,8 +208,8 @@ function LocationModal({ warehouseId, onClose, onSave }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm" onClick={onClose}>
-      <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-3xl p-8 w-full max-w-md border border-border shadow-2xl" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/40 backdrop-blur-sm" onClick={onClose}>
+      <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-3xl p-5 sm:p-8 w-full max-w-md max-h-[92vh] overflow-y-auto border border-border shadow-2xl" onClick={e => e.stopPropagation()}>
         <h3 className="font-display text-2xl mb-6">{t('screens.warehouse.new_location')}</h3>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-3 gap-4">

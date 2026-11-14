@@ -7,7 +7,7 @@ import GanttTimeline from '../../components/GanttTimeline';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { format, addDays, subDays } from 'date-fns';
-import { ro, enUS } from 'date-fns/locale';
+import { dateLocaleFor } from '../../lib/dateLocale';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -16,7 +16,7 @@ import { Badge } from '../../components/ui/Badge';
 
 export default function SupervisorDashboard() {
   const { t, i18n } = useTranslation();
-  const dateLocale = i18n.language === 'ro' ? ro : enUS;
+  const dateLocale = dateLocaleFor(i18n.language);
   const [tab, setTab] = useState('gantt');
   const [orders, setOrders] = useState([]);
   const [machines, setMachines] = useState([]);

@@ -93,7 +93,7 @@ export default function OperatorDashboard() {
     <div className="app-layout">
       <div className="main-content">
         <header className="page-header">
-          <div className="flex justify-between items-center w-full">
+          <div className="flex flex-wrap justify-between items-center gap-3 w-full">
             <div>
               <h1>{t('operator.title')}</h1>
               <p>{t('operator.welcome', { name: user?.first_name })}</p>
@@ -112,7 +112,7 @@ export default function OperatorDashboard() {
 
         <div className="page-content">
           {!selectedAlloc ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {allocations.length === 0 && <div className="card col-span-full py-20 text-center italic text-muted-foreground">{t('operator.no_allocations')}</div>}
               {allocations.map(alloc => (
                 <div key={alloc.id} className="card hover:border-accent cursor-pointer group transition-all" onClick={() => selectAlloc(alloc)}>
@@ -131,17 +131,18 @@ export default function OperatorDashboard() {
                     <div className="flex items-center gap-1.5 bg-accent/5 px-2 py-0.5 rounded-lg border border-accent/10 text-[10px] font-mono">
                       {alloc.planned_start?.substring(11,16)} - {alloc.planned_end?.substring(11,16)}
                     </div>
-                  </div>                  <button className="btn btn-primary w-full">{t('operator.open_control')}</button>
+                  </div>
+                  <button className="btn btn-primary h-12 w-full text-base">{t('operator.open_control')}</button>
                 </div>
               ))}
             </div>
           ) : (
             <div className="max-w-4xl">
-              <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center gap-4">
-                  <button className="btn btn-secondary h-12 w-12 p-0 rounded-2xl" onClick={() => setSelectedAlloc(null)}>←</button>
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-6 sm:mb-8">
+                <div className="flex items-center gap-4 min-w-0">
+                  <button className="btn btn-secondary h-12 w-12 shrink-0 p-0 rounded-2xl" aria-label={t('shell.close')} onClick={() => setSelectedAlloc(null)}>←</button>
                   <div>
-                    <h2 className="text-2xl font-bold text-foreground">{selectedAlloc.product_name}</h2>
+                    <h2 className="text-xl sm:text-2xl font-bold text-foreground break-words">{selectedAlloc.product_name}</h2>
                     <p className="text-muted-foreground font-mono text-sm uppercase tracking-wider">{t('operator.workstation_hash')}{selectedAlloc.machine_id}</p>
                   </div>
                 </div>
@@ -160,23 +161,23 @@ export default function OperatorDashboard() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4 mb-8">
-                <div className="card text-center py-8">
-                  <div className="text-3xl font-display text-foreground">{selectedAlloc.quantity}</div>
+              <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-6 sm:mb-8">
+                <div className="card text-center px-2 py-4 sm:py-8">
+                  <div className="text-2xl sm:text-3xl font-display text-foreground">{selectedAlloc.quantity}</div>
                   <div className="text-[10px] font-bold uppercase text-muted-foreground mt-1">{t('operator.target')}</div>
                 </div>
-                <div className="card text-center py-8 border-green-200 bg-green-50/30">
-                  <div className="text-3xl font-display text-green-600">{results?.totals.ok || 0}</div>
+                <div className="card text-center px-2 py-4 sm:py-8 border-green-200 bg-green-50/30">
+                  <div className="text-2xl sm:text-3xl font-display text-green-600">{results?.totals.ok || 0}</div>
                   <div className="text-[10px] font-bold uppercase text-green-600/70 mt-1">{t('operator.conform')}</div>
                 </div>
-                <div className="card text-center py-8 border-red-200 bg-red-50/30">
-                  <div className="text-3xl font-display text-red-600">{results?.totals.fail || 0}</div>
+                <div className="card text-center px-2 py-4 sm:py-8 border-red-200 bg-red-50/30">
+                  <div className="text-2xl sm:text-3xl font-display text-red-600">{results?.totals.fail || 0}</div>
                   <div className="text-[10px] font-bold uppercase text-red-600/70 mt-1">{t('operator.defect')}</div>
                 </div>
               </div>
 
-              <div className="card p-10">
-                <h3 className="text-lg font-bold mb-8 text-center uppercase tracking-widest text-muted-foreground">{t('operator.execution_panel')}</h3>
+              <div className="card p-4 sm:p-10">
+                <h3 className="text-lg font-bold mb-4 sm:mb-8 text-center uppercase tracking-widest text-muted-foreground">{t('operator.execution_panel')}</h3>
                 <div className="op-action-grid">
                   {/* SETUP */}
                   <button 
@@ -210,7 +211,7 @@ export default function OperatorDashboard() {
                     }}
                   >
                     <CheckCircle size={32} />
-                    <span className="text-lg">{t('operator.finish_production') || 'Finish Production'}</span>
+                    <span className="text-lg">{t('operator.finish_production')}</span>
                   </button>
 
                   {/* DELAY */}
@@ -249,7 +250,7 @@ export default function OperatorDashboard() {
         <LotScanModal 
           alloc={selectedAlloc} 
           onClose={() => setShowLotModal(false)} 
-          onSave={(lotNumber) => { setShowLotModal(false); logAction('setup', 'start', { notes: `Scanare Lot: ${lotNumber}` }); }} 
+          onSave={(lotNumber) => { setShowLotModal(false); logAction('setup', 'start', { notes: `Lot: ${lotNumber}` }); }} 
         />
       )}
     </div>
@@ -292,13 +293,13 @@ function OperatorDelayModal({ alloc, onClose, onSave }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-border">
-        <div className="px-8 py-6 border-b border-border flex justify-between items-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/40 backdrop-blur-sm">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[92vh] overflow-y-auto border border-border">
+        <div className="px-5 sm:px-8 py-4 sm:py-6 border-b border-border flex justify-between items-center">
           <h3 className="font-display text-2xl text-red-600">{t('operator.delay.title')}</h3>
           <button className="p-2 hover:bg-muted rounded-full" onClick={onClose}><X size={24}/></button>
         </div>
-        <form onSubmit={handleSubmit} className="p-8 space-y-4">
+        <form onSubmit={handleSubmit} className="p-5 sm:p-8 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{t('operator.delay.from_hour')}</label>
@@ -361,13 +362,13 @@ function ResultModal({ alloc, onClose, onSave }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-lg overflow-hidden border border-border">
-        <div className="px-8 py-6 border-b border-border flex justify-between items-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/40 backdrop-blur-sm">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[92vh] overflow-y-auto border border-border">
+        <div className="px-5 sm:px-8 py-4 sm:py-6 border-b border-border flex justify-between items-center">
           <h3 className="font-display text-2xl">{t('operator.results.title')}</h3>
           <button className="p-2 hover:bg-muted rounded-full" onClick={onClose}><X size={24}/></button>
         </div>
-        <form onSubmit={handleSubmit} className="p-8 space-y-6">
+        <form onSubmit={handleSubmit} className="p-5 sm:p-8 space-y-6">
           <div className="space-y-2">
             <label className="text-sm font-bold text-muted-foreground uppercase">{t('operator.results.ok')}</label>
             <input className="w-full h-14 text-2xl text-center rounded-xl border-2 border-green-200 bg-green-50/20" type="number" value={qtyOk} onChange={e=>setQtyOk(e.target.value)}/>
@@ -397,16 +398,16 @@ function LotScanModal({ alloc, onClose, onSave }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-border">
-        <div className="px-8 py-6 border-b border-border flex justify-between items-center bg-accent/5">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/40 backdrop-blur-sm">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[92vh] overflow-y-auto border border-border">
+        <div className="px-5 sm:px-8 py-4 sm:py-6 border-b border-border flex justify-between items-center bg-accent/5">
           <div>
             <h3 className="font-display text-xl text-accent">{t('operator.lot.title')}</h3>
             <p className="text-xs text-muted-foreground mt-1">{t('operator.lot.subtitle')}</p>
           </div>
           <button className="p-2 hover:bg-muted rounded-full" onClick={onClose}><X size={24}/></button>
         </div>
-        <form onSubmit={handleSubmit} className="p-8 space-y-6 text-center">
+        <form onSubmit={handleSubmit} className="p-5 sm:p-8 space-y-6 text-center">
           <div className="w-16 h-16 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-4">
             <div className="w-8 h-8 border-4 border-dashed border-accent animate-spin-slow rounded-full"></div>
           </div>

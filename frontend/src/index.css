@@ -106,12 +106,14 @@
   }
 
   /* Operator Action Buttons (Big & Colored) */
+  /* Shop-floor buttons: large touch targets, two per row also on phones */
   .op-action-grid {
-    @apply grid grid-cols-2 gap-4 mt-6;
+    @apply grid grid-cols-2 gap-3 sm:gap-4 mt-4 sm:mt-6;
   }
 
   .op-btn {
-    @apply flex flex-col items-center justify-center gap-3 p-8 rounded-2xl border-2 transition-all text-center font-bold;
+    @apply flex min-h-28 flex-col items-center justify-center gap-2 sm:gap-3 p-4 sm:p-8 rounded-2xl border-2 transition-all text-center font-bold disabled:opacity-40;
+    touch-action: manipulation;
   }
 
   .op-btn-setup { @apply border-blue-500/30 bg-blue-500/5 text-blue-600 hover:bg-blue-500/10; }

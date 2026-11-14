@@ -58,8 +58,8 @@ export default function QuarantineDashboard() {
               </div>
               <span className="text-[10px] font-mono font-bold text-orange-400">{log.created_at}</span>
             </div>
-            <div className="p-6 grid grid-cols-12 gap-8 items-center">
-              <div className="col-span-4 space-y-2">
+            <div className="p-6 grid grid-cols-1 sm:grid-cols-12 gap-8 items-center">
+              <div className="sm:col-span-4 space-y-2">
                 <div>
                   <span className="font-mono text-[10px] font-black text-accent tracking-widest">{log.item_code}</span>
                   <h4 className="font-bold text-xl">{log.item_name}</h4>
@@ -76,7 +76,7 @@ export default function QuarantineDashboard() {
                 </div>
               </div>
 
-              <div className="col-span-5 bg-muted/20 p-4 rounded-2xl border border-border/50">
+              <div className="sm:col-span-5 bg-muted/20 p-4 rounded-2xl border border-border/50">
                 <p className="text-[10px] font-black text-muted-foreground uppercase mb-1 flex items-center gap-1">
                   <FileSearch size={12}/> {t('screens.quarantine.reason')}
                 </p>
@@ -86,7 +86,7 @@ export default function QuarantineDashboard() {
                 </div>
               </div>
 
-              <div className="col-span-3 flex flex-col gap-2">
+              <div className="sm:col-span-3 flex flex-col gap-2">
                 <Button className="w-full bg-green-600 hover:bg-green-700" onClick={() => handleResolve(log.id, 'released')}>
                   <CheckCircle2 size={16} className="mr-2" /> {t('screens.quarantine.release')}
                 </Button>

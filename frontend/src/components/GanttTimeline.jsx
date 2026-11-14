@@ -1,6 +1,7 @@
 import { useMemo, useRef, useEffect } from 'react';
 import { format, addHours, startOfDay, differenceInMinutes } from 'date-fns';
 import { useTranslation } from 'react-i18next';
+import { dateLocaleFor } from '../lib/dateLocale';
 
 export default function GanttTimeline({ orders = [], machines = [], viewDate = new Date(), hoursToShow = 168, onBlockClick }) {
   const containerRef = useRef(null);
@@ -10,7 +11,7 @@ export default function GanttTimeline({ orders = [], machines = [], viewDate = n
   
   const dayStart = startOfDay(viewDate);
   const totalMinutes = hoursToShow * 60;
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   // ... (drag handlers same as before)
   const handleMouseDown = (e) => {
@@ -63,7 +64,7 @@ export default function GanttTimeline({ orders = [], machines = [], viewDate = n
       labels.push({ 
         hour: h, 
         label: format(d, 'HH:mm'),
-        dayLabel: isNewDay ? format(d, 'dd MMM') : null
+        dayLabel: isNewDay ? format(d, 'dd MMM', { locale: dateLocaleFor(i18n.language) }) : null
       });
     }
     return labels;

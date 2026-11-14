@@ -6,7 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { format, addDays, subDays } from 'date-fns';
-import { ro } from 'date-fns/locale';
+import { dateLocaleFor } from '../../lib/dateLocale';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -83,7 +83,7 @@ export default function ShiftDashboard() {
             <div>
               <Badge className="mb-2">{t('roles.shift_responsible')}</Badge>
               <h1>{myShift?.name || t('roles.shift_responsible')}</h1>
-              <p className="text-muted-foreground">{t('supervisor.subtitle')} — {format(new Date(), 'dd MMMM', {locale: i18n.language === 'ro' ? ro : undefined})}</p>
+              <p className="text-muted-foreground">{t('supervisor.subtitle')} — {format(new Date(), 'dd MMMM', { locale: dateLocaleFor(i18n.language) })}</p>
             </div>
             <div className="flex gap-2">
               <Button variant="secondary" onClick={() => setShowOvertimeModal(true)}>
