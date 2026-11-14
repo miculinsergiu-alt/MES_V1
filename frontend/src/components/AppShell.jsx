@@ -1,3 +1,4 @@
+import { hasAnyRole, rolesOf } from '../lib/roles';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -128,13 +129,13 @@ export default function AppShell() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const groups = useMemo(() => navFor(user?.role), [user?.role]);
+  const groups = useMemo(() => navFor(user), [user]);
 
   if (!user) return <Navigate to="/login" replace />;
   // New companies: the administrator goes through the setup wizard first.
-  if (user.role === 'administrator' && user.onboarding_completed === 0) return <Navigate to="/setup" replace />;
+  if (hasAnyRole(user, ['administrator']) && user.onboarding_completed === 0) return <Navigate to="/setup" replace />;
   const allowed = rolesFor(pathname);
-  if (allowed && !allowed.includes(user.role)) return <Navigate to={homeFor(user.role)} replace />;
+  if (allowed && !hasAnyRole(user, allowed)) return <Navigate to={homeFor(user)} replace />;
 
   const handleLogout = () => { logout(); navigate('/login'); };
 
@@ -153,7 +154,7 @@ export default function AppShell() {
       <div className="mb-2 flex items-center justify-between gap-2 px-2">
         <div className="min-w-0">
           <div className="truncate text-sm font-semibold">{user.first_name} {user.last_name}</div>
-          <div className="truncate text-xs text-muted-foreground">{t(`roles.${user.role}`)} · {user.badge_number}</div>
+          <div className="truncate text-xs text-muted-foreground">{rolesOf(user).map((r) => t(`roles.${r}`)).join(', ')} · {user.badge_number}</div>
         </div>
         <LanguageSwitcher />
       </div>

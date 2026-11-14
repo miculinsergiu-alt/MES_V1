@@ -9,7 +9,7 @@ import { Input } from '../../components/ui/Input';
 import { useAuth } from '../../contexts/AuthContext';
 import { eur, dateDE, apiError } from '../../lib/format';
 import { StatusPill, PageHeader } from './components';
-import { EDIT_ROLES } from '../../lib/roles';
+import { EDIT_ROLES, hasAnyRole } from '../../lib/roles';
 
 const TYPES = ['all', 'quote', 'order', 'delivery', 'invoice', 'credit_note'];
 const CREATABLE = ['quote', 'order', 'delivery', 'invoice'];
@@ -44,7 +44,7 @@ export default function DocumentsList() {
     return () => clearTimeout(id);
   }, [load]);
 
-  const canEdit = EDIT_ROLES.includes(user?.role);
+  const canEdit = hasAnyRole(user, EDIT_ROLES);
 
   return (
     <div>

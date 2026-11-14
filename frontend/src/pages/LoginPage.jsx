@@ -54,7 +54,7 @@ export default function LoginPage() {
       const user = await login(companyCode, badge.trim().toUpperCase(), password);
       try { localStorage.setItem(COMPANY_KEY, companyCode); } catch { /* storage unavailable */ }
       toast.success(t('login.welcome', { name: user.first_name }));
-      navigate(homeFor(user.role));
+      navigate(homeFor(user));
     } catch (err) {
       toast.error(err.response?.data?.error || t('login.auth_error'));
     } finally {

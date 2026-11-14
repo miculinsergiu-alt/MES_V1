@@ -73,6 +73,23 @@ Required settings in production (see `backend/.env.example`): `NODE_ENV=producti
 
 ## Changelog
 
+### [November 2026] — Phase 3: Stock, traceability, costing & reports
+- All stock movements go through one stock service: lots first-in-first-out, quarantined lots skipped, unit cost on every movement.
+- Finished goods are booked into stock: one production lot per order (`FA-<order>`), valued at actual cost per good part. Deliveries take goods from lots.
+- Negative stock rule per company: allow, warn, or block (the booking is refused).
+- Moving average purchase cost from goods receipts.
+- Batch traceability (Chargenrückverfolgung): from a supplier lot forward to production orders, production lots and customer deliveries, and backward to the material lots and suppliers. Search by lot, item, customer or delivery note.
+- Nachkalkulation: planned vs. actual material, machine and labour cost per production order, with machine hourly rates and a company labour rate; margin per order. Planned times are used (and marked) where no times were reported.
+- Reports with Excel export: sales & gross margin (per customer or item), stock value, on-time delivery; actual costing list.
+- Users can have several roles; access is the union of all of them.
+
+### [November 2026] — Phase 2: Usability
+- One app shell for all roles with role-based navigation, global search (Ctrl+K) and a dashboard per role.
+- Import of items, customers, suppliers and stock from Excel/CSV (German number and date formats), with a preview before saving.
+- Self-service sign-up (optional invite code) and a setup wizard for new companies, with optional sample data.
+- German as the main language across all screens; English and Romanian available.
+- Screens usable on phones and tablets.
+
 ### [November 2026] — Phase 1: Sales, invoicing & e-invoices (Germany)
 - Customers (VIES VAT check, tax treatment from country and VAT ID), company settings, gap-free number ranges.
 - Quote → order confirmation → delivery note → invoice, partial deliveries, make-to-order production orders.

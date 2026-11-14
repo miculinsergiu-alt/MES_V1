@@ -1,0 +1,147 @@
+{
+  "settings": {
+    "stock_costing": "Stock & costing",
+    "negative_stock": "Negative stock",
+    "negative_allow": "Allow",
+    "negative_warn": "Allow, but warn",
+    "negative_block": "Prevent (reject the booking)",
+    "labor_rate": "Labour rate (€/h)",
+    "costing_hint": "The labour rate and machine hourly rates are used for the actual costing of production orders."
+  },
+  "machines": {
+    "hourly_rate": "Machine hourly rate (€/h)",
+    "hourly_rate_hint": "For actual costing: cost per hour of setup and production."
+  },
+  "users": {
+    "new_user": "New user",
+    "primary_role": "Primary role",
+    "roles": "Roles",
+    "roles_hint": "A user can have several roles (e.g. the owner: planning, sales and accounting) and sees the areas of all of them.",
+    "pick_role": "Please pick at least one role"
+  },
+  "trace": {
+    "title": "Batch traceability",
+    "intro": "What was a batch made from, and which customers received it? For complaints and recalls: search by lot number, item, customer or delivery note.",
+    "search": "Lot, item, customer, delivery note …",
+    "no_lots": "No lots found",
+    "pick_lot": "Pick a lot on the left",
+    "in_stock": "In stock",
+    "customers": "Affected customers",
+    "suppliers": "Material suppliers",
+    "no_customers": "Not delivered to customers yet",
+    "no_suppliers": "No supplier lots",
+    "backward": "Origin (backward)",
+    "forward": "Usage (forward)",
+    "produced_by": "Produced in order #{{id}} {{name}}",
+    "unknown_supplier": "Unknown supplier",
+    "used_in": "{{qty}} used in order #{{id}} {{name}}",
+    "delivered": "{{qty}} delivered to {{customer}} ({{number}})",
+    "source": {
+      "receipt": "Goods receipt",
+      "production": "In-house production",
+      "import": "Import",
+      "adjustment": "Stock correction"
+    },
+    "move": {
+      "scrap": "Scrapped",
+      "other": "Other issue"
+    }
+  },
+  "costing": {
+    "title": "Actual costing",
+    "intro": "Planned vs. actual cost per production order: material (actually consumed), machine and labour time (from shop-floor feedback) and the contribution margin. Hourly rates are set in the settings and on the machines.",
+    "back": "All orders",
+    "pieces": "pcs",
+    "deviation": "Deviation",
+    "labor_rate": "Labour rate",
+    "actual_per_piece": "Actual cost per good part",
+    "plan": "Plan",
+    "actual": "Actual",
+    "actual_margin": "Actual margin",
+    "good_scrap": "Good / scrap",
+    "of_planned": "of {{qty}} planned",
+    "cost_type": "Cost type",
+    "type": {
+      "material": "Material",
+      "machine": "Machine",
+      "labour": "Labour",
+      "total": "Total"
+    },
+    "revenue": "Revenue",
+    "materials": "Material",
+    "item": "Item",
+    "plan_qty": "Planned qty",
+    "actual_qty": "Actual qty",
+    "no_bom": "No bill of materials",
+    "steps": "Operations",
+    "machine": "Machine",
+    "plan_hours": "Plan",
+    "actual_hours": "Actual",
+    "no_rates": "No machine hourly rates set – machine cost is 0.",
+    "status": "Status",
+    "only_done": "Finished orders only",
+    "all": "All orders",
+    "planned_total": "Total planned cost",
+    "actual_total": "Total actual cost",
+    "order": "Order",
+    "product": "Product",
+    "date": "Date",
+    "good_qty": "Good qty",
+    "per_piece": "Actual per piece",
+    "margin": "Margin",
+    "empty": "No production orders in this period",
+    "estimated": "Estimated (planned time)",
+    "estimated_hint": "No times were reported for at least one operation. The planned time is used there (marked with *)."
+  },
+  "reports": {
+    "title": "Reports",
+    "excel": "Excel export",
+    "from": "From",
+    "to": "To",
+    "group_by": "Group by",
+    "by_customer": "Customer",
+    "by_item": "Item",
+    "stock_hint": "Current stock valued at moving average cost (else purchase or production cost).",
+    "sales_hint": "Revenue from issued invoices minus credit notes. Cost of goods = quantity × current unit cost; lines without an item (e.g. freight) have no cost of goods.",
+    "total_value": "Total stock value",
+    "negative_items_one": "{{count}} item with negative stock – please check with a stock count.",
+    "negative_items_other": "{{count}} items with negative stock – please check with a stock count.",
+    "otd_rate": "On-time delivery",
+    "otd_sub": "{{on_time}} of {{due}} due orders on time",
+    "empty": "No data in this period",
+    "tab": {
+      "sales": "Sales & margin",
+      "stock": "Stock value",
+      "delivery": "On-time delivery"
+    },
+    "type": {
+      "raw_material": "Raw material",
+      "semi_finished": "Semi-finished",
+      "finished_good": "Finished good"
+    },
+    "state": {
+      "on_time": "On time",
+      "late": "Late",
+      "overdue": "Overdue",
+      "open": "Open"
+    },
+    "col": {
+      "customer_name": "Customer",
+      "item_code": "Item no.",
+      "item_name": "Description",
+      "quantity": "Quantity",
+      "revenue": "Net revenue",
+      "cost": "Cost of goods",
+      "margin": "Gross margin",
+      "type": "Type",
+      "unit_cost": "Unit cost",
+      "value": "Stock value",
+      "number": "Order",
+      "delivery_date": "Requested date",
+      "last_delivery": "Last delivery",
+      "delivered": "Delivered",
+      "state": "State",
+      "days_late": "Days late"
+    }
+  }
+}

@@ -1,0 +1,147 @@
+{
+  "settings": {
+    "stock_costing": "Lager & Kalkulation",
+    "negative_stock": "Negativer Bestand",
+    "negative_allow": "Erlauben",
+    "negative_warn": "Erlauben, aber warnen",
+    "negative_block": "Verhindern (Buchung ablehnen)",
+    "labor_rate": "Lohnkostensatz (€/Std.)",
+    "costing_hint": "Der Lohnkostensatz und die Maschinenstundensätze werden für die Nachkalkulation der Fertigungsaufträge verwendet."
+  },
+  "machines": {
+    "hourly_rate": "Maschinenstundensatz (€/Std.)",
+    "hourly_rate_hint": "Für die Nachkalkulation: Kosten je Stunde Rüsten und Fertigen."
+  },
+  "users": {
+    "new_user": "Neuer Benutzer",
+    "primary_role": "Hauptrolle",
+    "roles": "Rollen",
+    "roles_hint": "Ein Benutzer kann mehrere Rollen haben (z. B. Inhaber: Planung, Verkauf und Buchhaltung). Er sieht alle Bereiche dieser Rollen.",
+    "pick_role": "Bitte mindestens eine Rolle wählen"
+  },
+  "trace": {
+    "title": "Chargenrückverfolgung",
+    "intro": "Woraus wurde eine Charge gefertigt und an welche Kunden ging sie? Für Reklamationen und Rückrufe: Suche nach Chargennummer, Artikel, Kunde oder Lieferschein.",
+    "search": "Charge, Artikel, Kunde, Lieferschein …",
+    "no_lots": "Keine Chargen gefunden",
+    "pick_lot": "Charge links auswählen",
+    "in_stock": "Bestand",
+    "customers": "Betroffene Kunden",
+    "suppliers": "Lieferanten der Materialien",
+    "no_customers": "Noch nicht an Kunden geliefert",
+    "no_suppliers": "Keine Lieferantenchargen",
+    "backward": "Herkunft (rückwärts)",
+    "forward": "Verwendung (vorwärts)",
+    "produced_by": "Gefertigt in Auftrag #{{id}} {{name}}",
+    "unknown_supplier": "Lieferant unbekannt",
+    "used_in": "{{qty}} verbraucht in Auftrag #{{id}} {{name}}",
+    "delivered": "{{qty}} geliefert an {{customer}} ({{number}})",
+    "source": {
+      "receipt": "Wareneingang",
+      "production": "Eigenfertigung",
+      "import": "Import",
+      "adjustment": "Bestandskorrektur"
+    },
+    "move": {
+      "scrap": "Verschrottet",
+      "other": "Sonstiger Abgang"
+    }
+  },
+  "costing": {
+    "title": "Nachkalkulation",
+    "intro": "Plan- und Istkosten je Fertigungsauftrag: Material (tatsächlich verbraucht), Maschinen- und Personalzeit (aus den Rückmeldungen) sowie der Deckungsbeitrag. Stundensätze pflegen Sie in den Einstellungen und bei den Maschinen.",
+    "back": "Alle Aufträge",
+    "pieces": "Stk.",
+    "deviation": "Abweichung",
+    "labor_rate": "Lohnkostensatz",
+    "actual_per_piece": "Istkosten je Gutteil",
+    "plan": "Plan",
+    "actual": "Ist",
+    "actual_margin": "Ist-Deckungsbeitrag",
+    "good_scrap": "Gut / Ausschuss",
+    "of_planned": "von {{qty}} geplant",
+    "cost_type": "Kostenart",
+    "type": {
+      "material": "Material",
+      "machine": "Maschine",
+      "labour": "Personal",
+      "total": "Gesamt"
+    },
+    "revenue": "Erlös",
+    "materials": "Material",
+    "item": "Artikel",
+    "plan_qty": "Planmenge",
+    "actual_qty": "Istmenge",
+    "no_bom": "Keine Stückliste",
+    "steps": "Arbeitsgänge",
+    "machine": "Maschine",
+    "plan_hours": "Plan",
+    "actual_hours": "Ist",
+    "no_rates": "Keine Maschinenstundensätze hinterlegt – Maschinenkosten sind 0.",
+    "status": "Status",
+    "only_done": "Nur fertige Aufträge",
+    "all": "Alle Aufträge",
+    "planned_total": "Plankosten gesamt",
+    "actual_total": "Istkosten gesamt",
+    "order": "Auftrag",
+    "product": "Produkt",
+    "date": "Datum",
+    "good_qty": "Gutmenge",
+    "per_piece": "Ist je Stück",
+    "margin": "Deckungsbeitrag",
+    "empty": "Keine Fertigungsaufträge im Zeitraum",
+    "estimated": "Geschätzt (Planzeit)",
+    "estimated_hint": "Für mindestens einen Arbeitsgang wurden keine Zeiten zurückgemeldet. Dort wird die Planzeit verwendet (mit * markiert)."
+  },
+  "reports": {
+    "title": "Berichte",
+    "excel": "Excel-Export",
+    "from": "Von",
+    "to": "Bis",
+    "group_by": "Gruppieren nach",
+    "by_customer": "Kunde",
+    "by_item": "Artikel",
+    "stock_hint": "Aktueller Bestand, bewertet zum gleitenden Durchschnittspreis (sonst Einkaufs- bzw. Herstellkosten).",
+    "sales_hint": "Umsatz aus gestellten Rechnungen abzüglich Gutschriften. Wareneinsatz = Menge × aktuelle Stückkosten; Positionen ohne Artikel (z. B. Fracht) ohne Wareneinsatz.",
+    "total_value": "Bestandswert gesamt",
+    "negative_items_one": "{{count}} Artikel mit negativem Bestand – bitte Inventur prüfen.",
+    "negative_items_other": "{{count}} Artikel mit negativem Bestand – bitte Inventur prüfen.",
+    "otd_rate": "Liefertreue",
+    "otd_sub": "{{on_time}} von {{due}} fälligen Aufträgen pünktlich",
+    "empty": "Keine Daten im Zeitraum",
+    "tab": {
+      "sales": "Umsatz & Rohertrag",
+      "stock": "Lagerwert",
+      "delivery": "Liefertreue"
+    },
+    "type": {
+      "raw_material": "Rohmaterial",
+      "semi_finished": "Halbfabrikat",
+      "finished_good": "Fertigerzeugnis"
+    },
+    "state": {
+      "on_time": "Pünktlich",
+      "late": "Verspätet",
+      "overdue": "Überfällig",
+      "open": "Offen"
+    },
+    "col": {
+      "customer_name": "Kunde",
+      "item_code": "Artikelnr.",
+      "item_name": "Bezeichnung",
+      "quantity": "Menge",
+      "revenue": "Umsatz netto",
+      "cost": "Wareneinsatz",
+      "margin": "Rohertrag",
+      "type": "Art",
+      "unit_cost": "Stückkosten",
+      "value": "Bestandswert",
+      "number": "Auftrag",
+      "delivery_date": "Wunschtermin",
+      "last_delivery": "Letzte Lieferung",
+      "delivered": "Geliefert",
+      "state": "Status",
+      "days_late": "Tage Verzug"
+    }
+  }
+}

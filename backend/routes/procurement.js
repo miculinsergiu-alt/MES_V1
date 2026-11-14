@@ -4,6 +4,7 @@ const { h } = require('../lib/handler');
 const v = require('../lib/validate');
 const { notFound, conflict, badRequest } = require('../lib/errors');
 const { authenticateToken, requireRole } = require('../middleware/auth');
+const stock = require('../services/stock');
 
 const router = express.Router();
 router.use(authenticateToken);
@@ -131,25 +132,22 @@ router.post('/receipts', requireRole(...BUYERS), h(async (req, res) => {
     // Rejected goods are documented but not added to stock.
     if (item.quality_status === 'rejected') continue;
 
-    const lot = await db.get(`
-      INSERT INTO inventory_lots (item_id, lot_number, quantity, expiration_date) VALUES (?, ?, ?, ?)
-      ON CONFLICT (company_id, lot_number) DO UPDATE SET quantity = inventory_lots.quantity + EXCLUDED.quantity
-      RETURNING id`, [item.item_id, item.lot_number, item.quantity_received, item.expiration_date ?? null]);
-
-    await db.run(`
-      INSERT INTO stock_levels (item_id, quantity, last_updated) VALUES (?, ?, nova_now())
-      ON CONFLICT (item_id) DO UPDATE SET quantity = stock_levels.quantity + EXCLUDED.quantity, last_updated = nova_now()`,
-    [item.item_id, item.quantity_received]);
+    // Purchase price: from the purchase order line, otherwise the item's purchase cost.
+    const priceRow = b.po_id
+      ? await db.get('SELECT unit_price FROM purchase_order_items WHERE po_id = ? AND item_id = ? ORDER BY id LIMIT 1', [b.po_id, item.item_id])
+      : null;
+    const unitPrice = priceRow?.unit_price ?? (await db.get('SELECT acquisition_cost FROM items WHERE id = ?', [item.item_id]))?.acquisition_cost ?? 0;
+    await stock.updateAverageCost(item.item_id, item.quantity_received, Number(unitPrice));
+    await stock.bookIn({
+      itemId: item.item_id, qty: item.quantity_received, lotNumber: item.lot_number, sourceType: 'receipt',
+      expirationDate: item.expiration_date ?? null, unitCost: Number(unitPrice),
+      referenceType: 'receipt', referenceId: receipt.id, userId: req.user.id,
+    });
 
     if (b.po_id) {
       await db.run('UPDATE purchase_order_items SET quantity_received = quantity_received + ? WHERE po_id = ? AND item_id = ?',
         [item.quantity_received, b.po_id, item.item_id]);
     }
-
-    await db.run(`
-      INSERT INTO stock_transactions (item_id, lot_id, quantity, type, reference_type, reference_id, user_id)
-      VALUES (?, ?, ?, 'in', 'receipt', ?, ?)`,
-    [item.item_id, lot.id, item.quantity_received, receipt.id, req.user.id]);
 
     if (item.quality_status === 'quarantine') {
       await db.run(`

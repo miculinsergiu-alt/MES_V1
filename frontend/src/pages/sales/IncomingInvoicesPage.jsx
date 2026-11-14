@@ -1,3 +1,4 @@
+import { hasAnyRole } from '../../lib/roles';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -198,7 +199,7 @@ export default function IncomingInvoicesPage() {
             </tbody>
           </table>
         </div>
-        {selected && <Detail key={selected} id={selected} t={t} canDecide={DECIDERS.includes(user?.role)} onChanged={load} />}
+        {selected && <Detail key={selected} id={selected} t={t} canDecide={hasAnyRole(user, DECIDERS)} onChanged={load} />}
       </div>
     </div>
   );

@@ -5,7 +5,7 @@ const db = require('../db');
 const { h } = require('../lib/handler');
 const v = require('../lib/validate');
 const { unauthorized, badRequest, AppError } = require('../lib/errors');
-const { authenticateToken, signToken } = require('../middleware/auth');
+const { authenticateToken, signToken, rolesOf } = require('../middleware/auth');
 const config = require('../config');
 
 const router = express.Router();
@@ -67,6 +67,7 @@ function sessionFor(user, company) {
       last_name: user.last_name,
       badge_number: user.badge_number,
       role: user.role,
+      roles: rolesOf(user),
       company_id: company.id,
       company_code: company.code,
       company_name: company.name,
@@ -133,14 +134,14 @@ router.post('/signup', signupLimiter, async (req, res) => {
       onboardingCompleted: 0, signupEmail: b.email,
     });
   });
-  const user = { id: result.admin.id, first_name: b.first_name, last_name: b.last_name, badge_number: result.admin.badge_number, role: 'administrator' };
+  const user = { id: result.admin.id, first_name: b.first_name, last_name: b.last_name, badge_number: result.admin.badge_number, role: 'administrator', roles: ['administrator'] };
   res.status(201).json(sessionFor(user, result.company));
 });
 
 // GET /api/auth/me — current user, re-checked against the database
 router.get('/me', authenticateToken, h(async (req, res) => {
   const user = await db.get(
-    'SELECT id, first_name, last_name, badge_number, role FROM users WHERE id = ? AND active = 1',
+    'SELECT id, first_name, last_name, badge_number, role, roles FROM users WHERE id = ? AND active = 1',
     [req.user.id],
   );
   if (!user) throw unauthorized('User no longer active');

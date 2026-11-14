@@ -1,3 +1,4 @@
+import { hasAnyRole } from '../lib/roles';
 import { useEffect, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -46,7 +47,7 @@ export default function SetupWizard() {
   }, []);
 
   if (!user) return <Navigate to="/login" replace />;
-  if (user.role !== 'administrator') return <Navigate to="/" replace />;
+  if (!hasAnyRole(user, ['administrator'])) return <Navigate to="/" replace />;
   if (!company) return null;
 
   const setC = (k) => (e) => setCompany((c) => ({ ...c, [k]: e.target.value }));

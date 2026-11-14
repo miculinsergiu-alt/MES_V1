@@ -3,7 +3,7 @@ const { h } = require('../lib/handler');
 const v = require('../lib/validate');
 const { badRequest, forbidden } = require('../lib/errors');
 const importer = require('../services/importer');
-const { authenticateToken, requireRole } = require('../middleware/auth');
+const { authenticateToken, requireRole, hasRole } = require('../middleware/auth');
 
 const router = express.Router();
 router.use(authenticateToken);
@@ -20,7 +20,7 @@ const MAX_BYTES = 10 * 1024 * 1024;
 
 function guard(req) {
   const { type } = v.params(req, v.z.object({ type: v.z.enum(Object.keys(ROLES)) }));
-  if (!ROLES[type].includes(req.user.role)) throw forbidden('Your role may not import this data');
+  if (!hasRole(req.user, ...ROLES[type])) throw forbidden('Your role may not import this data');
   return type;
 }
 

@@ -10,7 +10,7 @@ import { Input } from '../../components/ui/Input';
 import { useAuth } from '../../contexts/AuthContext';
 import { eur, num, dateDE, todayISO, apiError, openFile, downloadFile } from '../../lib/format';
 import { StatusPill } from './components';
-import { EDIT_ROLES, ACCOUNTING_ROLES } from '../../lib/roles';
+import { EDIT_ROLES, ACCOUNTING_ROLES, hasAnyRole } from '../../lib/roles';
 
 const HEADER_FIELDS = ['document_date', 'service_date', 'service_period_end', 'valid_until', 'delivery_date', 'payment_terms_days',
   'skonto_days', 'skonto_percent', 'customer_reference', 'buyer_reference', 'intro_text', 'closing_text', 'internal_notes'];
@@ -68,8 +68,8 @@ export default function DocumentEditor() {
 
   const docType = doc?.doc_type || params.get('type') || 'invoice';
   const locked = !!doc?.locked;
-  const canEdit = EDIT_ROLES.includes(user?.role) && !locked;
-  const canAccount = ACCOUNTING_ROLES.includes(user?.role);
+  const canEdit = hasAnyRole(user, EDIT_ROLES) && !locked;
+  const canAccount = hasAnyRole(user, ACCOUNTING_ROLES);
 
   const applyDoc = useCallback((d) => {
     setDoc(d);
@@ -385,12 +385,12 @@ export default function DocumentEditor() {
           <Card className="space-y-3">
             <h3 className="font-semibold">{t('sales.editor.related')}</h3>
             <div className="flex flex-wrap gap-2">
-              {EDIT_ROLES.includes(user?.role) && doc.conversions.map((target) => (
+              {hasAnyRole(user, EDIT_ROLES) && doc.conversions.map((target) => (
                 <Button key={target} size="sm" variant="secondary" onClick={() => convert(target)}>
                   <ArrowRight size={14} className="mr-1" />{t('sales.actions.convert_to', { type: t(`sales.types.${target}`) })}
                 </Button>
               ))}
-              {doc.doc_type === 'quote' && doc.status === 'issued' && EDIT_ROLES.includes(user?.role) && (
+              {doc.doc_type === 'quote' && doc.status === 'issued' && hasAnyRole(user, EDIT_ROLES) && (
                 <>
                   <Button size="sm" variant="ghost" onClick={() => setQuoteStatus('accepted')}>{t('sales.actions.accept')}</Button>
                   <Button size="sm" variant="ghost" onClick={() => setQuoteStatus('declined')}>{t('sales.actions.decline')}</Button>

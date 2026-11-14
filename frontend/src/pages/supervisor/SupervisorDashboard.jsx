@@ -367,7 +367,7 @@ function ShiftDefinitionModal({ shift, users, onClose, onSave }) {
           </label>
           <select className="w-full h-12 rounded-xl border border-border bg-white px-4 focus:ring-2 focus:ring-accent outline-none appearance-none" value={formData.shift_responsible_id} onChange={e => setFormData({...formData, shift_responsible_id: e.target.value})} required>
             <option value="">{t('admin.select_responsible_placeholder')}</option>
-            {users.filter(u => u.role === 'shift_responsible').map(u => (
+            {users.filter(u => (u.roles || [u.role]).includes('shift_responsible')).map(u => (
               <option key={u.id} value={u.id}>{u.first_name} {u.last_name} ({u.badge_number})</option>
             ))}
           </select>
@@ -380,7 +380,7 @@ function ShiftDefinitionModal({ shift, users, onClose, onSave }) {
              </label>
           </div>
           <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-2">
-             {users.filter(u => u.role === 'operator').map(u => {
+             {users.filter(u => (u.roles || [u.role]).includes('operator')).map(u => {
                const isSelected = formData.members.includes(u.id);
                return (
                  <button 

@@ -27,11 +27,14 @@ import ImportPage from './pages/ImportPage';
 import SignupPage from './pages/SignupPage';
 import SetupWizard from './pages/SetupWizard';
 import './index.css';
+import TracePage from './pages/ops/TracePage';
+import CostingPage from './pages/ops/CostingPage';
+import ReportsPage from './pages/ops/ReportsPage';
 
 function RootRedirect() {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
-  return <Navigate to={homeFor(user.role)} replace />;
+  return <Navigate to={homeFor(user)} replace />;
 }
 
 /** Standard page padding for the newer screens. */
@@ -81,6 +84,11 @@ export default function App() {
                 <Route path="/sales/dunning" element={<DunningPage />} />
                 <Route path="/sales/datev" element={<DatevPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/trace" element={<TracePage />} />
+                <Route path="/trace/:lot" element={<TracePage />} />
+                <Route path="/costing" element={<CostingPage />} />
+                <Route path="/costing/:id" element={<CostingPage />} />
+                <Route path="/reports" element={<ReportsPage />} />
               </Route>
             </Route>
 

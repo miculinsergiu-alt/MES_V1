@@ -10,7 +10,7 @@ import { Input } from '../../components/ui/Input';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiError } from '../../lib/format';
 import { PageHeader } from './components';
-import { EDIT_ROLES } from '../../lib/roles';
+import { EDIT_ROLES, hasAnyRole } from '../../lib/roles';
 
 const inputCls = 'h-10 w-full rounded-lg border border-border bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent';
 const EMPTY = { customer_number: '', name: '', name2: '', street: '', postal_code: '', city: '', country: 'DE', vat_id: '', email: '', invoice_email: '', phone: '', contact_person: '', payment_terms_days: '', skonto_days: '', skonto_percent: '', leitweg_id: '', notes: '' };
@@ -107,7 +107,7 @@ export default function CustomersPage() {
   const [params] = useSearchParams();
   const [search, setSearch] = useState(() => params.get('search') || '');
   const [editing, setEditing] = useState(null);
-  const canEdit = EDIT_ROLES.includes(user?.role);
+  const canEdit = hasAnyRole(user, EDIT_ROLES);
 
   const load = useCallback(async () => {
     try { setCustomers((await api.get(`/customers?search=${encodeURIComponent(search)}`)).data); } catch (err) { toast.error(apiError(err, t('sales.messages.error'))); }

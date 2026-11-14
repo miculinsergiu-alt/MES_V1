@@ -156,12 +156,14 @@ export default function AdminDashboard() {
                             </span>
                           </td>
                           <td className="px-6 py-4">
-                            <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-muted text-muted-foreground border border-border">
-                              {t(`roles.${u.role}`)}
-                            </span>
+                            <div className="flex flex-wrap gap-1">
+                              {(u.roles?.length ? u.roles : [u.role]).map((r) => (
+                                <span key={r} className="text-xs font-semibold px-2.5 py-1 rounded-md bg-muted text-muted-foreground border border-border">{t(`roles.${r}`)}</span>
+                              ))}
+                            </div>
                           </td>
                           <td className="px-6 py-4">
-                            {u.role === 'operator' && (
+                            {(u.roles || [u.role]).includes('operator') && (
                               <button 
                                 className="flex items-center gap-1.5 text-xs font-bold text-accent hover:underline"
                                 onClick={() => { setSelectedUserForSkills(u); setShowSkillModal(true); }}
@@ -426,7 +428,7 @@ function ShiftDefinitionModal({ shift, users, onClose, onSave }) {
           </label>
           <select className="w-full h-12 rounded-xl border border-border bg-white px-4 focus:ring-2 focus:ring-accent outline-none" value={formData.shift_responsible_id} onChange={e => setFormData({...formData, shift_responsible_id: e.target.value})} required>
             <option value="">{t('admin.select_responsible_placeholder')}</option>
-            {users.filter(u => u.role === 'shift_responsible').map(u => (
+            {users.filter(u => (u.roles || [u.role]).includes('shift_responsible')).map(u => (
               <option key={u.id} value={u.id}>{u.first_name} {u.last_name} ({u.badge_number})</option>
             ))}
           </select>
@@ -439,7 +441,7 @@ function ShiftDefinitionModal({ shift, users, onClose, onSave }) {
              </label>
           </div>
           <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-2">
-             {users.filter(u => u.role === 'operator').map(u => {
+             {users.filter(u => (u.roles || [u.role]).includes('operator')).map(u => {
                const isSelected = formData.members.includes(u.id);
                return (
                  <button 
@@ -626,25 +628,30 @@ function SkillModal({ user, areas, onClose }) {
   );
 }
 
+const ALL_ROLES = ['administrator', 'planner', 'area_supervisor', 'shift_responsible', 'operator', 'warehouse_manager', 'material_planner', 'sales', 'accounting'];
+
 function UserModal({ user, onClose, onSave }) {
   const { t } = useTranslation();
-  const [form, setForm] = useState({ first_name:user?.first_name||'', last_name:user?.last_name||'', badge_number:user?.badge_number||'', role:user?.role||'operator', password:'' });
+  const [form, setForm] = useState({ first_name:user?.first_name||'', last_name:user?.last_name||'', badge_number:user?.badge_number||'', role:user?.role||'operator', roles:user?.roles?.length ? user.roles : [user?.role||'operator'], password:'' });
   const [loading, setLoading] = useState(false);
   
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      if (user) await api.put(`/users/${user.id}`, form);
-      else await api.post('/users', form);
+      if (!form.roles.length) { toast.error(t('ops.users.pick_role')); return; }
+      const body = { ...form, role: form.roles.includes(form.role) ? form.role : form.roles[0] };
+      if (user) await api.put(`/users/${user.id}`, body);
+      else await api.post('/users', body);
       toast.success(user ? t('admin.user_updated') : t('admin.user_created'));
       onSave();
-    } catch(err) { toast.error(t('admin.processing_error')); }
+    } catch(err) { toast.error(err.response?.data?.error || t('admin.processing_error')); }
     finally { setLoading(false); }
   };
+  const toggleRole = (r) => setForm((p) => ({ ...p, roles: p.roles.includes(r) ? p.roles.filter((x) => x !== r) : [...p.roles, r] }));
 
   return (
-    <ModalWrapper title={user ? `${t('common.edit')} ${t('sidebar.users')}` : t('admin.new_shift')} onClose={onClose}>
+    <ModalWrapper title={user ? `${t('common.edit')} ${t('sidebar.users')}` : t('ops.users.new_user')} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
@@ -662,12 +669,24 @@ function UserModal({ user, onClose, onSave }) {
             <Input value={form.badge_number} onChange={e=>setForm(p=>({...p,badge_number:e.target.value.toUpperCase()}))} required disabled={!!user} />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium ml-1">{t('admin.system_role')}</label>
-            <select className="w-full h-12 rounded-xl border border-border bg-white px-4 focus:ring-2 focus:ring-accent outline-none" value={form.role} onChange={e=>setForm(p=>({...p,role:e.target.value}))}>
-              {['administrator', 'planner', 'area_supervisor', 'shift_responsible', 'operator', 'warehouse_manager', 'material_planner', 'sales', 'accounting'].map((v) => <option key={v} value={v}>{t(`roles.${v}`)}</option>)}
+            <label className="text-sm font-medium ml-1">{t('ops.users.primary_role')}</label>
+            <select className="w-full h-12 rounded-xl border border-border bg-white px-4 focus:ring-2 focus:ring-accent outline-none" value={form.roles.includes(form.role) ? form.role : form.roles[0] || ''} onChange={e=>setForm(p=>({...p,role:e.target.value}))}>
+              {form.roles.map((v) => <option key={v} value={v}>{t(`roles.${v}`)}</option>)}
             </select>
           </div>
         </div>
+        <fieldset className="space-y-2">
+          <legend className="text-sm font-medium ml-1">{t('ops.users.roles')}</legend>
+          <p className="text-xs text-muted-foreground ml-1">{t('ops.users.roles_hint')}</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {ALL_ROLES.map((r) => (
+              <label key={r} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm cursor-pointer hover:bg-muted/50">
+                <input type="checkbox" checked={form.roles.includes(r)} onChange={() => toggleRole(r)} />
+                {t(`roles.${r}`)}
+              </label>
+            ))}
+          </div>
+        </fieldset>
         <div className="space-y-2">
           <label className="text-sm font-medium ml-1">{t('admin.password')} {user && `(${t('admin.password_placeholder')})`}</label>
           <Input type="password" value={form.password} onChange={e=>setForm(p=>({...p,password:e.target.value}))} required={!user} />
@@ -714,7 +733,7 @@ function AreaModal({ onClose, onSave }) {
 
 function MachineModal({ machine, area, onClose, onSave }) {
   const { t } = useTranslation();
-  const [form, setForm] = useState({ name:machine?.name||'', setup_time_min:machine?.setup_time_min||30, working_time_min:machine?.working_time_min||480, supervision_time_min:machine?.supervision_time_min||30 });
+  const [form, setForm] = useState({ name:machine?.name||'', setup_time_min:machine?.setup_time_min||30, working_time_min:machine?.working_time_min||480, supervision_time_min:machine?.supervision_time_min||30, hourly_rate:machine?.hourly_rate||0 });
   
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -742,6 +761,11 @@ function MachineModal({ machine, area, onClose, onSave }) {
             <label className="text-sm font-medium ml-1">{t('admin.working_time')}</label>
             <Input type="number" value={form.working_time_min} onChange={e=>setForm(p=>({...p,working_time_min:+e.target.value}))} />
           </div>
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm font-medium ml-1">{t('ops.machines.hourly_rate')}</label>
+          <Input type="number" min="0" step="0.01" value={form.hourly_rate} onChange={e=>setForm(p=>({...p,hourly_rate:+e.target.value}))} />
+          <p className="text-xs text-muted-foreground ml-1">{t('ops.machines.hourly_rate_hint')}</p>
         </div>
         <div className="pt-4 flex justify-end gap-3">
           <Button variant="secondary" onClick={onClose} type="button">{t('common.cancel')}</Button>

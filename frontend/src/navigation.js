@@ -7,8 +7,9 @@
  */
 import {
   Home, LayoutDashboard, Factory, ClipboardList, HardHat, Gauge, Wrench, Boxes, Truck, Users, Warehouse,
-  Inbox, FileText, Wallet, BellRing, FileDown, Settings, ShieldCheck, Upload,
+  Inbox, FileText, Wallet, BellRing, FileDown, Settings, ShieldCheck, Upload, GitBranch, Calculator, BarChart3,
 } from 'lucide-react';
+import { rolesOf } from './lib/roles';
 
 const ALL = ['administrator', 'planner', 'area_supervisor', 'shift_responsible', 'operator', 'warehouse_manager', 'material_planner', 'sales', 'accounting'];
 
@@ -43,6 +44,7 @@ export const NAV_GROUPS = [
     items: [
       { path: '/inventory', key: 'inventory', icon: Warehouse, roles: ['warehouse_manager', 'material_planner', 'planner', 'administrator'] },
       { path: '/purchase-invoices', key: 'incoming_invoices', icon: Inbox, roles: ['administrator', 'accounting', 'material_planner', 'planner', 'warehouse_manager'] },
+      { path: '/trace', key: 'traceability', icon: GitBranch, roles: ['administrator', 'planner', 'area_supervisor', 'shift_responsible', 'warehouse_manager', 'material_planner', 'sales'] },
     ],
   },
   {
@@ -52,6 +54,13 @@ export const NAV_GROUPS = [
       { path: '/sales/open-items', key: 'open_items', icon: Wallet, roles: ['administrator', 'sales', 'accounting', 'planner'] },
       { path: '/sales/dunning', key: 'dunning', icon: BellRing, roles: ['administrator', 'accounting'] },
       { path: '/sales/datev', key: 'datev', icon: FileDown, roles: ['administrator', 'accounting'] },
+    ],
+  },
+  {
+    key: 'analysis',
+    items: [
+      { path: '/reports', key: 'reports', icon: BarChart3, roles: ['administrator', 'planner', 'accounting', 'sales', 'warehouse_manager', 'material_planner'] },
+      { path: '/costing', key: 'costing', icon: Calculator, roles: ['administrator', 'planner', 'accounting'] },
     ],
   },
   {
@@ -76,10 +85,11 @@ export function rolesFor(path) {
   return best?.roles ?? null;
 }
 
-/** Navigation groups visible for a role. */
-export function navFor(role) {
+/** Navigation groups visible for a user (union of all their roles). */
+export function navFor(user) {
+  const mine = rolesOf(user);
   return NAV_GROUPS
-    .map((g) => ({ ...g, items: g.items.filter((i) => i.roles.includes(role)) }))
+    .map((g) => ({ ...g, items: g.items.filter((i) => i.roles.some((r) => mine.includes(r))) }))
     .filter((g) => g.items.length);
 }
 
@@ -88,4 +98,8 @@ export const HOME_BY_ROLE = {
   operator: '/operator',
   shift_responsible: '/shift',
 };
-export const homeFor = (role) => HOME_BY_ROLE[role] || '/home';
+/** Users with only shop-floor roles land on their work; everyone else on the dashboard. */
+export const homeFor = (user) => {
+  const mine = rolesOf(user);
+  return mine.length === 1 && HOME_BY_ROLE[mine[0]] ? HOME_BY_ROLE[mine[0]] : '/home';
+};

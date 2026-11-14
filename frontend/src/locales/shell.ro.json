@@ -5,7 +5,8 @@
     "master_data": "Date de bază",
     "warehouse": "Depozit & achiziții",
     "sales": "Vânzări & facturi",
-    "admin": "Administrare"
+    "admin": "Administrare",
+    "analysis": "Analize"
   },
   "items": {
     "home": "Acasă",
@@ -26,7 +27,10 @@
     "datev": "Export DATEV",
     "users_machines": "Utilizatori & utilaje",
     "import": "Import",
-    "settings": "Setări"
+    "settings": "Setări",
+    "traceability": "Trasabilitate loturi",
+    "reports": "Rapoarte",
+    "costing": "Calculație post-producție"
   },
   "search": {
     "placeholder": "Căutare… (Ctrl+K)",

@@ -7,8 +7,8 @@ const src = path.resolve(import.meta.dirname, '..', 'src');
 const read = (f) => JSON.parse(fs.readFileSync(path.join(src, 'locales', f), 'utf8'));
 
 const bundles = {
-  de: { ...read('de.json'), sales: read('sales.de.json'), shell: read('shell.de.json'), onboarding: read('onboarding.de.json'), screens: read('screens.de.json') },
-  en: { ...read('en.json'), sales: read('sales.en.json'), shell: read('shell.en.json'), onboarding: read('onboarding.en.json'), screens: read('screens.en.json') },
+  de: { ...read('de.json'), sales: read('sales.de.json'), shell: read('shell.de.json'), onboarding: read('onboarding.de.json'), screens: read('screens.de.json'), ops: read('ops.de.json') },
+  en: { ...read('en.json'), sales: read('sales.en.json'), shell: read('shell.en.json'), onboarding: read('onboarding.en.json'), screens: read('screens.en.json'), ops: read('ops.en.json') },
 };
 
 const lookup = (obj, key) => key.split('.').reduce((o, k) => (o && typeof o === 'object' ? o[k] : undefined), obj);

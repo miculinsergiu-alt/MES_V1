@@ -5,7 +5,8 @@
     "master_data": "Master data",
     "warehouse": "Warehouse & purchasing",
     "sales": "Sales & invoicing",
-    "admin": "Administration"
+    "admin": "Administration",
+    "analysis": "Analysis"
   },
   "items": {
     "home": "Home",
@@ -26,7 +27,10 @@
     "datev": "DATEV export",
     "users_machines": "Users & machines",
     "import": "Import",
-    "settings": "Settings"
+    "settings": "Settings",
+    "traceability": "Batch tracing",
+    "reports": "Reports",
+    "costing": "Actual costing"
   },
   "search": {
     "placeholder": "Search… (Ctrl+K)",

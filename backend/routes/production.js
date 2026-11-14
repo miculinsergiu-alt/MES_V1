@@ -4,9 +4,11 @@ const { h } = require('../lib/handler');
 const v = require('../lib/validate');
 const { notFound, forbidden, AppError, badRequest } = require('../lib/errors');
 const { nowLocal, todayLocal, parseLocal, formatLocal, diffMinutes } = require('../lib/time');
-const { authenticateToken, requireRole } = require('../middleware/auth');
+const { authenticateToken, requireRole, isOnlyOperator } = require('../middleware/auth');
 const { broadcast } = require('../services/socket');
 const { propagateDelay } = require('./orders');
+const stock = require('../services/stock');
+const costing = require('../services/costing');
 
 const router = express.Router();
 router.use(authenticateToken);
@@ -32,19 +34,22 @@ function overlapMinutes(start, end, conflicts) {
 }
 
 /**
- * Books raw-material consumption for produced quantity.
- * Only the first step of a routing chain consumes material.
+ * Books material consumption for produced quantity (good + scrap).
+ * Only the first step of a routing chain consumes material. Material is
+ * taken from lots first-in-first-out (or the lot the operator scanned), and
+ * the lots used are recorded for traceability.
  */
-async function deductStock(orderId, producedQty, userId) {
+async function deductStock(orderId, producedQty, userId, preferLotNumber) {
   const order = await db.get('SELECT bom_id, parent_order_id FROM orders WHERE id = ?', [orderId]);
   if (!order || order.parent_order_id !== null || !order.bom_id) return;
 
   const positions = await db.all(`
-    SELECT item_id, quantity FROM bom_positions
-    WHERE bom_id = ? AND node_type = 'component' AND item_id IS NOT NULL`, [order.bom_id]);
+    SELECT item_id, SUM(quantity) AS quantity FROM bom_positions
+    WHERE bom_id = ? AND node_type = 'component' AND item_id IS NOT NULL
+    GROUP BY item_id`, [order.bom_id]);
 
   for (const pos of positions) {
-    const required = pos.quantity * producedQty;
+    const required = Math.round(pos.quantity * producedQty * 1e6) / 1e6;
     if (required <= 0) continue;
 
     const alloc = await db.get('SELECT * FROM order_material_allocations WHERE order_id = ? AND item_id = ? FOR UPDATE', [orderId, pos.item_id]);
@@ -57,21 +62,56 @@ async function deductStock(orderId, producedQty, userId) {
         else await db.run('UPDATE order_material_allocations SET allocated_qty = ? WHERE id = ?', [remaining, alloc.id]);
       }
     }
-
-    await db.run(`
-      INSERT INTO stock_levels (item_id, quantity, last_updated) VALUES (?, ?, nova_now())
-      ON CONFLICT (item_id) DO UPDATE SET quantity = stock_levels.quantity + EXCLUDED.quantity, last_updated = nova_now()`,
-    [pos.item_id, -required]);
-    await db.run(`
-      INSERT INTO stock_transactions (item_id, quantity, type, reference_type, reference_id, user_id)
-      VALUES (?, ?, 'out', 'order_completion', ?, ?)`, [pos.item_id, -required, orderId, userId]);
+    await stock.consume({
+      itemId: pos.item_id, qty: required, referenceType: 'order_completion', referenceId: orderId, userId, orderId, preferLotNumber,
+    });
   }
+}
+
+/** Root order of a routing chain and whether this order is its last step. */
+async function chainInfo(order) {
+  const rootId = order.parent_order_id || order.id;
+  const later = await db.get(`
+    SELECT id FROM orders
+    WHERE (parent_order_id = ? OR id = ?) AND routing_sequence > ? AND status <> 'cancelled' LIMIT 1`,
+  [rootId, rootId, order.routing_sequence || 0]);
+  return { rootId, isLastStep: !later };
+}
+
+/**
+ * Books good parts of the last production step into stock, in a production
+ * lot per order ("FA-<order number>") so customers' deliveries can be traced
+ * back to the materials used.
+ */
+async function bookFinishedGoods(order, qtyOk, userId) {
+  if (!order.item_id || !(qtyOk > 0)) return null;
+  const { rootId, isLastStep } = await chainInfo(order);
+  if (!isLastStep) return null;
+  const lotNumber = `FA-${rootId}`;
+  // Value the goods at the actual cost per good piece so far (material, machine, labour).
+  const cost = await costing.costOrder(rootId);
+  const unitCost = cost?.actual.per_piece > 0 ? cost.actual.per_piece : undefined;
+  if (unitCost) await stock.updateAverageCost(order.item_id, qtyOk, unitCost);
+  await stock.bookIn({
+    itemId: order.item_id, qty: qtyOk, lotNumber, sourceType: 'production', productionOrderId: rootId,
+    referenceType: 'production', referenceId: rootId, userId, unitCost,
+  });
+  return lotNumber;
+}
+
+/** Lot the operator scanned at setup start ("Lot: X" in the action notes), if any. */
+async function scannedLot(orderId) {
+  const a = await db.get(`
+    SELECT oa.notes FROM operator_actions oa JOIN machine_allocations ma ON ma.id = oa.allocation_id
+    WHERE ma.order_id = ? AND oa.action_type = 'setup_start' AND oa.notes LIKE 'Lot: %'
+    ORDER BY oa.id DESC LIMIT 1`, [orderId]);
+  return a ? a.notes.slice(5).trim() : undefined;
 }
 
 async function getOwnedAllocation(req, allocationId) {
   const alloc = await db.get('SELECT * FROM machine_allocations WHERE id = ?', [allocationId]);
   if (!alloc) throw notFound('Allocation');
-  if (req.user.role === 'operator' && alloc.operator_id !== req.user.id) {
+  if (isOnlyOperator(req.user) && alloc.operator_id !== req.user.id) {
     throw forbidden('This task is assigned to another operator');
   }
   return alloc;
@@ -93,7 +133,7 @@ router.get('/allocations', h(async (req, res) => {
 // GET /api/production/operator/:id — tasks of an operator
 router.get('/operator/:id', h(async (req, res) => {
   const operatorId = v.paramId(req);
-  if (req.user.role === 'operator' && operatorId !== req.user.id) throw forbidden();
+  if (isOnlyOperator(req.user) && operatorId !== req.user.id) throw forbidden();
   res.json(await db.all(`
     SELECT ma.*, o.product_name, o.quantity, o.planned_start, o.planned_end, o.status AS order_status, o.item_id
     FROM machine_allocations ma JOIN orders o ON ma.order_id = o.id
@@ -240,7 +280,7 @@ router.post('/results', h(async (req, res) => {
   const order = await db.get('SELECT * FROM orders WHERE id = ? FOR UPDATE', [b.order_id]);
   if (!order) throw notFound('Order');
   if (order.status === 'cancelled') throw badRequest('Order is cancelled');
-  if (req.user.role === 'operator') {
+  if (isOnlyOperator(req.user)) {
     const assigned = await db.get('SELECT id FROM machine_allocations WHERE order_id = ? AND operator_id = ? LIMIT 1', [order.id, req.user.id]);
     if (!assigned) throw forbidden('You are not assigned to this order');
   }
@@ -253,7 +293,8 @@ router.post('/results', h(async (req, res) => {
     }
   }
 
-  await deductStock(order.id, b.qty_ok + b.qty_fail, req.user.id);
+  await deductStock(order.id, b.qty_ok + b.qty_fail, req.user.id, await scannedLot(order.id));
+  const lotNumber = await bookFinishedGoods(order, b.qty_ok, req.user.id);
 
   const total = await db.get('SELECT COALESCE(SUM(qty_ok + qty_fail), 0) AS produced FROM production_results WHERE order_id = ?', [order.id]);
   if (total.produced >= order.quantity && order.status !== 'done') {
@@ -262,7 +303,7 @@ router.post('/results', h(async (req, res) => {
   }
 
   broadcast('production:results', { order_id: order.id, qty_ok: b.qty_ok, qty_fail: b.qty_fail });
-  res.status(201).json({ message: 'Results recorded' });
+  res.status(201).json({ message: 'Results recorded', lot_number: lotNumber });
 }));
 
 // GET /api/production/performance
@@ -304,7 +345,7 @@ router.post('/optimize', requireRole('shift_responsible', 'administrator'), h(as
   const operators = await db.all(`
     SELECT u.id, u.first_name, u.last_name, u.badge_number
     FROM shift_members sm JOIN users u ON sm.user_id = u.id
-    WHERE sm.shift_id = ? AND u.role = 'operator' AND u.active = 1`, [b.shift_id]);
+    WHERE sm.shift_id = ? AND 'operator' = ANY(u.roles) AND u.active = 1`, [b.shift_id]);
   if (!operators.length) throw badRequest('No operators found in this shift');
   const skills = await db.all('SELECT user_id, machine_id FROM operator_skills WHERE user_id = ANY(?::int[])', [operators.map((o) => o.id)]);
 

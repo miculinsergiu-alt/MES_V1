@@ -66,14 +66,15 @@ const machineSchema = v.z.object({
   setup_time_min: v.nonNeg.default(30),
   working_time_min: v.nonNeg.default(480),
   supervision_time_min: v.nonNeg.default(30),
+  hourly_rate: v.nonNeg.default(0), // € per machine hour, for actual costing
 });
 
 // POST /api/machines — create machine (admin)
 router.post('/', requireRole('administrator'), h(async (req, res) => {
   const b = v.body(req, machineSchema);
   const row = await db.get(
-    'INSERT INTO machines (area_id, name, setup_time_min, working_time_min, supervision_time_min) VALUES (?,?,?,?,?) RETURNING id',
-    [b.area_id, b.name, b.setup_time_min, b.working_time_min, b.supervision_time_min],
+    'INSERT INTO machines (area_id, name, setup_time_min, working_time_min, supervision_time_min, hourly_rate) VALUES (?,?,?,?,?,?) RETURNING id',
+    [b.area_id, b.name, b.setup_time_min, b.working_time_min, b.supervision_time_min, b.hourly_rate],
   );
   res.status(201).json({ id: row.id, message: 'Machine created' });
 }));
@@ -85,9 +86,9 @@ router.put('/:id', requireRole('administrator'), h(async (req, res) => {
   const m = await db.get('SELECT * FROM machines WHERE id = ?', [id]);
   if (!m) throw notFound('Machine');
   await db.run(
-    'UPDATE machines SET area_id = ?, name = ?, setup_time_min = ?, working_time_min = ?, supervision_time_min = ? WHERE id = ?',
+    'UPDATE machines SET area_id = ?, name = ?, setup_time_min = ?, working_time_min = ?, supervision_time_min = ?, hourly_rate = ? WHERE id = ?',
     [b.area_id ?? m.area_id, b.name ?? m.name, b.setup_time_min ?? m.setup_time_min,
-      b.working_time_min ?? m.working_time_min, b.supervision_time_min ?? m.supervision_time_min, id],
+      b.working_time_min ?? m.working_time_min, b.supervision_time_min ?? m.supervision_time_min, b.hourly_rate ?? m.hourly_rate, id],
   );
   res.json({ message: 'Machine updated' });
 }));

@@ -5,7 +5,7 @@ const express = require('express');
 const db = require('../db');
 const { h } = require('../lib/handler');
 const v = require('../lib/validate');
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken, hasRole } = require('../middleware/auth');
 const { missingInvoiceData } = require('./settings');
 
 const router = express.Router();
@@ -24,11 +24,11 @@ const ACCESS = {
   suppliers: ['administrator', 'planner', 'warehouse_manager', 'material_planner', 'accounting'],
   setup: ['administrator'],
 };
-const can = (role, area) => ACCESS[area].includes(role);
+const can = (user, area) => hasRole(user, ...ACCESS[area]);
 
 // GET /api/dashboard — key figures for the logged-in user's role
 router.get('/dashboard', h(async (req, res) => {
-  const role = req.user.role;
+  const role = req.user; // all roles of the user count
   const out = {};
   const today = (await db.get('SELECT nova_today() AS d')).d;
 
@@ -95,7 +95,7 @@ router.get('/dashboard', h(async (req, res) => {
 // GET /api/search?q=... — quick search across the main records
 router.get('/search', h(async (req, res) => {
   const { q } = v.query(req, v.z.object({ q: v.z.string().trim().min(2).max(100) }));
-  const role = req.user.role;
+  const role = req.user; // all roles of the user count
   const like = `%${q.replace(/[%_\\]/g, '\\$&')}%`;
   const results = [];
   const LIMIT = 6;
@@ -125,7 +125,7 @@ router.get('/search', h(async (req, res) => {
   }
   if (can(role, 'production')) {
     const idMatch = /^\d+$/.test(q) ? Number(q) : -1;
-    const base = role === 'shift_responsible' ? '/shift' : role === 'area_supervisor' ? '/supervisor' : '/planner';
+    const base = hasRole(role, 'planner', 'administrator') ? '/planner' : hasRole(role, 'area_supervisor') ? '/supervisor' : '/shift';
     for (const r of await db.all(`
       SELECT id, product_name, status, planned_start FROM orders
       WHERE (product_name ILIKE ? OR id = ?) AND parent_order_id IS NULL

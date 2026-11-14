@@ -11,7 +11,7 @@ const inputCls = 'h-10 w-full rounded-lg border border-border bg-white px-3 text
 const FIELDS = ['name', 'legal_name', 'street', 'postal_code', 'city', 'country', 'vat_id', 'tax_number', 'register_court', 'register_number',
   'managing_directors', 'email', 'phone', 'website', 'bank_name', 'iban', 'bic', 'logo_data_url', 'default_payment_terms_days',
   'default_skonto_days', 'default_skonto_percent', 'small_business', 'invoice_footer_text', 'datev_consultant_number',
-  'datev_client_number', 'datev_chart', 'dunning_fee', 'dunning_grace_days'];
+  'datev_client_number', 'datev_chart', 'dunning_fee', 'dunning_grace_days', 'negative_stock', 'labor_rate'];
 
 export default function SettingsPage() {
   const { t } = useTranslation();
@@ -121,6 +121,19 @@ export default function SettingsPage() {
 
       {Section({ title: t('sales.settings.dunning'), children: <>
         {F('dunning_fee', t('sales.settings.dunning_fee'), { type: 'number' })}{F('dunning_grace_days', t('sales.settings.grace_days'), { type: 'number' })}
+      </> })}
+
+      {Section({ title: t('ops.settings.stock_costing'), children: <>
+        <label className="block space-y-1">
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('ops.settings.negative_stock')}</span>
+          <select className={inputCls} value={form.negative_stock} onChange={set('negative_stock')}>
+            <option value="allow">{t('ops.settings.negative_allow')}</option>
+            <option value="warn">{t('ops.settings.negative_warn')}</option>
+            <option value="block">{t('ops.settings.negative_block')}</option>
+          </select>
+        </label>
+        {F('labor_rate', t('ops.settings.labor_rate'), { type: 'number' })}
+        <p className="text-xs text-muted-foreground sm:col-span-2">{t('ops.settings.costing_hint')}</p>
       </> })}
 
       {Section({ title: t('sales.settings.datev'), children: <>

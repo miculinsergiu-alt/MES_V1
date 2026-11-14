@@ -4,6 +4,22 @@ const { unauthorized, forbidden } = require('../lib/errors');
 
 const ROLES = ['administrator', 'planner', 'area_supervisor', 'shift_responsible', 'operator', 'warehouse_manager', 'material_planner', 'sales', 'accounting'];
 
+/** All roles of a user (tokens from before multi-role support only carry "role"). */
+function rolesOf(user) {
+  return Array.isArray(user?.roles) && user.roles.length ? user.roles : (user?.role ? [user.role] : []);
+}
+
+/** True if the user has at least one of the roles. */
+function hasRole(user, ...roles) {
+  return rolesOf(user).some((r) => roles.includes(r));
+}
+
+/** Shop-floor users who are only operators may only act on their own tasks. */
+function isOnlyOperator(user) {
+  const r = rolesOf(user);
+  return r.length > 0 && r.every((x) => x === 'operator');
+}
+
 function signToken(user, company) {
   return jwt.sign(
     {
@@ -13,6 +29,7 @@ function signToken(user, company) {
       timezone: company.timezone,
       badge_number: user.badge_number,
       role: user.role,
+      roles: rolesOf(user),
       first_name: user.first_name,
       last_name: user.last_name,
     },
@@ -34,6 +51,7 @@ function authenticateToken(req, res, next) {
   if (!token) return next(unauthorized('Missing token'));
   try {
     req.user = verifyToken(token);
+    req.user.roles = rolesOf(req.user);
     return next();
   } catch {
     return next(unauthorized('Invalid or expired token'));
@@ -43,9 +61,9 @@ function authenticateToken(req, res, next) {
 function requireRole(...roles) {
   return (req, res, next) => {
     if (!req.user) return next(unauthorized());
-    if (!roles.includes(req.user.role)) return next(forbidden());
+    if (!hasRole(req.user, ...roles)) return next(forbidden());
     return next();
   };
 }
 
-module.exports = { authenticateToken, requireRole, signToken, verifyToken, ROLES };
+module.exports = { authenticateToken, requireRole, signToken, verifyToken, rolesOf, hasRole, isOnlyOperator, ROLES };

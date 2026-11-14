@@ -350,15 +350,12 @@ async function issue(id, userId, opts = {}) {
 
 /** Delivery note: book finished goods out of stock and count delivered quantities on the order. */
 async function bookDelivery(doc, userId) {
+  const stock = require('./stock');
   for (const l of doc.lines) {
     if (l.item_id) {
-      await db.run(`
-        INSERT INTO stock_levels (item_id, quantity, last_updated) VALUES (?, ?, nova_now())
-        ON CONFLICT (item_id) DO UPDATE SET quantity = stock_levels.quantity + EXCLUDED.quantity, last_updated = nova_now()`,
-      [l.item_id, -l.quantity]);
-      await db.run(`
-        INSERT INTO stock_transactions (item_id, quantity, type, reference_type, reference_id, user_id)
-        VALUES (?, ?, 'out', 'delivery', ?, ?)`, [l.item_id, -l.quantity, doc.id, userId]);
+      // Goods leave stock from their lots (first-in-first-out), so every
+      // customer delivery can be traced back to production and materials.
+      await stock.consume({ itemId: l.item_id, qty: Number(l.quantity), referenceType: 'delivery', referenceId: doc.id, userId });
     }
     if (l.source_line_id) {
       await db.run('UPDATE sales_document_lines SET delivered_quantity = delivered_quantity + ? WHERE id = ?', [l.quantity, l.source_line_id]);

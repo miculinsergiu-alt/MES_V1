@@ -3,6 +3,7 @@
  */
 const express = require('express');
 const db = require('../db');
+const stock = require('../services/stock');
 const { h } = require('../lib/handler');
 const { conflict } = require('../lib/errors');
 const { authenticateToken, requireRole } = require('../middleware/auth');
@@ -48,14 +49,21 @@ router.post('/sample-data', h(async (req, res) => {
 
   const wh = await db.get("INSERT INTO warehouses (name, type) VALUES ('Hauptlager', 'central') RETURNING id");
   await db.run("INSERT INTO warehouse_locations (warehouse_id, zone, shelf, bin, barcode) VALUES (?, 'A', '01', '01', 'A-01-01')", [wh.id]);
-  for (const [itemId, qty] of [[sheet, 500], [screw, 2000], [holder, 25]]) {
-    await db.run("INSERT INTO stock_levels (item_id, quantity, location) VALUES (?, ?, 'A-01-01')", [itemId, qty]);
-    await db.run("INSERT INTO stock_transactions (item_id, quantity, type, reference_type, user_id) VALUES (?, ?, 'adjustment', 'sample', ?)", [itemId, qty, req.user.id]);
-  }
-
   const supplier = await db.get(`INSERT INTO suppliers (name, contact_person, email, address, vat_number)
     VALUES ('Beispiel Stahlhandel GmbH', 'Frau Beispiel', 'verkauf@beispiel-stahl.example', 'Hafenstraße 1, 20457 Hamburg', NULL) RETURNING id`);
   await db.run('INSERT INTO item_suppliers (item_id, supplier_id, purchase_price, lead_time_days, is_primary) VALUES (?, ?, 1.35, 5, 1)', [sheet, supplier.id]);
+
+  // Opening stock as a received purchase order, in lots, so batch tracing works from the start.
+  const po = await db.get("INSERT INTO purchase_orders (supplier_id, created_by, status) VALUES (?, ?, 'received') RETURNING id", [supplier.id, req.user.id]);
+  const receipt = await db.get("INSERT INTO goods_receipts (po_id, received_by, document_reference) VALUES (?, ?, 'LS-BEISPIEL-1') RETURNING id", [po.id, req.user.id]);
+  for (const [itemId, qty, price, lot] of [[sheet, 500, 1.35, 'CH-BLECH-001'], [screw, 2000, 0.04, 'CH-SCHR-001']]) {
+    await db.run('INSERT INTO purchase_order_items (po_id, item_id, quantity_ordered, quantity_received, unit_price) VALUES (?, ?, ?, ?, ?)', [po.id, itemId, qty, qty, price]);
+    await db.run('INSERT INTO goods_receipt_items (receipt_id, item_id, lot_number, quantity_received) VALUES (?, ?, ?, ?)', [receipt.id, itemId, lot, qty]);
+    await stock.updateAverageCost(itemId, qty, price);
+    await stock.bookIn({ itemId, qty, lotNumber: lot, sourceType: 'receipt', unitCost: price, referenceType: 'receipt', referenceId: receipt.id, userId: req.user.id });
+  }
+  await stock.bookIn({ itemId: holder, qty: 25, lotNumber: 'ANFANG-HALT-200', sourceType: 'adjustment', referenceType: 'adjustment', userId: req.user.id });
+  await db.run("UPDATE stock_levels SET location = 'A-01-01' WHERE item_id IN (?, ?, ?)", [sheet, screw, holder]);
   await db.run(`INSERT INTO customers (customer_number, name, street, postal_code, city, country, email, tax_treatment, datev_account)
     VALUES ('10001', 'Beispiel Maschinenbau GmbH', 'Musterstraße 12', '70173', 'Stuttgart', 'DE', 'einkauf@beispiel-maschinenbau.example', 'domestic', 10001)`);
   await db.run("UPDATE number_series SET next_number = GREATEST(next_number, 10002) WHERE doc_type = 'customer'");

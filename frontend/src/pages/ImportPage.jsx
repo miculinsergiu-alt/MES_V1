@@ -1,3 +1,4 @@
+import { hasAnyRole } from '../lib/roles';
 import { useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Download, Upload, CheckCircle2, AlertCircle } from 'lucide-react';
@@ -30,7 +31,7 @@ function toBase64(file) {
 export default function ImportPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const allowed = Object.keys(TYPES).filter((k) => TYPES[k].includes(user?.role));
+  const allowed = Object.keys(TYPES).filter((k) => hasAnyRole(user, TYPES[k]));
   const [type, setType] = useState(allowed[0]);
   const [file, setFile] = useState(null); // { name, base64 }
   const [preview, setPreview] = useState(null);

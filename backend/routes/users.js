@@ -9,7 +9,7 @@ const { authenticateToken, requireRole, ROLES } = require('../middleware/auth');
 const router = express.Router();
 router.use(authenticateToken);
 
-const PUBLIC_FIELDS = 'id, first_name, last_name, badge_number, email, role, active, created_at';
+const PUBLIC_FIELDS = 'id, first_name, last_name, badge_number, email, role, roles, active, created_at';
 const password = v.z.string().min(8, 'Password must be at least 8 characters').max(200);
 
 // GET /api/users — list all users (admin, supervisor)
@@ -19,13 +19,13 @@ router.get('/', requireRole('administrator', 'area_supervisor'), h(async (req, r
 
 // GET /api/users/operators — active operators (for shift assignment)
 router.get('/operators', h(async (req, res) => {
-  res.json(await db.all("SELECT id, first_name, last_name, badge_number FROM users WHERE role = 'operator' AND active = 1 ORDER BY last_name"));
+  res.json(await db.all("SELECT id, first_name, last_name, badge_number FROM users WHERE 'operator' = ANY(roles) AND active = 1 ORDER BY last_name"));
 }));
 
 // GET /api/users/by-role/:role
 router.get('/by-role/:role', h(async (req, res) => {
   const { role } = v.params(req, v.z.object({ role: v.z.enum(ROLES) }));
-  res.json(await db.all('SELECT id, first_name, last_name, badge_number, role FROM users WHERE role = ? AND active = 1 ORDER BY last_name', [role]));
+  res.json(await db.all('SELECT id, first_name, last_name, badge_number, role, roles FROM users WHERE ? = ANY(roles) AND active = 1 ORDER BY last_name', [role]));
 }));
 
 const createSchema = v.z.object({
@@ -33,17 +33,30 @@ const createSchema = v.z.object({
   last_name: v.str(100),
   badge_number: v.z.string().trim().toUpperCase().min(1).max(64),
   email: v.z.preprocess((x) => (x === '' ? null : x), v.z.string().email().max(200).nullable().optional()),
-  role: v.z.enum(ROLES),
+  role: v.z.enum(ROLES).optional(),
+  roles: v.z.array(v.z.enum(ROLES)).min(1).max(ROLES.length).optional(),
   password,
-});
+}).refine((b) => b.role || b.roles, { message: 'At least one role is required', path: ['roles'] });
+
+/**
+ * Primary role + all roles. "role" alone (older clients) means exactly that
+ * one role; with "roles", the primary role is kept if still included.
+ */
+function resolveRoles(b, current) {
+  if (!b.roles) return b.role ? { role: b.role, roles: [b.role] } : current;
+  const roles = [...new Set(b.roles)];
+  const primary = b.role && roles.includes(b.role) ? b.role
+    : current && roles.includes(current.role) ? current.role : roles[0];
+  return { role: primary, roles };
+}
 
 // POST /api/users — create user (admin only)
 router.post('/', requireRole('administrator'), h(async (req, res) => {
   const b = v.body(req, createSchema);
   const hash = await bcrypt.hash(b.password, 10);
   const row = await db.get(
-    'INSERT INTO users (first_name, last_name, badge_number, email, role, password_hash) VALUES (?,?,?,?,?,?) RETURNING id',
-    [b.first_name, b.last_name, b.badge_number, b.email ?? null, b.role, hash],
+    'INSERT INTO users (first_name, last_name, badge_number, email, role, roles, password_hash) VALUES (?,?,?,?,?,?,?) RETURNING id',
+    [b.first_name, b.last_name, b.badge_number, b.email ?? null, ...Object.values(resolveRoles(b)), hash],
   );
   res.status(201).json({ id: row.id, message: 'User created' });
 }));
@@ -53,6 +66,7 @@ const updateSchema = v.z.object({
   last_name: v.str(100).optional(),
   email: v.z.preprocess((x) => (x === '' ? null : x), v.z.string().email().max(200).nullable().optional()),
   role: v.z.enum(ROLES).optional(),
+  roles: v.z.array(v.z.enum(ROLES)).min(1).max(ROLES.length).optional(),
   active: v.flag.optional(),
   password: v.z.preprocess((x) => (x === '' || x === null ? undefined : x), password.optional()),
 });
@@ -63,14 +77,15 @@ router.put('/:id', requireRole('administrator'), h(async (req, res) => {
   const b = v.body(req, updateSchema);
   const user = await db.get('SELECT * FROM users WHERE id = ?', [id]);
   if (!user) throw notFound('User');
-  if (id === req.user.id && (b.active === 0 || (b.role && b.role !== 'administrator'))) {
+  const next = resolveRoles(b, { role: user.role, roles: user.roles });
+  if (id === req.user.id && (b.active === 0 || !next.roles.includes('administrator'))) {
     throw badRequest('You cannot deactivate yourself or remove your own administrator role');
   }
   const hash = b.password ? await bcrypt.hash(b.password, 10) : user.password_hash;
   await db.run(
-    'UPDATE users SET first_name=?, last_name=?, email=?, role=?, active=?, password_hash=? WHERE id=?',
+    'UPDATE users SET first_name=?, last_name=?, email=?, role=?, roles=?, active=?, password_hash=? WHERE id=?',
     [b.first_name ?? user.first_name, b.last_name ?? user.last_name, b.email !== undefined ? b.email : user.email,
-      b.role ?? user.role, b.active ?? user.active, hash, id],
+      next.role, next.roles, b.active ?? user.active, hash, id],
   );
   res.json({ message: 'User updated' });
 }));

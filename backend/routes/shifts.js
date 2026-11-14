@@ -62,7 +62,7 @@ router.get('/:id', h(async (req, res) => {
   const shift = await db.get('SELECT * FROM shifts WHERE id = ?', [id]);
   if (!shift) throw notFound('Shift');
   const members = await db.all(`
-    SELECT u.id, u.first_name, u.last_name, u.badge_number, u.role
+    SELECT u.id, u.first_name, u.last_name, u.badge_number, u.role, u.roles
     FROM shift_members sm JOIN users u ON sm.user_id = u.id
     WHERE sm.shift_id = ? ORDER BY u.last_name`, [id]);
   res.json({ ...shift, members });

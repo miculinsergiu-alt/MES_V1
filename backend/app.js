@@ -73,6 +73,8 @@ app.use('/api/datev', require('./routes/datev'));
 app.use('/api/purchase-invoices', require('./routes/purchaseInvoices'));
 app.use('/api/import', require('./routes/import'));
 app.use('/api/setup', require('./routes/setup'));
+app.use('/api/trace', require('./routes/trace'));
+app.use('/api/reports', require('./routes/reports'));
 app.use('/api', require('./routes/dashboard'));
 
 app.use('/api', (req, res, next) => next(notFound(`API route ${req.method} ${req.path}`)));
