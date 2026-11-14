@@ -24,6 +24,7 @@ function fromDatabaseError(err) {
     case '23503': return new AppError(400, 'INVALID_REFERENCE', 'A referenced record does not exist or is still in use', { constraint: err.constraint });
     case '23502': return new AppError(400, 'MISSING_FIELD', `Missing required value${err.column ? `: ${err.column}` : ''}`);
     case '23514': return new AppError(400, 'INVALID_VALUE', 'A value is not allowed', { constraint: err.constraint });
+    case '22003': return new AppError(400, 'OUT_OF_RANGE', 'A number is out of range');
     case '22P02':
     case '22007':
     case '22008': return new AppError(400, 'INVALID_FORMAT', 'A value has an invalid format');

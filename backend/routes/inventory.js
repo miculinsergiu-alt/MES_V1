@@ -28,12 +28,26 @@ router.post('/transfers', requireRole('administrator', 'warehouse_manager', 'mat
   [b.from_warehouse_id ?? null, b.to_warehouse_id ?? null, req.user.id]);
 
   for (const item of b.items) {
+    if (item.from_location_id && item.from_location_id === item.to_location_id) {
+      throw badRequest('Source and target location are the same');
+    }
     let lotId = null;
+    if (!item.lot_number) {
+      const level = await db.get('SELECT quantity FROM stock_levels WHERE item_id = ?', [item.item_id]);
+      if (!level || Number(level.quantity) < item.quantity) throw badRequest(`Only ${Number(level?.quantity ?? 0)} in stock`);
+    }
     if (item.lot_number) {
       const lot = await db.get('SELECT id, item_id, quantity FROM inventory_lots WHERE lot_number = ?', [item.lot_number]);
       if (!lot) throw badRequest(`Lot ${item.lot_number} not found`);
       if (lot.item_id !== item.item_id) throw badRequest(`Lot ${item.lot_number} belongs to a different item`);
       if (lot.quantity < item.quantity) throw badRequest(`Lot ${item.lot_number} has only ${lot.quantity} in stock`);
+      if (item.from_location_id) {
+        const where = await db.all('SELECT DISTINCT location_id FROM goods_receipt_items WHERE lot_number = ? AND item_id = ? AND location_id IS NOT NULL',
+          [item.lot_number, item.item_id]);
+        if (where.length && !where.some((w) => w.location_id === item.from_location_id)) {
+          throw badRequest(`Lot ${item.lot_number} is not stored at the source location`);
+        }
+      }
       lotId = lot.id;
     }
 

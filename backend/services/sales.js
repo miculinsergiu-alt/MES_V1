@@ -446,6 +446,10 @@ async function recordPayment(documentId, p, userId) {
   if (p.amount > 0 && p.amount + (p.skonto_amount || 0) > doc.open_amount + 0.001) {
     throw badRequest(`The payment exceeds the open amount of ${money.formatEUR(doc.open_amount)}`);
   }
+  // A reversal (negative amount) can only take back what was actually paid.
+  if (p.amount < 0 && -(p.amount + (p.skonto_amount || 0)) > Number(doc.paid_total || 0) + 0.001) {
+    throw badRequest(`The reversal exceeds the amount paid so far (${money.formatEUR(Number(doc.paid_total || 0))})`);
+  }
   await db.run(`
     INSERT INTO payments (document_id, payment_date, amount, method, reference, skonto_amount, notes, created_by)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,

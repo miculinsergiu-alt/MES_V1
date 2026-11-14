@@ -121,6 +121,9 @@ router.post('/receipts', requireRole(...BUYERS), h(async (req, res) => {
   [b.po_id ?? null, req.user.id, b.document_reference ?? null, b.notes ?? null]);
 
   for (const item of b.items) {
+    if (b.po_id && !(await db.get('SELECT 1 FROM purchase_order_items WHERE po_id = ? AND item_id = ?', [b.po_id, item.item_id]))) {
+      throw badRequest('An item is not on this purchase order. Book it without a purchase order or add it to the order first.');
+    }
     const existingLot = await db.get('SELECT id, item_id FROM inventory_lots WHERE lot_number = ?', [item.lot_number]);
     if (existingLot && existingLot.item_id !== item.item_id) {
       throw badRequest(`Lot number ${item.lot_number} is already used for a different item`);

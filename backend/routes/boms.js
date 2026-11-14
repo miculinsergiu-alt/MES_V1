@@ -57,7 +57,7 @@ const nodeSchema = v.z.lazy(() => v.z.object({
   department: v.optStr(100),
   node_type: v.z.enum(['department', 'component']).default('component'),
   children: v.z.array(nodeSchema).optional(),
-}));
+}).refine((n) => !(n.item_id && n.node_type !== 'department' && n.quantity === 0), { message: 'Quantity must be greater than 0', path: ['quantity'] }));
 
 const bomSchema = v.z.object({
   parent_item_id: v.optId,

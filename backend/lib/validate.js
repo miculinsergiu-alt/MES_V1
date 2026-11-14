@@ -9,8 +9,9 @@ const { badRequest } = require('./errors');
 
 const emptyToNull = (v) => (v === '' || v === undefined ? null : v);
 
-const id = z.coerce.number().int().positive();
-const optId = z.preprocess(emptyToNull, z.coerce.number().int().positive().nullable()).optional();
+const MAX_INT = 2147483647; // PostgreSQL INTEGER
+const id = z.coerce.number().int().positive().max(MAX_INT);
+const optId = z.preprocess(emptyToNull, z.coerce.number().int().positive().max(MAX_INT).nullable()).optional();
 const num = z.coerce.number().finite();
 const optNum = z.preprocess(emptyToNull, z.coerce.number().finite().nullable()).optional();
 const nonNeg = z.coerce.number().finite().min(0);
@@ -21,7 +22,8 @@ const optStr = (max = 2000) => z.preprocess((v) => (v === null || v === undefine
 const flag = z.preprocess((v) => (v === true || v === 'true' || v === 1 || v === '1' ? 1 : v === false || v === 'false' || v === 0 || v === '0' ? 0 : v), z.union([z.literal(0), z.literal(1)]));
 
 // 'YYYY-MM-DD'
-const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected date YYYY-MM-DD');
+const isRealDate = (v) => { const d = new Date(`${v}T00:00:00Z`); return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v; };
+const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected date YYYY-MM-DD').refine(isRealDate, 'Not a valid calendar date');
 const optDate = z.preprocess(emptyToNull, date.nullable()).optional();
 
 // Accepts 'YYYY-MM-DD HH:MM[:SS]' or 'YYYY-MM-DDTHH:MM[:SS][.sss][Z]' and
@@ -35,7 +37,7 @@ const dateTime = z.string().trim().transform((v, ctx) => {
   return `${m[1]} ${m[2]}:${m[3]}:${m[4] || '00'}`;
 });
 const optDateTime = z.preprocess(emptyToNull, dateTime.nullable()).optional();
-const time = z.string().regex(/^\d{2}:\d{2}$/, 'Expected time HH:MM');
+const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Expected time HH:MM (00:00-23:59)');
 
 function formatIssues(error) {
   return error.issues.map((i) => ({ field: i.path.join('.') || null, message: i.message }));
