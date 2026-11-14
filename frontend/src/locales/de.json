@@ -159,7 +159,11 @@
     "finished_product": "Fertigprodukt",
     "levels": "Ebenen",
     "pos": "Pos.",
-    "select_parent_item": "— Fertigprodukt oder Halbfabrikat wählen —"
+    "select_parent_item": "— Fertigprodukt oder Halbfabrikat wählen —",
+    "default_uom": "Stk",
+    "supplier_placeholder": "z. B. Stahl AG",
+    "search_code": "Artikelnummer suchen…",
+    "search_name": "Bezeichnung suchen…"
   },
   "common": {
     "item": "Artikel",
@@ -256,7 +260,8 @@
     "uom": "Einheit",
     "location": "Lagerplatz",
     "last_updated": "Zuletzt geändert",
-    "adjust": "Korrigieren"
+    "adjust": "Korrigieren",
+    "location_placeholder": "z. B. Lager A, Regal 4"
   },
   "maintenance": {
     "title": "Wartungsplanung",
@@ -408,7 +413,12 @@
     "finish_shift": "Schicht beenden",
     "delete_area_confirm": "Diesen Bereich und alle seine Maschinen löschen?",
     "delete_machine_confirm": "Diese Maschine löschen?",
-    "independent": "Selbstständig"
+    "independent": "Selbstständig",
+    "machine_btn": "Maschine",
+    "area_placeholder": "z. B. Zuschnitt",
+    "shift_placeholder": "z. B. Frühschicht",
+    "shift_name": "Name der Schicht",
+    "new_user": "Neuer Benutzer"
   },
   "messages": {
     "delete_success": "Gelöscht",

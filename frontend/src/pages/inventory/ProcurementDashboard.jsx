@@ -253,13 +253,16 @@ function POModal({ onClose, onSave }) {
   }, []);
 
   const addItem = () => {
-    setFormData({ ...formData, items: [...formData.items, { item_id: '', quantity_ordered: 0, unit_price: 0 }] });
+    setFormData({ ...formData, items: [...formData.items, { item_id: '', quantity_ordered: '', unit_price: '' }] });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await api.post('/procurement/purchase-orders', formData);
+      await api.post('/procurement/purchase-orders', {
+        ...formData,
+        items: formData.items.map(i => ({ ...i, unit_price: i.unit_price === '' ? 0 : i.unit_price })),
+      });
       toast.success(t('screens.procurement.po_created'));
       onSave();
     } catch (err) {
@@ -297,25 +300,36 @@ function POModal({ onClose, onSave }) {
                   <select className="w-full h-10 rounded-lg border border-border px-3 text-sm" value={it.item_id} onChange={e => {
                     const newItems = [...formData.items];
                     newItems[idx].item_id = e.target.value;
+                    // Pre-fill the price from the item's purchase cost; the user can still change it.
+                    const picked = items.find(i => String(i.id) === e.target.value);
+                    if (picked && (newItems[idx].unit_price === '' || newItems[idx].unit_price === 0)) {
+                      newItems[idx].unit_price = picked.acquisition_cost || '';
+                    }
                     setFormData({...formData, items: newItems});
-                  }}>
+                  }} required>
                     <option value="">{t('screens.common.choose_material')}</option>
                     {items.map(i => <option key={i.id} value={i.id}>{i.item_code} - {i.name}</option>)}
                   </select>
                 </div>
                 <div className="sm:col-span-3">
-                  <Input type="number" placeholder={t('screens.common.quantity')} value={it.quantity_ordered} onChange={e => {
+                  <Input type="number" step="any" min="0.001" required placeholder={t('screens.common.quantity')} value={it.quantity_ordered} onChange={e => {
                     const newItems = [...formData.items];
-                    newItems[idx].quantity_ordered = parseFloat(e.target.value);
+                    newItems[idx].quantity_ordered = e.target.value === '' ? '' : parseFloat(e.target.value);
                     setFormData({...formData, items: newItems});
                   }} />
                 </div>
-                <div className="sm:col-span-3">
-                  <Input type="number" step="0.01" placeholder={t('screens.common.unit_price')} value={it.unit_price} onChange={e => {
+                <div className="sm:col-span-2">
+                  <Input type="number" step="0.01" min="0" placeholder={t('screens.common.unit_price')} value={it.unit_price} onChange={e => {
                     const newItems = [...formData.items];
-                    newItems[idx].unit_price = parseFloat(e.target.value);
+                    newItems[idx].unit_price = e.target.value === '' ? '' : parseFloat(e.target.value);
                     setFormData({...formData, items: newItems});
                   }} />
+                </div>
+                <div className="sm:col-span-1 flex justify-end">
+                  <button type="button" aria-label={t('common.delete')} className="h-10 w-10 flex items-center justify-center rounded-lg text-red-500 hover:bg-red-50"
+                    onClick={() => setFormData({ ...formData, items: formData.items.filter((_, i) => i !== idx) })}>
+                    <Trash2 size={16} />
+                  </button>
                 </div>
               </div>
             ))}

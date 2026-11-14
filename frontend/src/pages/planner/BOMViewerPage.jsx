@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft, Edit2, Printer, ChevronRight, ChevronDown,
-  Layers, Package, Zap, GitBranch, DollarSign, Box
+  Layers, Package, Zap, GitBranch, Euro, Box
 } from 'lucide-react';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
@@ -12,6 +12,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Card } from '../../components/ui/Card';
+
+const fmtEur = (n) => Number(n || 0).toLocaleString(document.documentElement.lang || undefined, { style: 'currency', currency: 'EUR' });
 
 // ─── Level config ─────────────────────────────────────────────────────────────
 const L = {
@@ -242,7 +244,7 @@ export default function BOMViewerPage() {
             {[
               { label: t('sidebar.manage_shifts'),  value: deptCount,             icon: <Layers size={16} className="text-orange-500"/> },
               { label: t('items.total_nodes'),  value: totalNodes,            icon: <GitBranch size={16} className="text-purple-500"/> },
-              { label: t('items.cost_std'), value: `${totalCost.toFixed(2)} RON`, icon: <DollarSign size={16} className="text-green-500"/> },
+              { label: t('items.cost_std'), value: fmtEur(totalCost), icon: <Euro size={16} className="text-green-500"/> },
               { label: t('items.issue_date'),  value: format(new Date(), 'dd.MM.yyyy'), icon: <Box size={16} className="text-blue-500"/> },
             ].map(stat => (
               <div key={stat.label} className="flex items-center gap-3">
@@ -316,7 +318,7 @@ export default function BOMViewerPage() {
                 <td className="border border-black p-3 bg-gray-100 font-bold w-1/4 uppercase">{t('items.finished_good')}:</td>
                 <td className="border border-black p-3 text-xl font-black">{bom?.parent_code} - {bom?.parent_name}</td>
                 <td className="border border-black p-3 bg-gray-100 font-bold w-1/4 uppercase">{t('items.cost_std')}:</td>
-                <td className="border border-black p-3 font-mono">{totalCost.toFixed(2)} RON</td>
+                <td className="border border-black p-3 font-mono">{fmtEur(totalCost)}</td>
               </tr>
               <tr>
                 <td className="border border-black p-3 bg-gray-100 font-bold uppercase">{t('items.general_desc')}:</td>

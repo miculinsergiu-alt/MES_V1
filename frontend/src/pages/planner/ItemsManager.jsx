@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Box, Plus, Search, Edit2, Trash2, X, Clock, DollarSign, List, FileText, TrendingUp, Zap, GitBranch, Printer, Truck, MapPin, ArrowDownUp } from 'lucide-react';
+import { Box, Plus, Search, Edit2, Trash2, X, Clock, Euro, List, FileText, TrendingUp, Zap, GitBranch, Printer, Truck, MapPin, ArrowDownUp } from 'lucide-react';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -76,7 +76,7 @@ export default function ItemsManager() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
                 <Input 
                   className="pl-10 w-48 bg-white" 
-                  placeholder={t('items.search_placeholder')} 
+                  placeholder={t('items.search_code')} 
                   value={searchCode}
                   onChange={(e) => setSearchCode(e.target.value)}
                 />
@@ -85,7 +85,7 @@ export default function ItemsManager() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
                 <Input 
                   className="pl-10 w-64 bg-white" 
-                  placeholder={t('items.search_placeholder')} 
+                  placeholder={t('items.search_name')} 
                   value={searchName}
                   onChange={(e) => setSearchName(e.target.value)}
                 />
@@ -269,7 +269,7 @@ function ItemModal({ item, machines, onClose, onSave }) {
     item_code: '',
     name: '',
     type: 'raw_material',
-    uom: 'buc',
+    uom: t('items.default_uom'),
     acquisition_cost: 0,
     production_cost: 0,
     unit_price: 0,
@@ -375,7 +375,7 @@ function ItemModal({ item, machines, onClose, onSave }) {
                   <Input 
                     value={formData.supplier_name} 
                     onChange={e => setFormData({...formData, supplier_name: e.target.value})} 
-                    placeholder="ex: Steel Corp SRL"
+                    placeholder={t('items.supplier_placeholder')}
                   />
                 </div>
                 <div className="space-y-2">
@@ -397,14 +397,14 @@ function ItemModal({ item, machines, onClose, onSave }) {
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase text-muted-foreground">{t('items.purchase_cost')}</label>
                 <div className="relative">
-                  <DollarSign size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Euro size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                   <Input type="number" step="0.01" className="pl-8 h-10" value={formData.acquisition_cost} onChange={e => setFormData({...formData, acquisition_cost: parseFloat(e.target.value)})} />
                 </div>
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase text-muted-foreground">{t('items.production_cost')}</label>
                 <div className="relative">
-                  <DollarSign size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Euro size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                   <Input type="number" step="0.01" className="pl-8 h-10" value={formData.production_cost} onChange={e => setFormData({...formData, production_cost: parseFloat(e.target.value)})} />
                 </div>
               </div>
@@ -622,7 +622,7 @@ function BOMModal({ bom, items, onClose, onSave }) {
               <option value="">{t('items.select_parent_item')}</option>
               {parentItemCandidates.map(i => (
                 <option key={i.id} value={i.id}>
-                  {i.item_code} — {i.name} ({i.type === 'finished_good' ? 'PF' : 'SF'})
+                  {i.item_code} — {i.name} ({t(`items.${i.type}`)})
                 </option>
               ))}
             </select>

@@ -76,7 +76,7 @@ export default function AdminDashboard() {
           <div className="flex gap-3">
              {tab === 'users' && (
                 <Button size="sm" onClick={() => { setEditUser(null); setShowUserModal(true); }}>
-                  <Plus size={16} className="mr-2" /> {t('common.edit')} {t('roles.operator')}
+                  <Plus size={16} className="mr-2" /> {t('admin.new_user')}
                 </Button>
              )}
              {tab === 'machines' && (
@@ -208,7 +208,7 @@ export default function AdminDashboard() {
                           <Trash2 size={14}/>
                         </Button>
                         <Button variant="secondary" size="sm" className="h-8 px-3 text-xs" onClick={() => { setSelectedArea(area); setEditMachine(null); setShowMachineModal(true); }}>
-                          <Plus size={12} className="mr-1"/> Utilaj
+                          <Plus size={12} className="mr-1"/> {t('admin.machine_btn')}
                         </Button>
                       </div>
                     </div>
@@ -407,8 +407,8 @@ function ShiftDefinitionModal({ shift, users, onClose, onSave }) {
     <ModalWrapper title={shift ? `${t('common.edit')} ${t('sidebar.manage_shifts')}` : t('admin.new_shift')} onClose={onClose} maxWidth="max-w-2xl">
       <form onSubmit={handleSubmit} className="space-y-8">
         <div className="space-y-2">
-          <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">{t('sidebar.manage_shifts')}</label>
-          <Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="ex: Schimbul A" required />
+          <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">{t('admin.shift_name')}</label>
+          <Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder={t('admin.shift_placeholder')} required />
         </div>
 
         <div className="grid grid-cols-2 gap-6">
@@ -716,7 +716,7 @@ function AreaModal({ onClose, onSave }) {
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-2">
           <label className="text-sm font-medium ml-1">{t('admin.area_name')}</label>
-          <Input value={form.name} onChange={e=>setForm(p=>({...p,name:e.target.value}))} required placeholder="ex: Aria Debitari" />
+          <Input value={form.name} onChange={e=>setForm(p=>({...p,name:e.target.value}))} required placeholder={t('admin.area_placeholder')} />
         </div>
         <div className="space-y-2">
           <label className="text-sm font-medium ml-1">{t('admin.description_optional')}</label>

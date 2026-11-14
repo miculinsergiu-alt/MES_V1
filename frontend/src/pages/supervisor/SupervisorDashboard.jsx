@@ -346,8 +346,8 @@ function ShiftDefinitionModal({ shift, users, onClose, onSave }) {
     <ModalWrapper title={shift ? `${t('common.edit')} ${t('sidebar.manage_shifts')}` : t('admin.new_shift')} onClose={onClose} maxWidth="max-w-2xl">
       <form onSubmit={handleSubmit} className="space-y-8">
         <div className="space-y-2">
-          <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">{t('sidebar.manage_shifts')}</label>
-          <Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="ex: Schimbul A" required />
+          <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">{t('admin.shift_name')}</label>
+          <Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder={t('admin.shift_placeholder')} required />
         </div>
 
         <div className="grid grid-cols-2 gap-6">

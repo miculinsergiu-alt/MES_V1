@@ -11,7 +11,13 @@ router.use(authenticateToken);
 // GET /api/stock — all stock levels
 router.get('/', h(async (req, res) => {
   res.json(await db.all(`
-    SELECT sl.*, i.item_code, i.name AS item_name, i.type, i.uom
+    SELECT sl.*, i.item_code, i.name AS item_name, i.type, i.uom,
+      (SELECT string_agg(DISTINCT w.name || ' ' || wl.barcode, ', ')
+         FROM inventory_lots il
+         JOIN goods_receipt_items gri ON gri.lot_number = il.lot_number AND gri.item_id = il.item_id
+         JOIN warehouse_locations wl ON wl.id = gri.location_id
+         JOIN warehouses w ON w.id = wl.warehouse_id
+        WHERE il.item_id = sl.item_id AND il.quantity > 0) AS lot_locations
     FROM stock_levels sl JOIN items i ON sl.item_id = i.id
     ORDER BY i.item_code ASC`));
 }));

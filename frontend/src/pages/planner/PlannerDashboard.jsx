@@ -205,7 +205,9 @@ function CreateOrderModal({ machines, onClose, onSave }) {
     if (k === 'item_id' && v) {
       const selectedItem = items.find(it => it.id === parseInt(v));
       newO.product_name = selectedItem ? selectedItem.name : '';
-      newO.bom_id = '';
+      // When the product has exactly one BOM, pick it, so material is reserved even if the planner skips the field.
+      const itemBoms = boms.filter(b => b.parent_item_id === parseInt(v));
+      newO.bom_id = itemBoms.length === 1 ? String(itemBoms[0].id) : '';
       fetchRoute(v, i);
     }
     if (k === 'order_type' && v === 'maintenance') {

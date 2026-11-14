@@ -159,7 +159,11 @@
     "finished_product": "Finished product",
     "levels": "levels",
     "pos": "pos.",
-    "select_parent_item": "— Choose finished or semi-finished product —"
+    "select_parent_item": "— Choose finished or semi-finished product —",
+    "default_uom": "pcs",
+    "supplier_placeholder": "e.g. Steel Corp Ltd",
+    "search_code": "Search code…",
+    "search_name": "Search name…"
   },
   "common": {
     "item": "Item",
@@ -256,7 +260,8 @@
     "uom": "UoM",
     "location": "Location",
     "last_updated": "Last Updated",
-    "adjust": "Adjust"
+    "adjust": "Adjust",
+    "location_placeholder": "e.g. Warehouse A, Shelf 4"
   },
   "maintenance": {
     "title": "Maintenance Planning",
@@ -408,7 +413,12 @@
     "finish_shift": "Finish Shift",
     "delete_area_confirm": "Delete this area and all its machines?",
     "delete_machine_confirm": "Delete this machine?",
-    "independent": "Independent"
+    "independent": "Independent",
+    "machine_btn": "Machine",
+    "area_placeholder": "e.g. Cutting",
+    "shift_placeholder": "e.g. Early shift",
+    "shift_name": "Shift name",
+    "new_user": "New user"
   },
   "messages": {
     "delete_success": "Deleted successfully",

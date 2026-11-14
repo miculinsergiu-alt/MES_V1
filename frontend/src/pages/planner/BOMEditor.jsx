@@ -196,7 +196,7 @@ function TreeNode({ node, items, warehouses, onUpdate, onRemove, onTreeChange, f
           <option value="">— {t('items.select_article')} —</option>
           {items.map(i => (
             <option key={i.id} value={i.id}>
-              {i.item_code} — {i.name} ({i.type === 'raw_material' ? 'MP' : i.type === 'semi_finished' ? 'SF' : i.type === 'finished_good' ? 'PF' : 'Phantom'})
+              {i.item_code} — {i.name} ({t(`items.${i.type}`, { defaultValue: t('items.phantom') })})
             </option>
           ))}
         </select>

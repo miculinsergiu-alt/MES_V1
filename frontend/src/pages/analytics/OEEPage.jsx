@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts';
-import { LayoutDashboard, TrendingUp, Clock, Activity, CheckCircle, Target, AlertCircle, DollarSign } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, Clock, Activity, CheckCircle, Target, AlertCircle, Euro } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/axios';
 import { useSocket } from '../../contexts/SocketContext';
@@ -189,7 +189,7 @@ export default function OEEPage() {
 
            <Card className="p-0 overflow-hidden">
               <div className="p-6 border-b border-border bg-muted/5 flex justify-between items-center">
-                <h3 className="font-semibold text-foreground flex items-center gap-2"><DollarSign size={18} className="text-green-600"/> {t('analytics.cost_deviations')}</h3>
+                <h3 className="font-semibold text-foreground flex items-center gap-2"><Euro size={18} className="text-green-600"/> {t('analytics.cost_deviations')}</h3>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left">

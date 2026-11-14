@@ -195,6 +195,17 @@ function WarehouseModal({ onClose, onSave }) {
 function LocationModal({ warehouseId, onClose, onSave }) {
   const { t } = useTranslation();
   const [formData, setFormData] = useState({ zone: '', shelf: '', bin: '', barcode: '' });
+  const [barcodeTouched, setBarcodeTouched] = useState(false);
+
+  // Suggest the barcode from zone/shelf/bin (LOC-WH{id}-{ZONE}{SHELF}{BIN}) until the user types their own.
+  const setPart = (field, value) => setFormData(prev => {
+    const next = { ...prev, [field]: value };
+    if (!barcodeTouched) {
+      const code = `${next.zone}${next.shelf}${next.bin}`.replace(/\s+/g, '').toUpperCase();
+      next.barcode = code ? `LOC-WH${warehouseId}-${code}` : '';
+    }
+    return next;
+  });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -215,20 +226,20 @@ function LocationModal({ warehouseId, onClose, onSave }) {
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-1">
               <label className="text-xs font-bold uppercase text-muted-foreground">{t('screens.warehouse.zone')}</label>
-              <Input value={formData.zone} onChange={e => setFormData({...formData, zone: e.target.value})} placeholder="A1" />
+              <Input value={formData.zone} onChange={e => setPart('zone', e.target.value)} placeholder="A1" />
             </div>
             <div className="space-y-1">
               <label className="text-xs font-bold uppercase text-muted-foreground">{t('screens.warehouse.shelf')}</label>
-              <Input value={formData.shelf} onChange={e => setFormData({...formData, shelf: e.target.value})} placeholder="04" />
+              <Input value={formData.shelf} onChange={e => setPart('shelf', e.target.value)} placeholder="04" />
             </div>
             <div className="space-y-1">
               <label className="text-xs font-bold uppercase text-muted-foreground">{t('screens.warehouse.bin')}</label>
-              <Input value={formData.bin} onChange={e => setFormData({...formData, bin: e.target.value})} placeholder="02" />
+              <Input value={formData.bin} onChange={e => setPart('bin', e.target.value)} placeholder="02" />
             </div>
           </div>
           <div className="space-y-1">
             <label className="text-xs font-bold uppercase text-muted-foreground">{t('screens.warehouse.barcode')}</label>
-            <Input value={formData.barcode} onChange={e => setFormData({...formData, barcode: e.target.value.toUpperCase()})} required placeholder="LOC-WH1-A10402" />
+            <Input value={formData.barcode} onChange={e => { setBarcodeTouched(true); setFormData({...formData, barcode: e.target.value.toUpperCase()}); }} required placeholder="LOC-WH1-A10402" />
             <p className="text-[10px] text-muted-foreground mt-1 italic">{t('screens.warehouse.barcode_hint')}</p>
           </div>
           <div className="pt-4 flex justify-end gap-3">

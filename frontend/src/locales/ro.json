@@ -159,7 +159,11 @@
     "phase": "Fază",
     "bom_name": "Nume BOM",
     "finished_product": "Produs finit",
-    "select_parent_item": "— Selectează PF sau SF —"
+    "select_parent_item": "— Selectează PF sau SF —",
+    "default_uom": "buc",
+    "supplier_placeholder": "ex: Steel Corp SRL",
+    "search_code": "Caută cod…",
+    "search_name": "Caută denumire…"
   },
   "common": {
     "item": "Articol",
@@ -255,7 +259,8 @@
     "uom": "UOM",
     "location": "Locație",
     "last_updated": "Ultima Actualizare",
-    "adjust": "Ajustează"
+    "adjust": "Ajustează",
+    "location_placeholder": "ex: Depozit A, Raft 4"
   },
   "maintenance": {
     "title": "Planificare Mentenanță",
@@ -407,7 +412,12 @@
     "finish_shift": "Finalizare Schimb",
     "delete_area_confirm": "Ștergi această arie și toate utilajele ei?",
     "delete_machine_confirm": "Ștergi acest utilaj?",
-    "independent": "Independent"
+    "independent": "Independent",
+    "machine_btn": "Utilaj",
+    "area_placeholder": "ex: Aria Debitare",
+    "shift_placeholder": "ex: Schimbul A",
+    "shift_name": "Denumire schimb",
+    "new_user": "Utilizator nou"
   },
   "messages": {
     "delete_success": "Șters cu succes",

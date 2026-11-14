@@ -27,7 +27,8 @@ export default function InventoryPage() {
     } catch (e) {}
   };
 
-  useEffect(() => { loadStock(); }, []);
+  // Reload whenever the stock tab is shown, so receipts and transfers booked in other tabs appear at once.
+  useEffect(() => { if (activeTab === 'stock') loadStock(); }, [activeTab]);
 
   const openAdjust = (item) => {
     setSelectedItem(item);
@@ -135,12 +136,15 @@ function StockList({ stock, onAdjust, t }) {
               </td>
               <td className={`px-6 py-4 font-bold ${s.quantity < 10 ? 'text-red-500' : 'text-foreground'}`}>{s.quantity}</td>
               <td className="px-6 py-4 text-sm text-muted-foreground">{s.uom}</td>
-              <td className="px-6 py-4 text-sm text-muted-foreground">{s.location || '-'}</td>
+              <td className="px-6 py-4 text-sm text-muted-foreground">{s.lot_locations || s.location || '-'}</td>
               <td className="px-6 py-4 text-right">
                 <button className="p-2 hover:bg-accent/10 rounded-lg text-accent transition-colors" onClick={() => onAdjust(s)}><Edit size={16}/></button>
               </td>
             </tr>
           ))}
+          {stock.length === 0 && (
+            <tr><td colSpan={7} className="px-6 py-10 text-center text-sm italic text-muted-foreground">{t('common.no_data')}</td></tr>
+          )}
         </tbody>
       </table>
     </div>
@@ -171,7 +175,7 @@ function AdjustStockModal({ item, onClose, onSave }) {
           </div>
           <div className="space-y-1">
             <label className="text-xs font-bold uppercase text-muted-foreground">{t('inventory.location')}</label>
-            <input className="w-full h-11 rounded-xl border border-border px-4 focus:ring-2 focus:ring-accent outline-none" type="text" value={form.location} onChange={e=>setForm(p=>({...p, location: e.target.value}))} placeholder="ex: Depozit A, Raft 4" />
+            <input className="w-full h-11 rounded-xl border border-border px-4 focus:ring-2 focus:ring-accent outline-none" type="text" value={form.location} onChange={e=>setForm(p=>({...p, location: e.target.value}))} placeholder={t('inventory.location_placeholder')} />
           </div>
           <div className="pt-4 flex justify-end gap-3">
             <button type="button" className="px-4 py-2 text-sm font-bold text-muted-foreground hover:text-foreground transition-colors" onClick={onClose}>{t('common.cancel')}</button>

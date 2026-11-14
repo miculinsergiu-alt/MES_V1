@@ -290,17 +290,17 @@ export default function DocumentEditor() {
 
       {/* Lines */}
       <Card className="mb-6 overflow-x-auto p-0">
-        <table className="min-w-[860px]">
+        <table className="min-w-[900px] [&_th]:px-2 [&_td]:px-2 [&_td]:py-2">
           <thead>
             <tr>
               <th className="w-10">{t('sales.fields.pos')}</th>
-              <th className="w-44">{t('sales.fields.item')}</th>
+              <th className="w-52">{t('sales.fields.item')}</th>
               <th>{t('sales.fields.description')}</th>
-              <th className="w-24 text-right">{t('sales.fields.quantity')}</th>
-              <th className="w-20">{t('sales.fields.unit')}</th>
+              <th className="w-28 text-right">{t('sales.fields.quantity')}</th>
+              <th className="w-24">{t('sales.fields.unit')}</th>
               {showPrices && <th className="w-28 text-right">{t('sales.fields.unit_price')}</th>}
               {showPrices && <th className="w-20 text-right">{t('sales.fields.discount')}</th>}
-              {showPrices && <th className="w-20">{t('sales.fields.vat')}</th>}
+              {showPrices && <th className="w-24">{t('sales.fields.vat')}</th>}
               {showPrices && <th className="w-28 text-right">{t('sales.fields.line_total')}</th>}
               {canEdit && <th className="w-10" />}
             </tr>
