@@ -261,6 +261,7 @@
   "maintenance": {
     "title": "Wartungsplanung",
     "usage_since_last": "Laufzeit seit letzter Wartung",
+    "hours_unit": "Std.",
     "notes": "Hinweise zum Einsatz",
     "confirm_complete": "Wartung als erledigt bestätigen",
     "technician": "Techniker",

@@ -260,6 +260,7 @@
   "maintenance": {
     "title": "Planificare Mentenanță",
     "usage_since_last": "Utilizare de la ultima mentenanță",
+    "hours_unit": "ore",
     "notes": "Note Intervenție",
     "confirm_complete": "Confirmă Finalizare Mentenanță",
     "technician": "Tehnician",

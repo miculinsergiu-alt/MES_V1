@@ -261,6 +261,7 @@
   "maintenance": {
     "title": "Maintenance Planning",
     "usage_since_last": "Usage since last maintenance",
+    "hours_unit": "hours",
     "notes": "Intervention Notes",
     "confirm_complete": "Confirm Maintenance Completion",
     "technician": "Technician",

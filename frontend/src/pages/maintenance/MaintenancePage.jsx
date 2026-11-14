@@ -49,7 +49,7 @@ export default function MaintenancePage() {
                   <div className="mb-4">
                     <div className="flex justify-between text-sm mb-1">
                       <span className="text-muted">{t('maintenance.usage_since_last')}</span>
-                      <span style={{ fontWeight: 600, color }}>{Math.round(m.hoursSinceLast)} / {m.interval_hours || '∞'} {i18n.language === 'ro' ? 'ore' : 'hours'}</span>
+                      <span style={{ fontWeight: 600, color }}>{Math.round(m.hoursSinceLast)} / {m.interval_hours || '∞'} {t('maintenance.hours_unit')}</span>
                     </div>
                     <div className="progress-bar">
                       <div className="progress-fill" style={{ width: `${Math.min(100, progress)}%`, background: color }} />
