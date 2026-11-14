@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import api from '../api/axios';
 
 const AuthContext = createContext(null);
@@ -37,6 +37,23 @@ export function AuthProvider({ children }) {
       return next;
     });
   };
+
+  // Roles can change while someone is logged in (an administrator edits the
+  // user). Refresh them on start and whenever the tab comes back into view.
+  const loggedIn = !!user;
+  useEffect(() => {
+    if (!loggedIn) return undefined;
+    const refresh = () => {
+      api.get('/auth/me').then((res) => {
+        const { role, roles, first_name, last_name, onboarding_completed } = res.data;
+        updateUser({ role, roles, first_name, last_name, onboarding_completed });
+      }).catch(() => { /* 401 is handled by the API client */ });
+    };
+    refresh();
+    const onVisible = () => { if (document.visibilityState === 'visible') refresh(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [loggedIn]);
 
   const logout = () => {
     localStorage.removeItem('sf_token');

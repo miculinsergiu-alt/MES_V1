@@ -44,17 +44,30 @@ function verifyToken(token) {
   return decoded;
 }
 
-/** Requires a valid Bearer token; sets req.user (incl. company_id). */
-function authenticateToken(req, res, next) {
+/**
+ * Requires a valid Bearer token; sets req.user (incl. company_id).
+ * Roles and the active flag are read from the database on every request, so
+ * role changes and deactivations take effect at once, without a new login.
+ */
+async function authenticateToken(req, res, next) {
   const header = req.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
   if (!token) return next(unauthorized('Missing token'));
+  let decoded;
   try {
-    req.user = verifyToken(token);
-    req.user.roles = rolesOf(req.user);
-    return next();
+    decoded = verifyToken(token);
   } catch {
     return next(unauthorized('Invalid or expired token'));
+  }
+  try {
+    const db = require('../db');
+    const current = await db.withContext({ companyId: decoded.company_id, userId: decoded.id, timezone: decoded.timezone },
+      () => db.get('SELECT role, roles FROM users WHERE id = ? AND active = 1', [decoded.id]));
+    if (!current) return next(unauthorized('User no longer active'));
+    req.user = { ...decoded, role: current.role, roles: rolesOf(current) };
+    return next();
+  } catch (err) {
+    return next(err);
   }
 }
 

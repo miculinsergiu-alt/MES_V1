@@ -62,3 +62,20 @@ test('administrators cannot remove their own administrator role', async () => {
   assert.equal((await c.api.put(`/api/users/${me.id}`, { roles: ['planner'] })).status, 400);
   assert.equal((await c.api.put(`/api/users/${me.id}`, { roles: ['administrator', 'planner'] })).status, 200);
 });
+
+test('role changes and deactivation apply to an existing login at once', async () => {
+  const u = await t.userClient(c.api, 'ROLES', 'L1', 'operator');
+  assert.equal((await u.api.post('/api/customers', { name: 'Vorher' })).status, 403);
+
+  // Administrator gives the user the sales role; the same token now has it.
+  await c.api.put(`/api/users/${u.id}`, { roles: ['operator', 'sales'] }).expect(200);
+  assert.equal((await u.api.post('/api/customers', { name: 'Nachher' })).status, 201);
+
+  // Role taken away again: access ends without a new login.
+  await c.api.put(`/api/users/${u.id}`, { roles: ['operator'] }).expect(200);
+  assert.equal((await u.api.post('/api/customers', { name: 'Wieder' })).status, 403);
+
+  // Deactivated user: the old token stops working.
+  await c.api.delete(`/api/users/${u.id}`);
+  assert.equal((await u.api.get('/api/stock')).status, 401);
+});
