@@ -384,7 +384,7 @@ function CreateOrderModal({ machines, onClose, onSave }) {
                       })}
                     </div>
                     <p className="text-[9px] italic text-muted-foreground/70">
-                      * {t('planner.route_explosion_info', { defaultValue: 'Comanda va fi explodată automat în sub-comenzi pe fiecare utilaj din rută.' })}
+                      * {t('planner.route_explosion_info')}
                     </p>
                   </div>
                 )}

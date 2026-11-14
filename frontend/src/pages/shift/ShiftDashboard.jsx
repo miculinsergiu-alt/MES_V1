@@ -81,7 +81,7 @@ export default function ShiftDashboard() {
         <header className="page-header">
           <div className="flex justify-between items-center w-full">
             <div>
-              <Badge className="mb-2">Shift Responsible Dashboard</Badge>
+              <Badge className="mb-2">{t('roles.shift_responsible')}</Badge>
               <h1>{myShift?.name || t('roles.shift_responsible')}</h1>
               <p className="text-muted-foreground">{t('supervisor.subtitle')} — {format(new Date(), 'dd MMMM', {locale: i18n.language === 'ro' ? ro : undefined})}</p>
             </div>

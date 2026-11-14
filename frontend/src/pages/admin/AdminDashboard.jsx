@@ -69,7 +69,7 @@ export default function AdminDashboard() {
       <main className="flex-1 p-4 sm:p-6 lg:p-10 overflow-auto">
         <header className="mb-10 flex justify-between items-end">
           <div>
-            <Badge className="mb-4">Administrative Suite</Badge>
+            <Badge className="mb-4">{t('shell.groups.admin')}</Badge>
             <h1 className="font-display text-4xl text-foreground">{t('sidebar.admin')}</h1>
             <p className="text-muted-foreground mt-2">{t('admin.subtitle')}</p>
           </div>
@@ -202,7 +202,7 @@ export default function AdminDashboard() {
                         <h4 className="font-bold text-foreground">{area.name}</h4>
                       </div>
                       <div className="flex gap-2">
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50" onClick={async () => { if(window.confirm(t('admin.delete_area_confirm', { defaultValue: 'Sigur dorești să ștergi această arie și toate utilajele ei?' }))) { await api.delete(`/machines/areas/${area.id}`); loadAreas(); } }}>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50" onClick={async () => { if(window.confirm(t('admin.delete_area_confirm'))) { await api.delete(`/machines/areas/${area.id}`); loadAreas(); } }}>
                           <Trash2 size={14}/>
                         </Button>
                         <Button variant="secondary" size="sm" className="h-8 px-3 text-xs" onClick={() => { setSelectedArea(area); setEditMachine(null); setShowMachineModal(true); }}>
@@ -224,7 +224,7 @@ export default function AdminDashboard() {
                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => { setSelectedArea(area); setEditMachine(m); setShowMachineModal(true); }}>
                                  <Settings size={12} className="text-muted-foreground" />
                                </Button>
-                               <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500 hover:bg-red-50" onClick={async () => { if(window.confirm(t('admin.delete_machine_confirm', { defaultValue: 'Sigur dorești să ștergi acest utilaj?' }))) { await api.delete(`/machines/${m.id}`); loadAreas(); } }}>
+                               <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500 hover:bg-red-50" onClick={async () => { if(window.confirm(t('admin.delete_machine_confirm'))) { await api.delete(`/machines/${m.id}`); loadAreas(); } }}>
                                  <Trash2 size={12} />
                                </Button>
                              </div>
@@ -600,7 +600,7 @@ function SkillModal({ user, areas, onClose }) {
                       >
                         <option value="trainee">{t('admin.trainee')}</option>
                         <option value="independent">{t('admin.independent')}</option>
-                        <option value="expert">Expert / Trainer</option>
+                        <option value="expert">{t('screens.skills.expert')}</option>
                         </select>
                         <input 
                         type="date"

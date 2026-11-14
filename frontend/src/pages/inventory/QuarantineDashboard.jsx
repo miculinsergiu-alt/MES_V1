@@ -18,26 +18,24 @@ export default function QuarantineDashboard() {
       const res = await api.get('/quality/quarantine');
       setLogs(res.data);
     } catch (err) {
-      toast.error('Eroare la încărcarea datelor din carantină');
+      toast.error(t('screens.common.load_error'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => { loadLogs(); }, [loadLogs]);
 
   const handleResolve = async (id, decision) => {
-    if (!window.confirm(`Ești sigur că vrei să markezi acest lot ca ${decision === 'released' ? 'CONFORM' : 'REBUT'}?`)) return;
+    if (!window.confirm(t(decision === 'released' ? 'screens.quarantine.confirm_release' : 'screens.quarantine.confirm_scrap'))) return;
     try {
       await api.put(`/quality/quarantine/${id}/resolve`, {
         decision,
-        decision_by: 1, // Demo admin
-        notes: `Decizie luată din interfața de carantină: ${decision}`
       });
-      toast.success(`Lotul a fost ${decision === 'released' ? 'eliberat în stoc' : 'casat (rebutat)'}`);
+      toast.success(t(decision === 'released' ? 'screens.quarantine.released' : 'screens.quarantine.scrapped'));
       loadLogs();
     } catch (err) {
-      toast.error('Eroare la salvarea deciziei');
+      toast.error(err.response?.data?.error || t('screens.common.error'));
     }
   };
 
@@ -45,9 +43,9 @@ export default function QuarantineDashboard() {
     <div className="space-y-8">
       <header>
         <h2 className="font-display text-3xl text-foreground flex items-center gap-3">
-          <ShieldAlert className="text-orange-500" size={32} /> Controlul Calității & Carantină
+          <ShieldAlert className="text-orange-500" size={32} /> {t('screens.quarantine.title')}
         </h2>
-        <p className="text-muted-foreground mt-2">Gestionează materialele non-conforme și deciziile de audit.</p>
+        <p className="text-muted-foreground mt-2">{t('screens.quarantine.subtitle')}</p>
       </header>
 
       <div className="grid grid-cols-1 gap-6">
@@ -56,7 +54,7 @@ export default function QuarantineDashboard() {
             <div className="bg-orange-50 px-6 py-3 border-b border-orange-100 flex justify-between items-center">
               <div className="flex items-center gap-2">
                 <AlertCircle size={16} className="text-orange-600" />
-                <span className="text-xs font-black uppercase tracking-widest text-orange-700">Așteaptă Decizie</span>
+                <span className="text-xs font-black uppercase tracking-widest text-orange-700">{t('screens.quarantine.waiting')}</span>
               </div>
               <span className="text-[10px] font-mono font-bold text-orange-400">{log.created_at}</span>
             </div>
@@ -68,11 +66,11 @@ export default function QuarantineDashboard() {
                 </div>
                 <div className="flex items-center gap-4">
                   <div>
-                    <p className="text-[10px] font-black text-muted-foreground uppercase">Lot</p>
+                    <p className="text-[10px] font-black text-muted-foreground uppercase">{t('screens.common.lot')}</p>
                     <Badge variant="outline" className="font-mono">{log.lot_number}</Badge>
                   </div>
                   <div>
-                    <p className="text-[10px] font-black text-muted-foreground uppercase">Cantitate</p>
+                    <p className="text-[10px] font-black text-muted-foreground uppercase">{t('screens.common.quantity')}</p>
                     <p className="font-bold">{log.quantity} {log.uom}</p>
                   </div>
                 </div>
@@ -80,20 +78,20 @@ export default function QuarantineDashboard() {
 
               <div className="col-span-5 bg-muted/20 p-4 rounded-2xl border border-border/50">
                 <p className="text-[10px] font-black text-muted-foreground uppercase mb-1 flex items-center gap-1">
-                  <FileSearch size={12}/> Motiv Carantină
+                  <FileSearch size={12}/> {t('screens.quarantine.reason')}
                 </p>
                 <p className="text-sm italic">"{log.reason}"</p>
                 <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
-                  <User size={12}/> Raportat de: <span className="font-bold">{log.reporter_name}</span>
+                  <User size={12}/> {t('screens.quarantine.reported_by')}: <span className="font-bold">{log.reporter_name}</span>
                 </div>
               </div>
 
               <div className="col-span-3 flex flex-col gap-2">
                 <Button className="w-full bg-green-600 hover:bg-green-700" onClick={() => handleResolve(log.id, 'released')}>
-                  <CheckCircle2 size={16} className="mr-2" /> Eliberează în Stoc
+                  <CheckCircle2 size={16} className="mr-2" /> {t('screens.quarantine.release')}
                 </Button>
                 <Button variant="ghost" className="w-full text-red-600 hover:bg-red-50" onClick={() => handleResolve(log.id, 'scrapped')}>
-                  <Trash2 size={16} className="mr-2" /> Casează (Rebut)
+                  <Trash2 size={16} className="mr-2" /> {t('screens.quarantine.scrap')}
                 </Button>
               </div>
             </div>
@@ -103,8 +101,8 @@ export default function QuarantineDashboard() {
         {logs.length === 0 && !loading && (
           <div className="py-20 text-center bg-green-50/30 border border-dashed border-green-200 rounded-3xl">
             <CheckCircle2 size={48} className="text-green-300 mx-auto mb-4" />
-            <p className="text-green-700 font-bold">Nu există materiale în carantină.</p>
-            <p className="text-green-600/70 text-sm">Toate recepțiile sunt conforme.</p>
+            <p className="text-green-700 font-bold">{t('screens.quarantine.empty')}</p>
+            <p className="text-green-600/70 text-sm">{t('screens.quarantine.empty_hint')}</p>
           </div>
         )}
       </div>

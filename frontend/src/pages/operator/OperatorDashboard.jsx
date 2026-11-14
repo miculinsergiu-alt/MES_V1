@@ -77,7 +77,7 @@ export default function OperatorDashboard() {
       await api.post('/production/actions', { allocation_id: selectedAlloc.id, action_type: actionType, ...extraData });
       toast.success(t(`operator.phase_${type === 'start' ? 'start' : 'end'}`, { phase }));
       await loadActions(selectedAlloc);
-    } catch(err) { toast.error(err.response?.data?.error || 'Eroare'); }
+    } catch(err) { toast.error(err.response?.data?.error || t('common.error')); }
   };
 
   const handleSetupClick = () => {
@@ -202,7 +202,7 @@ export default function OperatorDashboard() {
                   <button 
                     className="op-btn op-btn-done bg-green-600 text-white border-green-700 hover:bg-green-700"
                     onClick={() => {
-                      if (window.confirm(t('operator.confirm_finish_production') || 'Sigur doriți să finalizați producția pentru această comandă?')) {
+                      if (window.confirm(t('operator.confirm_finish_production'))) {
                         logAction('working', 'end');
                         setSelectedAlloc(null);
                         loadAllocations();

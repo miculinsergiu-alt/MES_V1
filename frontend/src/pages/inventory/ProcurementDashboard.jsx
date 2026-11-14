@@ -27,18 +27,18 @@ export default function ProcurementDashboard() {
       const res = await api.get('/procurement/purchase-orders');
       setPurchaseOrders(res.data);
     } catch (err) {
-      toast.error('Eroare la încărcarea comenzilor de achiziție');
+      toast.error(t('screens.procurement.load_pos_error'));
     }
-  }, []);
+  }, [t]);
 
   const loadRecommendations = useCallback(async () => {
     try {
       const res = await api.get('/procurement/recommendations');
       setRecommendations(res.data);
     } catch (err) {
-      toast.error('Eroare la încărcarea recomandărilor MRP');
+      toast.error(t('screens.procurement.load_recs_error'));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => { 
     setLoading(true);
@@ -46,13 +46,13 @@ export default function ProcurementDashboard() {
   }, [loadPOs, loadRecommendations]);
 
   const handleDeleteRecommendation = async (id) => {
-    if (!window.confirm('Ești sigur că vrei să ștergi această recomandare MRP?')) return;
+    if (!window.confirm(t('screens.procurement.delete_rec_confirm'))) return;
     try {
       await api.delete(`/procurement/recommendations/${id}`);
-      toast.success('Recomandare ștearsă cu succes');
+      toast.success(t('screens.procurement.rec_deleted'));
       loadRecommendations();
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Eroare la ștergerea recomandării');
+      toast.error(err.response?.data?.error || t('screens.common.error'));
     }
   };
 
@@ -60,15 +60,15 @@ export default function ProcurementDashboard() {
     <div className="space-y-8">
       <header className="flex justify-between items-end">
         <div>
-          <h2 className="font-display text-3xl text-foreground">Aprovizionare & Recepție Marfă</h2>
-          <p className="text-muted-foreground">Gestionează comenzile către furnizori și recomandările MRP.</p>
+          <h2 className="font-display text-3xl text-foreground">{t('screens.procurement.title')}</h2>
+          <p className="text-muted-foreground">{t('screens.procurement.subtitle')}</p>
         </div>
         <div className="flex gap-3">
           <Button variant="secondary" onClick={() => setShowReceiptModal(true)}>
-            <PackageCheck size={16} className="mr-2" /> Recepție Nouă
+            <PackageCheck size={16} className="mr-2" /> {t('screens.procurement.new_receipt')}
           </Button>
           <Button onClick={() => setShowPOModal(true)}>
-            <Plus size={16} className="mr-2" /> Comandă Achiziție (PO)
+            <Plus size={16} className="mr-2" /> {t('screens.procurement.new_po')}
           </Button>
         </div>
       </header>
@@ -78,13 +78,13 @@ export default function ProcurementDashboard() {
           className={`pb-4 px-2 font-bold uppercase tracking-widest text-sm transition-all ${activeTab === 'pos' ? 'text-accent border-b-2 border-accent' : 'text-muted-foreground'}`}
           onClick={() => setActiveTab('pos')}
         >
-          Comenzi Active (PO)
+          {t('screens.procurement.tab_pos')}
         </button>
         <button 
           className={`pb-4 px-2 font-bold uppercase tracking-widest text-sm transition-all flex items-center gap-2 ${activeTab === 'recommendations' ? 'text-accent border-b-2 border-accent' : 'text-muted-foreground'}`}
           onClick={() => setActiveTab('recommendations')}
         >
-          Recomandări MRP 
+          {t('screens.procurement.tab_recs')}{' '}
           {recommendations.length > 0 && <span className="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full">{recommendations.length}</span>}
         </button>
       </div>
@@ -105,23 +105,23 @@ export default function ProcurementDashboard() {
                       po.status === 'partial' ? 'bg-orange-100 text-orange-700' :
                       'bg-blue-100 text-blue-700'
                     }>
-                      {po.status}
+                      {t(`screens.procurement.po_status.${po.status}`)}
                     </Badge>
                   </div>
-                  <p className="text-sm text-muted-foreground">Furnizor: <span className="font-bold text-foreground">{po.supplier_name}</span></p>
-                  <p className="text-[10px] uppercase font-black text-muted-foreground mt-1">Data estimată: {po.expected_date}</p>
+                  <p className="text-sm text-muted-foreground">{t('screens.procurement.supplier')}: <span className="font-bold text-foreground">{po.supplier_name}</span></p>
+                  <p className="text-[10px] uppercase font-black text-muted-foreground mt-1">{t('screens.procurement.expected')}: {po.expected_date}</p>
                 </div>
               </div>
               <div className="flex gap-3">
                 <Button variant="ghost" size="sm" onClick={() => { setSelectedPO(po); setShowReceiptModal(true); }}>
-                  <PackageCheck size={16} className="mr-2" /> Procesează Recepție
+                  <PackageCheck size={16} className="mr-2" /> {t('screens.procurement.process_receipt')}
                 </Button>
               </div>
             </Card>
           ))}
           {purchaseOrders.length === 0 && !loading && (
             <div className="py-20 text-center italic text-muted-foreground bg-muted/10 rounded-3xl border border-dashed border-border">
-              Nicio comandă de achiziție activă.
+              {t('screens.procurement.no_pos')}
             </div>
           )}
         </div>
@@ -140,16 +140,16 @@ export default function ProcurementDashboard() {
                     <span className="font-mono text-[10px] font-black text-orange-600 uppercase tracking-widest">{rec.item_code}</span>
                     <h4 className="font-bold text-lg">{rec.item_name}</h4>
                   </div>
-                  <p className="text-sm text-muted-foreground mt-1">Necesar: <span className="font-bold text-foreground">{rec.recommended_qty} {rec.uom}</span></p>
-                  <p className="text-[10px] uppercase font-black text-muted-foreground mt-1">Cauzată de: {rec.triggering_order_name || 'Comandă necunoscută'}</p>
+                  <p className="text-sm text-muted-foreground mt-1">{t('screens.procurement.required')}: <span className="font-bold text-foreground">{rec.recommended_qty} {rec.uom}</span></p>
+                  <p className="text-[10px] uppercase font-black text-muted-foreground mt-1">{t('screens.procurement.caused_by')}: {rec.triggering_order_name || t('screens.procurement.unknown_order')}</p>
                 </div>
               </div>
               <div className="flex gap-3">
-                <Button variant="ghost" size="sm" onClick={() => handleDeleteRecommendation(rec.id)} className="text-red-500 hover:text-red-700 hover:bg-red-50 px-3" title="Șterge recomandare">
+                <Button variant="ghost" size="sm" onClick={() => handleDeleteRecommendation(rec.id)} className="text-red-500 hover:text-red-700 hover:bg-red-50 px-3" title={t('screens.procurement.delete_rec')}>
                   <Trash2 size={16} />
                 </Button>
                 <Button onClick={() => { setSelectedRec(rec); setShowConvertModal(true); }} className="bg-orange-600 hover:bg-orange-700 text-white">
-                  <Zap size={16} className="mr-2" /> Transformă în PO
+                  <Zap size={16} className="mr-2" /> {t('screens.procurement.convert')}
                 </Button>
               </div>
             </Card>
@@ -157,8 +157,8 @@ export default function ProcurementDashboard() {
           {recommendations.length === 0 && !loading && (
             <div className="py-20 text-center text-green-700 bg-green-50 rounded-3xl border border-green-200 flex flex-col items-center justify-center gap-2">
               <CheckCircle size={32} />
-              <p className="font-bold">Stoc suficient</p>
-              <p className="text-sm italic">Nu există nicio recomandare activă generată de MRP.</p>
+              <p className="font-bold">{t('screens.procurement.stock_ok')}</p>
+              <p className="text-sm italic">{t('screens.procurement.no_recs')}</p>
             </div>
           )}
         </div>
@@ -186,6 +186,7 @@ export default function ProcurementDashboard() {
 }
 
 function ConvertModal({ rec, onClose, onSave }) {
+  const { t } = useTranslation();
   const [suppliers, setSuppliers] = useState([]);
   const [formData, setFormData] = useState({
     supplier_id: '',
@@ -200,35 +201,35 @@ function ConvertModal({ rec, onClose, onSave }) {
     e.preventDefault();
     try {
       await api.post(`/procurement/recommendations/${rec.id}/convert`, formData);
-      toast.success('Recomandare convertită cu succes!');
+      toast.success(t('screens.procurement.converted'));
       onSave();
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Eroare la conversia recomandării');
+      toast.error(err.response?.data?.error || t('screens.common.error'));
     }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm" onClick={onClose}>
       <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-3xl p-8 w-full max-w-md border border-border shadow-2xl" onClick={e => e.stopPropagation()}>
-        <h3 className="font-display text-2xl mb-2">Transformă în PO</h3>
-        <p className="text-sm text-muted-foreground mb-6">Comanzi <span className="font-bold text-foreground">{rec.recommended_qty} {rec.uom}</span> de <span className="font-bold text-foreground">{rec.item_name}</span></p>
+        <h3 className="font-display text-2xl mb-2">{t('screens.procurement.convert')}</h3>
+        <p className="text-sm text-muted-foreground mb-6">{t('screens.procurement.you_order')} <span className="font-bold text-foreground">{rec.recommended_qty} {rec.uom}</span> · <span className="font-bold text-foreground">{rec.item_name}</span></p>
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1">
-            <label className="text-xs font-bold uppercase text-muted-foreground">Selectează Furnizorul</label>
+            <label className="text-xs font-bold uppercase text-muted-foreground">{t('screens.procurement.supplier')}</label>
             <select className="w-full h-11 rounded-xl border border-border px-3 bg-white" value={formData.supplier_id} onChange={e => setFormData({...formData, supplier_id: e.target.value})} required>
-              <option value="">— Alege Furnizor —</option>
+              <option value="">{t('screens.procurement.choose_supplier')}</option>
               {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-bold uppercase text-muted-foreground">Data Estimată a Livrării</label>
+            <label className="text-xs font-bold uppercase text-muted-foreground">{t('screens.procurement.expected_delivery')}</label>
             <Input type="date" value={formData.expected_date} onChange={e => setFormData({...formData, expected_date: e.target.value})} required />
           </div>
 
           <div className="pt-6 flex justify-end gap-3 border-t">
-            <Button variant="secondary" onClick={onClose}>Anulează</Button>
-            <Button type="submit" className="bg-orange-600 hover:bg-orange-700 text-white">Generează PO</Button>
+            <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
+            <Button type="submit" className="bg-orange-600 hover:bg-orange-700 text-white">{t('screens.procurement.create_po')}</Button>
           </div>
         </form>
       </motion.div>
@@ -237,6 +238,7 @@ function ConvertModal({ rec, onClose, onSave }) {
 }
 
 function POModal({ onClose, onSave }) {
+  const { t } = useTranslation();
   const [suppliers, setSuppliers] = useState([]);
   const [items, setItems] = useState([]);
   const [formData, setFormData] = useState({
@@ -257,37 +259,37 @@ function POModal({ onClose, onSave }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await api.post('/procurement/purchase-orders', { ...formData, created_by: 1 }); // Hardcoded for demo
-      toast.success('PO creat cu succes');
+      await api.post('/procurement/purchase-orders', formData);
+      toast.success(t('screens.procurement.po_created'));
       onSave();
     } catch (err) {
-      toast.error('Eroare la creare PO');
+      toast.error(err.response?.data?.error || t('screens.common.error'));
     }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm" onClick={onClose}>
       <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-3xl p-8 w-full max-w-4xl border border-border shadow-2xl overflow-y-auto max-h-[90vh]" onClick={e => e.stopPropagation()}>
-        <h3 className="font-display text-2xl mb-6">Comandă Achiziție Nouă</h3>
+        <h3 className="font-display text-2xl mb-6">{t('screens.procurement.new_po')}</h3>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-2 gap-6">
             <div className="space-y-1">
-              <label className="text-xs font-bold uppercase text-muted-foreground">Furnizor</label>
+              <label className="text-xs font-bold uppercase text-muted-foreground">{t('screens.procurement.supplier')}</label>
               <select className="w-full h-11 rounded-xl border border-border px-3 bg-white" value={formData.supplier_id} onChange={e => setFormData({...formData, supplier_id: e.target.value})} required>
-                <option value="">Selectează Furnizor</option>
+                <option value="">{t('screens.procurement.choose_supplier')}</option>
                 {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-bold uppercase text-muted-foreground">Data Estimată Recepție</label>
+              <label className="text-xs font-bold uppercase text-muted-foreground">{t('screens.procurement.expected_delivery')}</label>
               <Input type="date" value={formData.expected_date} onChange={e => setFormData({...formData, expected_date: e.target.value})} required />
             </div>
           </div>
 
           <div className="space-y-4">
             <div className="flex justify-between items-center border-b pb-2">
-              <h4 className="font-bold uppercase tracking-widest text-xs">Produse Comandate</h4>
-              <Button type="button" variant="secondary" size="sm" onClick={addItem}><Plus size={14} className="mr-1"/> Adaugă Produs</Button>
+              <h4 className="font-bold uppercase tracking-widest text-xs">{t('screens.procurement.ordered_items')}</h4>
+              <Button type="button" variant="secondary" size="sm" onClick={addItem}><Plus size={14} className="mr-1"/> {t('screens.common.add_item')}</Button>
             </div>
             {formData.items.map((it, idx) => (
               <div key={idx} className="grid grid-cols-12 gap-3 items-end">
@@ -297,19 +299,19 @@ function POModal({ onClose, onSave }) {
                     newItems[idx].item_id = e.target.value;
                     setFormData({...formData, items: newItems});
                   }}>
-                    <option value="">Selectează Material</option>
+                    <option value="">{t('screens.common.choose_material')}</option>
                     {items.map(i => <option key={i.id} value={i.id}>{i.item_code} - {i.name}</option>)}
                   </select>
                 </div>
                 <div className="col-span-3">
-                  <Input type="number" placeholder="Cantitate" value={it.quantity_ordered} onChange={e => {
+                  <Input type="number" placeholder={t('screens.common.quantity')} value={it.quantity_ordered} onChange={e => {
                     const newItems = [...formData.items];
                     newItems[idx].quantity_ordered = parseFloat(e.target.value);
                     setFormData({...formData, items: newItems});
                   }} />
                 </div>
                 <div className="col-span-3">
-                  <Input type="number" step="0.01" placeholder="Preț Unitar" value={it.unit_price} onChange={e => {
+                  <Input type="number" step="0.01" placeholder={t('screens.common.unit_price')} value={it.unit_price} onChange={e => {
                     const newItems = [...formData.items];
                     newItems[idx].unit_price = parseFloat(e.target.value);
                     setFormData({...formData, items: newItems});
@@ -320,8 +322,8 @@ function POModal({ onClose, onSave }) {
           </div>
 
           <div className="pt-6 flex justify-end gap-3 border-t">
-            <Button variant="secondary" onClick={onClose}>Anulează</Button>
-            <Button type="submit">Creează Comandă</Button>
+            <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
+            <Button type="submit">{t('screens.procurement.create_po')}</Button>
           </div>
         </form>
       </motion.div>
@@ -330,6 +332,7 @@ function POModal({ onClose, onSave }) {
 }
 
 function ReceiptModal({ po, onClose, onSave }) {
+  const { t } = useTranslation();
   const [locations, setLocations] = useState([]);
   const [allPos, setAllPos] = useState([]);
   const [formData, setFormData] = useState({
@@ -424,7 +427,7 @@ function ReceiptModal({ po, onClose, onSave }) {
     });
 
     if (flattenedItems.length === 0) {
-      toast.error('Adăugați cel puțin o cantitate primită validă.');
+      toast.error(t('screens.procurement.need_quantity'));
       return;
     }
 
@@ -434,12 +437,11 @@ function ReceiptModal({ po, onClose, onSave }) {
         document_reference: formData.document_reference,
         notes: formData.notes,
         items: flattenedItems,
-        received_by: 1 
       });
-      toast.success('Recepție finalizată cu succes. Stocul a fost actualizat.');
+      toast.success(t('screens.procurement.receipt_done'));
       onSave();
     } catch (err) {
-      toast.error('Eroare la procesarea recepției');
+      toast.error(err.response?.data?.error || t('screens.common.error'));
     }
   };
 
@@ -448,8 +450,8 @@ function ReceiptModal({ po, onClose, onSave }) {
       <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-3xl p-8 w-full max-w-6xl border border-border shadow-2xl overflow-y-auto max-h-[90vh]" onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-start mb-8">
           <div>
-            <h3 className="font-display text-2xl uppercase tracking-tighter">Recepție Marfă {po ? `(PO #${po.id})` : ''}</h3>
-            <p className="text-muted-foreground italic text-sm">Înregistrează materialele primite, loturile și locațiile de depozitare.</p>
+            <h3 className="font-display text-2xl uppercase tracking-tighter">{t('screens.procurement.receipt_title')} {po ? `(PO #${po.id})` : ''}</h3>
+            <p className="text-muted-foreground italic text-sm">{t('screens.procurement.receipt_subtitle')}</p>
           </div>
           <Button variant="ghost" onClick={onClose}><X size={20}/></Button>
         </div>
@@ -457,14 +459,14 @@ function ReceiptModal({ po, onClose, onSave }) {
         <form onSubmit={handleSubmit} className="space-y-8">
           {!po && (
             <div className="bg-accent/5 p-6 rounded-2xl border border-accent/20">
-              <label className="text-xs font-bold uppercase text-accent mb-2 block">Selectează Comandă de Achiziție (PO) pentru recepție</label>
+              <label className="text-xs font-bold uppercase text-accent mb-2 block">{t('screens.procurement.choose_po')}</label>
               <select 
                 className="w-full h-12 rounded-xl border border-accent/30 px-4 bg-white font-bold text-accent outline-none focus:ring-2 focus:ring-accent"
                 value={formData.po_id}
                 onChange={e => setFormData({...formData, po_id: e.target.value})}
                 required
               >
-                <option value="">— Alege un PO Activ —</option>
+                <option value="">{t('screens.procurement.choose_po_option')}</option>
                 {allPos.map(p => <option key={p.id} value={p.id}>PO #{p.id.toString().padStart(5, '0')} - {p.supplier_name}</option>)}
               </select>
             </div>
@@ -472,12 +474,12 @@ function ReceiptModal({ po, onClose, onSave }) {
 
           <div className="grid grid-cols-2 gap-6 bg-muted/20 p-6 rounded-2xl border border-border/50">
             <div className="space-y-1">
-              <label className="text-xs font-bold uppercase text-muted-foreground">Referință Document (Aviz/Factură)</label>
-              <Input value={formData.document_reference} onChange={e => setFormData({...formData, document_reference: e.target.value})} required placeholder="ex: AV-12345" />
+              <label className="text-xs font-bold uppercase text-muted-foreground">{t('screens.procurement.document_ref')}</label>
+              <Input value={formData.document_reference} onChange={e => setFormData({...formData, document_reference: e.target.value})} required placeholder={t('screens.procurement.document_ref_ph')} />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-bold uppercase text-muted-foreground">Note Recepție</label>
-              <Input value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} placeholder="ex: Marfă descărcată în rampa 2" />
+              <label className="text-xs font-bold uppercase text-muted-foreground">{t('screens.procurement.receipt_notes')}</label>
+              <Input value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} placeholder={t('screens.procurement.receipt_notes_ph')} />
             </div>
           </div>
 
@@ -491,15 +493,15 @@ function ReceiptModal({ po, onClose, onSave }) {
                   </div>
                   <div className="flex items-center gap-6">
                     <div className="text-right">
-                      <p className="text-[10px] font-bold uppercase text-muted-foreground">Comandat</p>
-                      <p className="font-bold">{item.quantity_ordered} buc</p>
+                      <p className="text-[10px] font-bold uppercase text-muted-foreground">{t('screens.procurement.ordered')}</p>
+                      <p className="font-bold">{item.quantity_ordered}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-[10px] font-bold uppercase text-muted-foreground">Rest de primit</p>
-                      <p className="font-bold text-accent">{item.remaining_to_receive} buc</p>
+                      <p className="text-[10px] font-bold uppercase text-muted-foreground">{t('screens.procurement.remaining')}</p>
+                      <p className="font-bold text-accent">{item.remaining_to_receive}</p>
                     </div>
                     <Button type="button" variant="secondary" size="sm" onClick={() => addPackage(itemIdx)}>
-                       <Plus size={14} className="mr-1" /> Adaugă Cutie/Lot
+                       <Plus size={14} className="mr-1" /> {t('screens.procurement.add_package')}
                     </Button>
                   </div>
                 </div>
@@ -508,20 +510,20 @@ function ReceiptModal({ po, onClose, onSave }) {
                   {item.packages.map((pkg, pkgIdx) => (
                     <div key={pkgIdx} className="grid grid-cols-12 gap-3 items-end bg-white p-4 rounded-xl border border-border/60 shadow-sm hover:border-accent/30 transition-all">
                       <div className="col-span-3 space-y-1">
-                        <label className="text-[10px] font-bold uppercase text-muted-foreground">Număr Lot / Barcode Cutie</label>
+                        <label className="text-[10px] font-bold uppercase text-muted-foreground">{t('screens.procurement.lot_number')}</label>
                         <div className="relative">
                           <Input 
                             value={pkg.lot_number} 
                             onChange={e => updatePackage(itemIdx, pkgIdx, 'lot_number', e.target.value.toUpperCase())} 
                             required 
-                            placeholder="LOT-XXXX sau Scan" 
+                            placeholder={t('screens.procurement.lot_ph')} 
                             className="pr-10"
                           />
                           <QrCode size={16} className="absolute right-3 top-3 text-muted-foreground" />
                         </div>
                       </div>
                       <div className="col-span-2 space-y-1">
-                        <label className="text-[10px] font-bold uppercase text-muted-foreground">Cantitate</label>
+                        <label className="text-[10px] font-bold uppercase text-muted-foreground">{t('screens.common.quantity')}</label>
                         <Input 
                           type="number" 
                           value={pkg.quantity_received} 
@@ -530,26 +532,26 @@ function ReceiptModal({ po, onClose, onSave }) {
                         />
                       </div>
                       <div className="col-span-3 space-y-1">
-                        <label className="text-[10px] font-bold uppercase text-muted-foreground">Locație</label>
+                        <label className="text-[10px] font-bold uppercase text-muted-foreground">{t('screens.common.location')}</label>
                         <select 
                           className="w-full h-10 rounded-lg border border-border px-3 text-sm" 
                           value={pkg.location_id} 
                           onChange={e => updatePackage(itemIdx, pkgIdx, 'location_id', e.target.value)} 
                           required
                         >
-                          <option value="">— Selectează Locație —</option>
+                          <option value="">{t('screens.common.choose_location')}</option>
                           {locations.map(l => <option key={l.id} value={l.id}>{l.whName} - {l.barcode}</option>)}
                         </select>
                       </div>
                       <div className="col-span-3 space-y-1">
-                        <label className="text-[10px] font-bold uppercase text-muted-foreground">Calitate</label>
+                        <label className="text-[10px] font-bold uppercase text-muted-foreground">{t('screens.procurement.quality')}</label>
                         <select 
                           className={`w-full h-10 rounded-lg border px-3 text-sm font-bold ${pkg.quality_status === 'ok' ? 'border-green-200 text-green-700 bg-green-50' : 'border-orange-200 text-orange-700 bg-orange-50'}`} 
                           value={pkg.quality_status} 
                           onChange={e => updatePackage(itemIdx, pkgIdx, 'quality_status', e.target.value)}
                         >
-                          <option value="ok">Conform (OK)</option>
-                          <option value="quarantine">Carantină</option>
+                          <option value="ok">{t('screens.procurement.quality_ok')}</option>
+                          <option value="quarantine">{t('screens.common.quarantine')}</option>
                         </select>
                       </div>
                       <div className="col-span-1 pb-1">
@@ -563,7 +565,7 @@ function ReceiptModal({ po, onClose, onSave }) {
                   ))}
                   
                   <div className="flex justify-end p-2 text-[11px] font-bold text-muted-foreground bg-muted/10 rounded-lg">
-                    Total Recepționat pentru {item.item_code}: {item.packages.reduce((sum, p) => sum + (p.quantity_received || 0), 0)} buc
+                    {t('screens.procurement.total_received', { code: item.item_code })}: {item.packages.reduce((sum, p) => sum + (p.quantity_received || 0), 0)}
                   </div>
                 </div>
               </div>
@@ -571,9 +573,9 @@ function ReceiptModal({ po, onClose, onSave }) {
           </div>
 
           <div className="pt-6 flex justify-end gap-3 border-t">
-            <Button variant="secondary" onClick={onClose}>Anulează</Button>
+            <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
             <Button type="submit" className="bg-green-600 hover:bg-green-700">
-               <PackageCheck size={18} className="mr-2" /> Finalizează Recepție
+               <PackageCheck size={18} className="mr-2" /> {t('screens.procurement.finish_receipt')}
             </Button>
           </div>
         </form>

@@ -27,11 +27,11 @@ export default function WarehouseManager() {
         setSelectedWarehouse(res.data[0]);
       }
     } catch (err) {
-      toast.error('Eroare la încărcarea magaziilor');
+      toast.error(t('screens.common.load_error'));
     } finally {
       setLoading(false);
     }
-  }, [selectedWarehouse]);
+  }, [selectedWarehouse, t]);
 
   const loadLocations = useCallback(async () => {
     if (!selectedWarehouse) return;
@@ -39,9 +39,9 @@ export default function WarehouseManager() {
       const res = await api.get(`/warehousing/locations/${selectedWarehouse.id}`);
       setLocations(res.data);
     } catch (err) {
-      toast.error('Eroare la încărcarea locațiilor');
+      toast.error(t('screens.common.load_error'));
     }
-  }, [selectedWarehouse]);
+  }, [selectedWarehouse, t]);
 
   useEffect(() => { loadWarehouses(); }, [loadWarehouses]);
   useEffect(() => { loadLocations(); }, [loadLocations]);
@@ -50,11 +50,11 @@ export default function WarehouseManager() {
     <div className="space-y-8">
       <header className="flex justify-between items-end">
         <div>
-          <h2 className="font-display text-3xl text-foreground">Gestiune Magazii & Locații</h2>
-          <p className="text-muted-foreground">Definește structura fizică a depozitelor tale.</p>
+          <h2 className="font-display text-3xl text-foreground">{t('screens.warehouse.title')}</h2>
+          <p className="text-muted-foreground">{t('screens.warehouse.subtitle')}</p>
         </div>
         <Button onClick={() => setShowWHModal(true)}>
-          <Plus size={16} className="mr-2" /> Magazie Nouă
+          <Plus size={16} className="mr-2" /> {t('screens.warehouse.new_warehouse')}
         </Button>
       </header>
 
@@ -74,7 +74,7 @@ export default function WarehouseManager() {
                   </div>
                   <div>
                     <h4 className="font-bold text-lg">{wh.name}</h4>
-                    <Badge variant="outline" className="capitalize text-[10px]">{wh.type}</Badge>
+                    <Badge variant="outline" className="capitalize text-[10px]">{t(`screens.warehouse.types.${wh.type}`)}</Badge>
                   </div>
                 </div>
               </div>
@@ -88,11 +88,11 @@ export default function WarehouseManager() {
             <Card className="p-6">
               <div className="flex justify-between items-center mb-6">
                 <div>
-                  <h3 className="font-display text-xl">Locații în {selectedWarehouse.name}</h3>
-                  <p className="text-sm text-muted-foreground">{locations.length} locații definite</p>
+                  <h3 className="font-display text-xl">{t('screens.warehouse.locations_in', { name: selectedWarehouse.name })}</h3>
+                  <p className="text-sm text-muted-foreground">{t('screens.warehouse.location_count', { count: locations.length })}</p>
                 </div>
                 <Button variant="secondary" onClick={() => setShowLocModal(true)}>
-                  <Plus size={16} className="mr-2" /> Locație Nouă
+                  <Plus size={16} className="mr-2" /> {t('screens.warehouse.new_location')}
                 </Button>
               </div>
 
@@ -106,21 +106,21 @@ export default function WarehouseManager() {
                       <Badge variant="secondary" className="font-mono text-[10px]">{loc.barcode}</Badge>
                     </div>
                     <div>
-                      <div className="text-xs font-black text-muted-foreground uppercase tracking-tighter">Zonă / Raft / Poliță</div>
+                      <div className="text-xs font-black text-muted-foreground uppercase tracking-tighter">{t('screens.warehouse.zone_shelf_bin')}</div>
                       <div className="font-bold text-lg">{loc.zone || '-'} / {loc.shelf || '-'} / {loc.bin || '-'}</div>
                     </div>
                   </div>
                 ))}
                 {locations.length === 0 && (
                   <div className="col-span-3 py-12 text-center text-muted-foreground italic">
-                    Nicio locație definită în această magazie.
+                    {t('screens.warehouse.no_locations')}
                   </div>
                 )}
               </div>
             </Card>
           ) : (
             <div className="h-full flex items-center justify-center text-muted-foreground italic">
-              Selectează o magazie pentru a vedea locațiile.
+              {t('screens.warehouse.pick_warehouse')}
             </div>
           )}
         </main>
@@ -146,44 +146,45 @@ export default function WarehouseManager() {
 }
 
 function WarehouseModal({ onClose, onSave }) {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({ name: '', type: 'central', description: '' });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       await api.post('/warehousing/warehouses', formData);
-      toast.success('Magazie creată cu succes');
+      toast.success(t('screens.warehouse.warehouse_created'));
       onSave();
     } catch (err) {
-      toast.error('Eroare la salvare');
+      toast.error(err.response?.data?.error || t('screens.common.error'));
     }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm" onClick={onClose}>
       <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-3xl p-8 w-full max-w-md border border-border shadow-2xl" onClick={e => e.stopPropagation()}>
-        <h3 className="font-display text-2xl mb-6">Magazie Nouă</h3>
+        <h3 className="font-display text-2xl mb-6">{t('screens.warehouse.new_warehouse')}</h3>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1">
-            <label className="text-xs font-bold uppercase text-muted-foreground">Nume Magazie</label>
+            <label className="text-xs font-bold uppercase text-muted-foreground">{t('screens.warehouse.name')}</label>
             <Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required />
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-bold uppercase text-muted-foreground">Tip</label>
+            <label className="text-xs font-bold uppercase text-muted-foreground">{t('screens.warehouse.type')}</label>
             <select className="w-full h-11 rounded-xl border border-border px-3 bg-white" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})}>
-              <option value="central">Magazia Centrală</option>
-              <option value="production">Magazie Producție</option>
-              <option value="quarantine">Carantină</option>
-              <option value="shipping">Expediție</option>
+              <option value="central">{t('screens.warehouse.types.central')}</option>
+              <option value="production">{t('screens.warehouse.types.production')}</option>
+              <option value="quarantine">{t('screens.warehouse.types.quarantine')}</option>
+              <option value="shipping">{t('screens.warehouse.types.shipping')}</option>
             </select>
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-bold uppercase text-muted-foreground">Descriere</label>
+            <label className="text-xs font-bold uppercase text-muted-foreground">{t('screens.common.description')}</label>
             <Input value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} />
           </div>
           <div className="pt-4 flex justify-end gap-3">
-            <Button variant="secondary" onClick={onClose}>Anulează</Button>
-            <Button type="submit">Salvează</Button>
+            <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
+            <Button type="submit">{t('common.save')}</Button>
           </div>
         </form>
       </motion.div>
@@ -192,46 +193,47 @@ function WarehouseModal({ onClose, onSave }) {
 }
 
 function LocationModal({ warehouseId, onClose, onSave }) {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({ zone: '', shelf: '', bin: '', barcode: '' });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       await api.post('/warehousing/locations', { ...formData, warehouse_id: warehouseId });
-      toast.success('Locație creată cu succes');
+      toast.success(t('screens.warehouse.location_created'));
       onSave();
     } catch (err) {
-      toast.error('Eroare la salvare (verifică barcode unic)');
+      toast.error(err.response?.data?.error || t('screens.warehouse.barcode_error'));
     }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm" onClick={onClose}>
       <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-3xl p-8 w-full max-w-md border border-border shadow-2xl" onClick={e => e.stopPropagation()}>
-        <h3 className="font-display text-2xl mb-6">Locație Nouă</h3>
+        <h3 className="font-display text-2xl mb-6">{t('screens.warehouse.new_location')}</h3>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-1">
-              <label className="text-xs font-bold uppercase text-muted-foreground">Zonă</label>
+              <label className="text-xs font-bold uppercase text-muted-foreground">{t('screens.warehouse.zone')}</label>
               <Input value={formData.zone} onChange={e => setFormData({...formData, zone: e.target.value})} placeholder="A1" />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-bold uppercase text-muted-foreground">Raft</label>
+              <label className="text-xs font-bold uppercase text-muted-foreground">{t('screens.warehouse.shelf')}</label>
               <Input value={formData.shelf} onChange={e => setFormData({...formData, shelf: e.target.value})} placeholder="04" />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-bold uppercase text-muted-foreground">Poliță</label>
+              <label className="text-xs font-bold uppercase text-muted-foreground">{t('screens.warehouse.bin')}</label>
               <Input value={formData.bin} onChange={e => setFormData({...formData, bin: e.target.value})} placeholder="02" />
             </div>
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-bold uppercase text-muted-foreground">Barcode (Scanabil)</label>
+            <label className="text-xs font-bold uppercase text-muted-foreground">{t('screens.warehouse.barcode')}</label>
             <Input value={formData.barcode} onChange={e => setFormData({...formData, barcode: e.target.value.toUpperCase()})} required placeholder="LOC-WH1-A10402" />
-            <p className="text-[10px] text-muted-foreground mt-1 italic">Recomandat: LOC-[WH]-[ZONĂ][RAFT][BIN]</p>
+            <p className="text-[10px] text-muted-foreground mt-1 italic">{t('screens.warehouse.barcode_hint')}</p>
           </div>
           <div className="pt-4 flex justify-end gap-3">
-            <Button variant="secondary" onClick={onClose}>Anulează</Button>
-            <Button type="submit">Salvează</Button>
+            <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
+            <Button type="submit">{t('common.save')}</Button>
           </div>
         </form>
       </motion.div>

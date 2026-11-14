@@ -62,7 +62,11 @@
     "quantity_buc": "Quantity (PCS)",
     "planned_start_label": "Start Date/Time",
     "planned_end_label": "End Date/Time",
-    "planned_start": "Planned Start"
+    "planned_start": "Planned Start",
+    "calc_time": "Calculated time",
+    "fixed_time": "Fixed time",
+    "route_explosion_info": "The order is split automatically into one sub-order per machine of the routing.",
+    "new_start": "New start"
   },
   "items": {
     "title": "Items & BOM",
@@ -146,7 +150,16 @@
     "received_prod": "Received Production",
     "expand_hint": "Click on nodes to expand/collapse",
     "expand_all": "Expand all / Collapse",
-    "phantom": "Phantom / Dept"
+    "phantom": "Phantom / Dept",
+    "loading_error": "Items could not be loaded",
+    "loading_details_error": "Item details could not be loaded",
+    "loading_bom_error": "BOMs could not be loaded",
+    "phase": "Step",
+    "bom_name": "BOM name",
+    "finished_product": "Finished product",
+    "levels": "levels",
+    "pos": "pos.",
+    "select_parent_item": "— Choose finished or semi-finished product —"
   },
   "common": {
     "item": "Item",
@@ -162,7 +175,12 @@
     "search": "Search...",
     "no_data": "No data available.",
     "today": "Today",
-    "logout": "Logout"
+    "logout": "Logout",
+    "add": "Add",
+    "date": "Date",
+    "optional": "optional",
+    "preview_bom": "View BOM",
+    "details": "Details"
   },
   "roles": {
     "administrator": "Administrator",
@@ -170,7 +188,10 @@
     "area_supervisor": "Supervisor",
     "shift_responsible": "Shift Responsible",
     "operator": "Operator",
-    "warehouse_manager": "Warehouse Manager"
+    "warehouse_manager": "Warehouse Manager",
+    "material_planner": "Material Planner",
+    "sales": "Sales",
+    "accounting": "Accounting"
   },
   "sidebar": {
     "users": "Users",
@@ -196,7 +217,9 @@
     "articles_bom": "Articles & BOM",
     "stocks": "Stocks",
     "inventory_hub": "Inventory Hub",
-    "logout": "Logout"
+    "logout": "Logout",
+    "admin": "Administration",
+    "no_data": "No data"
   },
   "analytics": {
     "availability": "Availability",
@@ -304,7 +327,9 @@
       "skip": "Continue Without",
       "confirm": "Confirm & Start",
       "error_scan": "Scan or enter the lot code."
-    }
+    },
+    "confirm_finish_production": "Finish production for this order?",
+    "finish_production": "FINISH PRODUCTION"
   },
   "gantt": {
     "no_machines": "No machines configured in the system",
@@ -379,7 +404,10 @@
     "processing_error": "Error processing data",
     "skills_error": "Error saving skills",
     "loading_error": "Error loading data",
-    "finish_shift": "Finish Shift"
+    "finish_shift": "Finish Shift",
+    "delete_area_confirm": "Delete this area and all its machines?",
+    "delete_machine_confirm": "Delete this machine?",
+    "independent": "Independent"
   },
   "messages": {
     "delete_success": "Deleted successfully",

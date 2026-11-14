@@ -115,7 +115,7 @@ function ViewerNode({ node, depth = 0 }) {
               </span>
             ) : node.acquisition_cost > 0 ? (
               <div className="text-right">
-                <div className="text-[10px] text-muted-foreground leading-none mb-0.5">COST TOT.</div>
+                <div className="text-[10px] text-muted-foreground leading-none mb-0.5">{t('screens.bom.total_cost')}</div>
                 <div className="font-mono text-xs font-bold text-foreground">
                   {((node.acquisition_cost || 0) * (node.quantity || 1)).toFixed(2)}
                 </div>
@@ -170,7 +170,7 @@ export default function BOMViewerPage() {
       setBom(bomRes.data);
       setTree(treeRes.data.tree || []);
     }).catch(() => {
-      toast.error('Eroare la încărcarea BOM-ului');
+      toast.error(t('screens.common.load_error'));
       navigate('/planner/items');
     }).finally(() => setLoading(false));
   }, [id]);
@@ -187,7 +187,7 @@ export default function BOMViewerPage() {
         <main className="flex-1 flex items-center justify-center">
           <div className="text-center space-y-3">
             <div className="w-10 h-10 border-4 border-accent/30 border-t-accent rounded-full animate-spin mx-auto"/>
-            <p className="text-muted-foreground italic text-sm">Se încarcă structura BOM...</p>
+            <p className="text-muted-foreground italic text-sm">{t('items.loading_bom')}</p>
           </div>
         </main>
       </div>
@@ -205,17 +205,17 @@ export default function BOMViewerPage() {
               onClick={() => navigate('/planner/items')}
               className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
             >
-              <ArrowLeft size={16}/> Înapoi la BOM-uri
+              <ArrowLeft size={16}/> {t('screens.bom.back')}
             </button>
             <span className="text-muted-foreground">/</span>
             <span className="text-sm font-bold text-foreground">{bom?.name}</span>
           </div>
           <div className="flex gap-2">
             <Button variant="secondary" size="sm" onClick={() => window.print()}>
-              <Printer size={14} className="mr-1"/> Printează Fișă Operator
+              <Printer size={14} className="mr-1"/> {t('screens.bom.print')}
             </Button>
             <Button size="sm" onClick={() => navigate('/planner/items', { state: { editBomId: id } })}>
-              <Edit2 size={14} className="mr-1"/> Editează BOM
+              <Edit2 size={14} className="mr-1"/> {t('items.edit_bom')}
             </Button>
           </div>
         </div>
@@ -224,7 +224,7 @@ export default function BOMViewerPage() {
         <Card className="p-6 mb-6 print:hidden">
           <div className="flex items-start justify-between flex-wrap gap-4">
             <div>
-              <Badge className="mb-2">Bill of Materials</Badge>
+              <Badge className="mb-2">{t('screens.bom.print_title')}</Badge>
               <h1 className="font-display text-3xl text-foreground">{bom?.name}</h1>
               {bom?.description && <p className="text-muted-foreground mt-1 text-sm">{bom.description}</p>}
             </div>

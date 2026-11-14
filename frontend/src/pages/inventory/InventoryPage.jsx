@@ -38,28 +38,28 @@ export default function InventoryPage() {
 
 
   const tabs = [
-    { id: 'stock', label: 'Niveluri Stoc', icon: <Package size={16}/> },
-    { id: 'procurement', label: 'Recepție & PO', icon: <ShoppingCart size={16}/> },
-    { id: 'transfers', label: 'Transferuri', icon: <ArrowDownUp size={16}/> },
-    { id: 'quality', label: 'Carantină', icon: <ShieldAlert size={16}/> },
-    { id: 'warehousing', label: 'Magazii', icon: <Home size={16}/> }
+    { id: 'stock', label: t('screens.inventory.tabs.stock'), icon: <Package size={16}/> },
+    { id: 'procurement', label: t('screens.inventory.tabs.procurement'), icon: <ShoppingCart size={16}/> },
+    { id: 'transfers', label: t('screens.inventory.tabs.transfers'), icon: <ArrowDownUp size={16}/> },
+    { id: 'quality', label: t('screens.inventory.tabs.quality'), icon: <ShieldAlert size={16}/> },
+    { id: 'warehousing', label: t('screens.inventory.tabs.warehousing'), icon: <Home size={16}/> }
   ];
 
 
   return (
     <div className="flex flex-col">
       <main className="flex-1 p-4 sm:p-6 lg:p-10 overflow-auto">
-        <div className="flex justify-between items-center mb-10">
+        <div className="flex flex-wrap justify-between items-center gap-4 mb-10">
            <div>
-              <h1 className="font-display text-4xl text-foreground">WMS Enterprise</h1>
-              <p className="text-muted-foreground mt-2">Gestiune integrată a stocurilor și trasabilitate.</p>
+              <h1 className="font-display text-3xl sm:text-4xl text-foreground">{t('screens.inventory.title')}</h1>
+              <p className="text-muted-foreground mt-2">{t('screens.inventory.subtitle')}</p>
            </div>
-           <div className="flex gap-2 bg-muted/30 p-1 rounded-2xl border border-border/50">
+           <div className="flex gap-2 overflow-x-auto bg-muted/30 p-1 rounded-2xl border border-border/50">
              {tabs.map(tab => (
                <button
                  key={tab.id}
                  onClick={() => setActiveTab(tab.id)}
-                 className={`flex items-center gap-2 px-6 py-2 rounded-xl text-sm font-bold transition-all ${
+                 className={`flex shrink-0 items-center gap-2 px-4 sm:px-6 py-2 rounded-xl text-sm font-bold transition-all ${
                    activeTab === tab.id ? 'bg-white text-accent shadow-sm' : 'text-muted-foreground hover:text-foreground'
                  }`}
                >

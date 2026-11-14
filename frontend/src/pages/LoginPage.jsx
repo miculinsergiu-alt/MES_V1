@@ -82,7 +82,7 @@ export default function LoginPage() {
           <div className="w-24 h-24 rounded-2xl overflow-hidden shadow-2xl mb-8 border-2 border-accent/20 p-1 bg-white">
             <img src={novaLogo} alt="NOVA Logo" className="w-full h-full object-cover rounded-xl" />
           </div>
-          <Badge className="mb-4" pulsing>Live Platform</Badge>
+          <Badge className="mb-4" pulsing>ERP</Badge>
           <h1 className="font-display text-6xl md:text-7xl text-foreground font-black leading-tight mb-4 relative tracking-tighter">
             NOVA
             <span className="gradient-underline" />

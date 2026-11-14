@@ -155,7 +155,7 @@ function TreeNode({ node, items, warehouses, onUpdate, onRemove, onTreeChange, f
       toast.success(t('items.bom_exploded', { count: treeRes.data.tree.length }));
     } catch (err) {
       if (err.response?.status === 404) {
-        toast.error(t('items.no_bom_for_item') || 'Nu există rețetă definită pentru acest articol');
+        toast.error(t('items.no_bom_for_item'));
       } else {
         toast.error(t('items.bom_explode_error'));
       }

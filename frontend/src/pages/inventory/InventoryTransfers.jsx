@@ -25,12 +25,12 @@ export default function InventoryTransfers() {
       <header className="flex justify-between items-end">
         <div>
           <h2 className="font-display text-3xl text-foreground flex items-center gap-3">
-            <ArrowRightLeft className="text-accent" size={32} /> Transferuri Interne
+            <ArrowRightLeft className="text-accent" size={32} /> {t('screens.transfers.title')}
           </h2>
-          <p className="text-muted-foreground mt-2">Gestionează mutarea materialelor între magazii și arii de producție.</p>
+          <p className="text-muted-foreground mt-2">{t('screens.transfers.subtitle')}</p>
         </div>
         <Button onClick={() => setShowTransferModal(true)}>
-          <Plus size={16} className="mr-2" /> Bon de Transfer Nou
+          <Plus size={16} className="mr-2" /> {t('screens.transfers.new')}
         </Button>
       </header>
 
@@ -39,9 +39,9 @@ export default function InventoryTransfers() {
           <div className="p-4 bg-accent/10 rounded-full text-accent mb-4">
             <Box size={32} />
           </div>
-          <h4 className="font-bold">Vezi Stocuri Curente</h4>
-          <p className="text-sm text-muted-foreground mt-1">Verifică disponibilitatea pe locații înainte de transfer.</p>
-          <Button variant="ghost" className="mt-4" onClick={() => window.location.href='/inventory'}>Mergi la Inventar</Button>
+          <h4 className="font-bold">{t('screens.transfers.see_stock')}</h4>
+          <p className="text-sm text-muted-foreground mt-1">{t('screens.transfers.see_stock_hint')}</p>
+          <Button variant="ghost" className="mt-4" onClick={() => window.location.assign('/inventory')}>{t('screens.transfers.go_inventory')}</Button>
         </Card>
       </div>
 
@@ -60,6 +60,7 @@ export default function InventoryTransfers() {
 }
 
 function TransferModal({ warehouses, items, onClose, onSave }) {
+  const { t } = useTranslation();
   const [locations, setLocations] = useState([]);
   const [formData, setFormData] = useState({
     from_warehouse_id: '',
@@ -87,25 +88,25 @@ function TransferModal({ warehouses, items, onClose, onSave }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await api.post('/inventory/transfers', { ...formData, created_by: 1 });
-      toast.success('Bon de transfer finalizat cu succes.');
+      await api.post('/inventory/transfers', formData);
+      toast.success(t('screens.transfers.done'));
       onSave();
     } catch (err) {
-      toast.error('Eroare la procesarea transferului');
+      toast.error(err.response?.data?.error || t('screens.common.error'));
     }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm" onClick={onClose}>
       <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-3xl p-8 w-full max-w-5xl border border-border shadow-2xl overflow-y-auto max-h-[90vh]" onClick={e => e.stopPropagation()}>
-        <h3 className="font-display text-2xl mb-8">Creare Bon de Transfer Intern</h3>
+        <h3 className="font-display text-2xl mb-8">{t('screens.transfers.new')}</h3>
         
         <form onSubmit={handleSubmit} className="space-y-8">
           <div className="grid grid-cols-2 gap-8 items-center bg-muted/20 p-6 rounded-2xl border border-border/50">
             <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase text-muted-foreground">Sursă (Din Magazia)</label>
+              <label className="text-[10px] font-black uppercase text-muted-foreground">{t('screens.transfers.from_warehouse')}</label>
               <select className="w-full h-11 rounded-xl border border-border px-3 bg-white" value={formData.from_warehouse_id} onChange={e => setFormData({...formData, from_warehouse_id: e.target.value})} required>
-                <option value="">Selectează Magazie Sursă</option>
+                <option value="">{t('screens.transfers.choose_warehouse')}</option>
                 {warehouses.map(wh => <option key={wh.id} value={wh.id}>{wh.name}</option>)}
               </select>
             </div>
@@ -113,9 +114,9 @@ function TransferModal({ warehouses, items, onClose, onSave }) {
                <MoveRight size={24} />
             </div>
             <div className="space-y-1 col-start-3">
-              <label className="text-[10px] font-black uppercase text-muted-foreground">Destinație (În Magazia)</label>
+              <label className="text-[10px] font-black uppercase text-muted-foreground">{t('screens.transfers.to_warehouse')}</label>
               <select className="w-full h-11 rounded-xl border border-border px-3 bg-white" value={formData.to_warehouse_id} onChange={e => setFormData({...formData, to_warehouse_id: e.target.value})} required>
-                <option value="">Selectează Magazie Destinație</option>
+                <option value="">{t('screens.transfers.choose_warehouse')}</option>
                 {warehouses.map(wh => <option key={wh.id} value={wh.id}>{wh.name}</option>)}
               </select>
             </div>
@@ -123,24 +124,24 @@ function TransferModal({ warehouses, items, onClose, onSave }) {
 
           <div className="space-y-4">
              <div className="flex justify-between items-center border-b pb-2">
-                <h4 className="text-sm font-bold uppercase tracking-widest">Produse Transferate</h4>
-                <Button type="button" variant="secondary" size="sm" onClick={addTransferItem}><Plus size={14} className="mr-1"/> Adaugă Produs</Button>
+                <h4 className="text-sm font-bold uppercase tracking-widest">{t('screens.transfers.items')}</h4>
+                <Button type="button" variant="secondary" size="sm" onClick={addTransferItem}><Plus size={14} className="mr-1"/> {t('screens.common.add_item')}</Button>
              </div>
              {formData.items.map((it, idx) => (
                 <Card key={idx} className="p-4 grid grid-cols-12 gap-3 items-end">
                    <div className="col-span-4 space-y-1">
-                      <label className="text-[10px] font-bold uppercase text-muted-foreground">Material / Cod</label>
+                      <label className="text-[10px] font-bold uppercase text-muted-foreground">{t('screens.common.material')}</label>
                       <select className="w-full h-10 rounded-lg border border-border px-3 text-sm" value={it.item_id} onChange={e => {
                          const newItems = [...formData.items];
                          newItems[idx].item_id = e.target.value;
                          setFormData({...formData, items: newItems});
                       }}>
-                         <option value="">Alege Material</option>
+                         <option value="">{t('screens.common.choose_material')}</option>
                          {items.map(i => <option key={i.id} value={i.id}>{i.item_code} - {i.name}</option>)}
                       </select>
                    </div>
                    <div className="col-span-2 space-y-1">
-                      <label className="text-[10px] font-bold uppercase text-muted-foreground">Lot</label>
+                      <label className="text-[10px] font-bold uppercase text-muted-foreground">{t('screens.common.lot')}</label>
                       <Input value={it.lot_number} onChange={e => {
                          const newItems = [...formData.items];
                          newItems[idx].lot_number = e.target.value.toUpperCase();
@@ -148,7 +149,7 @@ function TransferModal({ warehouses, items, onClose, onSave }) {
                       }} placeholder="LOT-..." />
                    </div>
                    <div className="col-span-2 space-y-1">
-                      <label className="text-[10px] font-bold uppercase text-muted-foreground">Cantitate</label>
+                      <label className="text-[10px] font-bold uppercase text-muted-foreground">{t('screens.common.quantity')}</label>
                       <Input type="number" value={it.quantity} onChange={e => {
                          const newItems = [...formData.items];
                          newItems[idx].quantity = parseFloat(e.target.value);
@@ -156,24 +157,24 @@ function TransferModal({ warehouses, items, onClose, onSave }) {
                       }} />
                    </div>
                    <div className="col-span-2 space-y-1">
-                      <label className="text-[10px] font-bold uppercase text-muted-foreground">Din Locația</label>
+                      <label className="text-[10px] font-bold uppercase text-muted-foreground">{t('screens.transfers.from_location')}</label>
                       <select className="w-full h-10 rounded-lg border border-border px-3 text-sm" value={it.from_location_id} onChange={e => {
                          const newItems = [...formData.items];
                          newItems[idx].from_location_id = e.target.value;
                          setFormData({...formData, items: newItems});
                       }}>
-                         <option value="">Sursă</option>
+                         <option value="">—</option>
                          {locations.filter(l => l.warehouse_id == formData.from_warehouse_id).map(l => <option key={l.id} value={l.id}>{l.barcode}</option>)}
                       </select>
                    </div>
                    <div className="col-span-2 space-y-1">
-                      <label className="text-[10px] font-bold uppercase text-muted-foreground">În Locația</label>
+                      <label className="text-[10px] font-bold uppercase text-muted-foreground">{t('screens.transfers.to_location')}</label>
                       <select className="w-full h-10 rounded-lg border border-border px-3 text-sm" value={it.to_location_id} onChange={e => {
                          const newItems = [...formData.items];
                          newItems[idx].to_location_id = e.target.value;
                          setFormData({...formData, items: newItems});
                       }}>
-                         <option value="">Destinație</option>
+                         <option value="">—</option>
                          {locations.filter(l => l.warehouse_id == formData.to_warehouse_id).map(l => <option key={l.id} value={l.id}>{l.barcode}</option>)}
                       </select>
                    </div>
@@ -182,8 +183,8 @@ function TransferModal({ warehouses, items, onClose, onSave }) {
           </div>
 
           <div className="pt-6 flex justify-end gap-3 border-t">
-            <Button variant="secondary" onClick={onClose}>Anulează</Button>
-            <Button type="submit" className="px-8">Finalizează Transfer</Button>
+            <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
+            <Button type="submit" className="px-8">{t('screens.transfers.finish')}</Button>
           </div>
         </form>
       </motion.div>

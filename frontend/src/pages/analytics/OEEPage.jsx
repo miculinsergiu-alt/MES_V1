@@ -91,8 +91,8 @@ export default function OEEPage() {
     <div className="flex flex-col">
       <div className="flex-1 p-10 overflow-auto">
         <header className="mb-10">
-          <Badge className="mb-4">OEE Engine v2.0</Badge>
-          <h1 className="font-display text-4xl text-foreground">Overall Equipment <span className="gradient-text">Effectiveness</span></h1>
+          <Badge className="mb-4">OEE</Badge>
+          <h1 className="font-display text-3xl sm:text-4xl text-foreground">{t('screens.oee.title')}</h1>
           <p className="text-muted-foreground mt-2">{t('analytics.oee_subtitle')}</p>
         </header>
 
@@ -239,7 +239,7 @@ export default function OEEPage() {
                   <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('analytics.availability')}</th>
                   <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('analytics.performance')}</th>
                   <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('analytics.quality')}</th>
-                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground text-right">Piese (OK/FAIL)</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground text-right">{t('analytics.parts_ok_fail')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/50">

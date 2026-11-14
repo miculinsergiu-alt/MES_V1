@@ -66,7 +66,7 @@ export default function ItemsManager() {
       <main className="flex-1 p-4 sm:p-6 lg:p-10 overflow-auto">
         <header className="mb-10 flex justify-between items-end">
           <div>
-            <Badge className="mb-4">Resource Planning</Badge>
+            <Badge className="mb-4">{t('shell.groups.master_data')}</Badge>
             <h1 className="font-display text-4xl text-foreground">{t('items.title')}</h1>
             <p className="text-muted-foreground mt-2">{t('items.subtitle')}</p>
           </div>
@@ -617,9 +617,9 @@ function BOMModal({ bom, items, onClose, onSave }) {
         {/* Header fields */}
         <div className="grid grid-cols-3 gap-4">
           <div className="space-y-1">
-            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t('items.parent_item') || 'Articol Părinte'}</label>
+            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t('items.parent_item')}</label>
             <select className="w-full h-11 rounded-xl border border-border bg-white px-3 text-sm focus:ring-2 focus:ring-accent outline-none font-bold" value={formData.parent_item_id || ''} onChange={e => setFormData({...formData, parent_item_id: e.target.value})}>
-              <option value="">{t('items.select_parent_item') || '— Selectează PF sau SF —'}</option>
+              <option value="">{t('items.select_parent_item')}</option>
               {parentItemCandidates.map(i => (
                 <option key={i.id} value={i.id}>
                   {i.item_code} — {i.name} ({i.type === 'finished_good' ? 'PF' : 'SF'})
@@ -640,10 +640,10 @@ function BOMModal({ bom, items, onClose, onSave }) {
         {/* Legend */}
         <div className="flex items-center gap-3 text-[10px] font-bold flex-wrap">
           <span className="text-muted-foreground uppercase tracking-wider">{t('items.legend')}:</span>
-          <span className="px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">L1 — Phantom / Departament</span>
-          <span className="px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">L2 — Semifabricat</span>
-          <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">L3 — Materie Primă</span>
-          <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">L4 — Sub-componentă</span>
+          <span className="px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">L1 — {t('screens.bom.l1')}</span>
+          <span className="px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">L2 — {t('items.semi_finished')}</span>
+          <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">L3 — {t('items.raw_material')}</span>
+          <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">L4 — {t('items.sub_component')}</span>
           <span className="ml-auto px-2 py-1 rounded-lg bg-accent/10 border border-accent/20 text-accent font-mono">
             {t('items.cost_std')}: {calcCost(tree).toFixed(2)}
           </span>
@@ -678,7 +678,7 @@ function PrintPreview({ bom, onClose }) {
       <div className="space-y-8 no-print p-4">
          <div className="flex justify-between items-start bg-slate-50 p-6 rounded-2xl border border-border">
             <div className="space-y-1">
-               <h4 className="text-xl font-display text-accent">NOVA MES</h4>
+               <h4 className="text-xl font-display text-accent">NOVA</h4>
                <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{t('items.tech_doc')}</p>
             </div>
             <Button onClick={() => window.print()}><Printer size={16} className="mr-2"/> {t('items.print_sheet')}</Button>
@@ -728,7 +728,7 @@ function PrintPreview({ bom, onClose }) {
       <div className="hidden print:block p-10 font-sans" id="printable-bom">
           <div className="flex justify-between items-center mb-8 border-b-2 border-black pb-4">
               <div>
-                  <h1 className="text-2xl font-bold">BILL OF MATERIALS</h1>
+                  <h1 className="text-2xl font-bold">{t('screens.bom.print_title')}</h1>
                   <p className="text-sm font-mono">{details.name}</p>
               </div>
               <div className="text-right text-xs">

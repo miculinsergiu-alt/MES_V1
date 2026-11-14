@@ -62,7 +62,11 @@
     "quantity_buc": "Cantitate (BUC)",
     "planned_start_label": "Data/Ora Start",
     "planned_end_label": "Data/Ora Sfârșit",
-    "planned_start": "Start Planificat"
+    "planned_start": "Start Planificat",
+    "calc_time": "Timp calculat",
+    "fixed_time": "Timp fix",
+    "route_explosion_info": "Comanda va fi explodată automat în sub-comenzi pe fiecare utilaj din rută.",
+    "new_start": "Start nou"
   },
   "items": {
     "title": "Nomenclator & BOM",
@@ -148,7 +152,14 @@
     "expand_all": "Extinde tot / Restrânge",
     "phantom": "Phantom / Dept",
     "levels": "nivele",
-    "pos": "poz."
+    "pos": "poz.",
+    "loading_error": "Articolele nu au putut fi încărcate",
+    "loading_details_error": "Detaliile articolului nu au putut fi încărcate",
+    "loading_bom_error": "BOM-urile nu au putut fi încărcate",
+    "phase": "Fază",
+    "bom_name": "Nume BOM",
+    "finished_product": "Produs finit",
+    "select_parent_item": "— Selectează PF sau SF —"
   },
   "common": {
     "item": "Articol",
@@ -164,7 +175,12 @@
     "search": "Caută...",
     "no_data": "Nicio dată disponibilă.",
     "today": "Azi",
-    "logout": "Deconectare"
+    "logout": "Deconectare",
+    "add": "Adaugă",
+    "date": "Dată",
+    "optional": "opțional",
+    "preview_bom": "Vezi BOM",
+    "details": "Detalii"
   },
   "roles": {
     "administrator": "Administrator",
@@ -172,7 +188,9 @@
     "area_supervisor": "Supervisor",
     "shift_responsible": "Șef Schimb",
     "operator": "Operator",
-    "warehouse_manager": "Manager Depozit"
+    "warehouse_manager": "Manager Depozit",
+    "sales": "Vânzări",
+    "accounting": "Contabilitate"
   },
   "sidebar": {
     "users": "Utilizatori",
@@ -198,7 +216,9 @@
     "articles_bom": "Articole & BOM",
     "stocks": "Stocuri",
     "inventory_hub": "Centru Inventar",
-    "logout": "Deconectare"
+    "logout": "Deconectare",
+    "admin": "Administrare",
+    "no_data": "Nu există date"
   },
   "analytics": {
     "availability": "Disponibilitate",
@@ -306,7 +326,9 @@
       "skip": "Continuă Fără",
       "confirm": "Confirmă & Start",
       "error_scan": "Scanați sau introduceți codul lotului."
-    }
+    },
+    "confirm_finish_production": "Finalizezi producția pentru această comandă?",
+    "finish_production": "FINALIZEAZĂ PRODUCȚIA"
   },
   "gantt": {
     "no_machines": "Niciun utilaj configurat în sistem",
@@ -381,7 +403,10 @@
     "processing_error": "Eroare la procesare date",
     "skills_error": "Eroare la salvarea skill-urilor",
     "loading_error": "Eroare la încărcarea datelor",
-    "finish_shift": "Finalizare Schimb"
+    "finish_shift": "Finalizare Schimb",
+    "delete_area_confirm": "Ștergi această arie și toate utilajele ei?",
+    "delete_machine_confirm": "Ștergi acest utilaj?",
+    "independent": "Independent"
   },
   "messages": {
     "delete_success": "Șters cu succes",

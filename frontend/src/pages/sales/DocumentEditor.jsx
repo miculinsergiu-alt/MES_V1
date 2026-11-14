@@ -467,7 +467,7 @@ export default function DocumentEditor() {
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold">{t('sales.editor.reminders')}</h3>
                 {canAccount && doc.open_amount > 0 && doc.dunning_level < 3 && (
-                  <Button size="sm" variant="secondary" onClick={sendReminder}>{t('sales.dunning.levels.' + (doc.dunning_level + 1))}</Button>
+                  <Button size="sm" variant="secondary" onClick={sendReminder}>{t(`sales.dunning.levels.${doc.dunning_level + 1}`)}</Button>
                 )}
               </div>
               <ul className="divide-y divide-border text-sm">
