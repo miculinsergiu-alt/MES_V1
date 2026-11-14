@@ -8,7 +8,7 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { useAuth } from '../../contexts/AuthContext';
-import { eur, num, dateDE, todayISO, apiError, openFile, downloadFile } from '../../lib/format';
+import { eur, num, dateDE, todayISO, apiError, openFile, downloadFile, showStockWarnings } from '../../lib/format';
 import { StatusPill } from './components';
 import { EDIT_ROLES, ACCOUNTING_ROLES, hasAnyRole } from '../../lib/roles';
 
@@ -164,6 +164,7 @@ export default function DocumentEditor() {
       const res = await api.post(`/sales/${current.id}/issue`, body);
       setIssueDialog(false);
       toast.success(t('sales.messages.issued', { number: res.data.number }));
+      showStockWarnings(res.data.stock_warnings, t, toast);
       if (isNew) navigate(`/sales/documents/${res.data.id}`, { replace: true }); else load();
     } catch (err) {
       toast.error(apiError(err, t('sales.messages.error')), { duration: 8000 });

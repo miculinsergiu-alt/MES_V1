@@ -143,5 +143,9 @@
       "state": "State",
       "days_late": "Days late"
     }
+  },
+  "stock_warning": {
+    "title": "Stock is now negative",
+    "line": "{{code}} {{name}}: {{available}} {{uom}} on hand, {{required}} booked"
   }
 }

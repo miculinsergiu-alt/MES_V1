@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
+import { showStockWarnings } from '../../lib/format';
 
 export default function OperatorDashboard() {
   const { user } = useAuth();
@@ -354,8 +355,9 @@ function ResultModal({ alloc, onClose, onSave }) {
     e.preventDefault();
     setLoading(true);
     try {
-      await api.post('/production/results', { order_id: alloc.order_id, qty_ok: parseInt(qtyOk), qty_fail: parseInt(qtyFail) });
+      const res = await api.post('/production/results', { order_id: alloc.order_id, qty_ok: parseInt(qtyOk), qty_fail: parseInt(qtyFail) });
       toast.success(t('operator.results.success'));
+      showStockWarnings(res.data.stock_warnings, t, toast);
       onSave();
     } catch(err) { toast.error(t('operator.results.error')); }
     finally { setLoading(false); }

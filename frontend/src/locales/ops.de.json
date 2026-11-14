@@ -143,5 +143,9 @@
       "state": "Status",
       "days_late": "Tage Verzug"
     }
+  },
+  "stock_warning": {
+    "title": "Bestand ist jetzt negativ",
+    "line": "{{code}} {{name}}: {{available}} {{uom}} vorhanden, {{required}} gebucht"
   }
 }

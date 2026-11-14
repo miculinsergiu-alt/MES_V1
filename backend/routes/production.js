@@ -38,10 +38,12 @@ function overlapMinutes(start, end, conflicts) {
  * Only the first step of a routing chain consumes material. Material is
  * taken from lots first-in-first-out (or the lot the operator scanned), and
  * the lots used are recorded for traceability.
+ * Returns the negative-stock warnings (company rule "warn").
  */
 async function deductStock(orderId, producedQty, userId, preferLotNumber) {
+  const warnings = [];
   const order = await db.get('SELECT bom_id, parent_order_id FROM orders WHERE id = ?', [orderId]);
-  if (!order || order.parent_order_id !== null || !order.bom_id) return;
+  if (!order || order.parent_order_id !== null || !order.bom_id) return warnings;
 
   const positions = await db.all(`
     SELECT item_id, SUM(quantity) AS quantity FROM bom_positions
@@ -62,10 +64,12 @@ async function deductStock(orderId, producedQty, userId, preferLotNumber) {
         else await db.run('UPDATE order_material_allocations SET allocated_qty = ? WHERE id = ?', [remaining, alloc.id]);
       }
     }
-    await stock.consume({
+    const r = await stock.consume({
       itemId: pos.item_id, qty: required, referenceType: 'order_completion', referenceId: orderId, userId, orderId, preferLotNumber,
     });
+    if (r.warning) warnings.push(r.warning);
   }
+  return warnings;
 }
 
 /** Root order of a routing chain and whether this order is its last step. */
@@ -293,7 +297,7 @@ router.post('/results', h(async (req, res) => {
     }
   }
 
-  await deductStock(order.id, b.qty_ok + b.qty_fail, req.user.id, await scannedLot(order.id));
+  const stockWarnings = await deductStock(order.id, b.qty_ok + b.qty_fail, req.user.id, await scannedLot(order.id));
   const lotNumber = await bookFinishedGoods(order, b.qty_ok, req.user.id);
 
   const total = await db.get('SELECT COALESCE(SUM(qty_ok + qty_fail), 0) AS produced FROM production_results WHERE order_id = ?', [order.id]);
@@ -303,7 +307,7 @@ router.post('/results', h(async (req, res) => {
   }
 
   broadcast('production:results', { order_id: order.id, qty_ok: b.qty_ok, qty_fail: b.qty_fail });
-  res.status(201).json({ message: 'Results recorded', lot_number: lotNumber });
+  res.status(201).json({ message: 'Results recorded', lot_number: lotNumber, stock_warnings: stockWarnings });
 }));
 
 // GET /api/production/performance

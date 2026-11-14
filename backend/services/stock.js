@@ -65,23 +65,28 @@ async function availableLots(itemId) {
 /**
  * Takes goods out of stock, first-in-first-out over lots.
  * { itemId, qty, referenceType, referenceId, userId, orderId? (records material lots used), preferLotNumber? }
- * Returns { lots: [{ lotId, lotNumber, qty }], unlotted, negative } .
+ * Returns { lots: [{ lotId, lotNumber, qty }], unlotted, negative, warning } .
+ * warning is set when the company's rule is "warn" and stock goes negative:
+ * { item_id, item_code, name, uom, available, required }, for the caller to show.
  */
 async function consume(p) {
-  const out = { lots: [], unlotted: 0, negative: false };
+  const out = { lots: [], unlotted: 0, negative: false, warning: null };
   if (!(p.qty > 0)) return out;
 
   const level = await db.get('SELECT quantity FROM stock_levels WHERE item_id = ? FOR UPDATE', [p.itemId]);
   const onHand = Number(level?.quantity ?? 0);
   if (onHand < p.qty) {
     const policy = await negativePolicy();
+    const item = policy === 'allow' ? null : await db.get('SELECT item_code, name, uom FROM items WHERE id = ?', [p.itemId]);
     if (policy === 'block') {
-      const item = await db.get('SELECT item_code, name, uom FROM items WHERE id = ?', [p.itemId]);
       throw new AppError(400, 'INSUFFICIENT_STOCK',
         `Not enough stock of ${item?.item_code} ${item?.name}: ${onHand} ${item?.uom || ''} available, ${p.qty} needed`,
         { item_id: p.itemId, available: onHand, required: p.qty });
     }
     out.negative = true;
+    if (policy === 'warn') {
+      out.warning = { item_id: p.itemId, item_code: item?.item_code, name: item?.name, uom: item?.uom || '', available: onHand, required: p.qty };
+    }
   }
 
   const unitCost = await unitCostOf(p.itemId);

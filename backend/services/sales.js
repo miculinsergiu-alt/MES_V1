@@ -328,7 +328,7 @@ async function issue(id, userId, opts = {}) {
   }
 
   // Effects on other records.
-  if (doc.doc_type === 'delivery') await bookDelivery(doc, userId);
+  const stockWarnings = doc.doc_type === 'delivery' ? await bookDelivery(doc, userId) : [];
   if (doc.doc_type === 'invoice') await markInvoiced(doc);
   if (doc.doc_type === 'order' && opts.create_production) await createProduction(doc, opts.create_production, userId);
 
@@ -345,22 +345,28 @@ async function issue(id, userId, opts = {}) {
 
   const issued = await loadDocument(id);
   if (opts.archive) await opts.archive(issued, company);
-  return issued;
+  return { ...issued, stock_warnings: stockWarnings };
 }
 
-/** Delivery note: book finished goods out of stock and count delivered quantities on the order. */
+/**
+ * Delivery note: book finished goods out of stock and count delivered quantities on the order.
+ * Returns the negative-stock warnings (company rule "warn").
+ */
 async function bookDelivery(doc, userId) {
   const stock = require('./stock');
+  const warnings = [];
   for (const l of doc.lines) {
     if (l.item_id) {
       // Goods leave stock from their lots (first-in-first-out), so every
       // customer delivery can be traced back to production and materials.
-      await stock.consume({ itemId: l.item_id, qty: Number(l.quantity), referenceType: 'delivery', referenceId: doc.id, userId });
+      const r = await stock.consume({ itemId: l.item_id, qty: Number(l.quantity), referenceType: 'delivery', referenceId: doc.id, userId });
+      if (r.warning) warnings.push(r.warning);
     }
     if (l.source_line_id) {
       await db.run('UPDATE sales_document_lines SET delivered_quantity = delivered_quantity + ? WHERE id = ?', [l.quantity, l.source_line_id]);
     }
   }
+  return warnings;
 }
 
 /** Invoice: count invoiced quantities on the delivery note and/or order it came from. */

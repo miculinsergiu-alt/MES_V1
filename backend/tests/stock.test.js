@@ -112,6 +112,20 @@ describe('deliveries', () => {
     assert.equal(res.status, 200, JSON.stringify(res.body));
     assert.equal((await stockOf(fg)).quantity, -3);
     assert.equal((await lot(`FA-${orderId}`)).lot.quantity, 0);
+    assert.deepEqual(res.body.stock_warnings, []);
+  });
+
+  test('with "warn", stock goes negative and the response says which item and by how much', async () => {
+    await c.api.put('/api/settings/company', { negative_stock: 'warn' }).expect(200);
+    const res = await deliver(2);
+    assert.equal(res.status, 200, JSON.stringify(res.body));
+    assert.equal((await stockOf(fg)).quantity, -5);
+    assert.equal(res.body.stock_warnings.length, 1);
+    const w = res.body.stock_warnings[0];
+    assert.equal(w.item_id, fg);
+    assert.equal(Number(w.available), -3);
+    assert.equal(Number(w.required), 2);
+    assert.ok(w.item_code);
   });
 });
 
@@ -146,5 +160,14 @@ describe('batch traceability', () => {
     assert.ok((await c.api.get('/api/trace?q=FG')).body.some((l) => l.lot_number === `FA-${orderId}`));
     assert.deepEqual((await c.api.get('/api/trace?q=Kunde')).body.map((l) => l.lot_number), [`FA-${orderId}`]);
     assert.equal((await c.api.get('/api/trace/NOPE')).status, 404);
+  });
+});
+
+// Runs last: it books a large production result that would change the lot quantities above.
+describe('production with the "warn" rule', () => {
+  test('production beyond material stock reports a warning', async () => {
+    const res = await c.api.post('/api/production/results', { order_id: orderId, qty_ok: 1000, qty_fail: 0 });
+    assert.equal(res.status, 201, JSON.stringify(res.body));
+    assert.ok(res.body.stock_warnings.length >= 1, JSON.stringify(res.body));
   });
 });

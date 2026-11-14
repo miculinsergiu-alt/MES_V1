@@ -11,6 +11,18 @@ export const todayISO = () => {
 };
 export { locale };
 
+/**
+ * Shows the negative-stock warnings the server returns when the company's
+ * rule is "warn" (booking went through, but stock is now below zero).
+ */
+export function showStockWarnings(warnings, t, toast) {
+  if (!warnings?.length) return;
+  const lines = warnings.map((w) => t('ops.stock_warning.line', {
+    code: w.item_code || '', name: w.name || '', available: num(w.available), required: num(w.required), uom: w.uom || '',
+  }));
+  toast([t('ops.stock_warning.title'), ...lines].join('\n'), { icon: '⚠️', duration: 10000, style: { whiteSpace: 'pre-line' } });
+}
+
 /** Server error message for toasts. */
 export const apiError = (err, fallback) => err?.response?.data?.error || fallback;
 
