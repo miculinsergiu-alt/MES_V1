@@ -275,7 +275,21 @@
     "total_hours": "Betriebsstunden gesamt",
     "interval": "Intervall",
     "reset_alert": "Mit der Erfassung wird der Stundenzähler seit der letzten Wartung für diese Maschine zurückgesetzt.",
-    "placeholder_notes": "Beschreiben Sie die durchgeführten Arbeiten (z. B. Filter gewechselt, Achsen geschmiert)…"
+    "placeholder_notes": "Beschreiben Sie die durchgeführten Arbeiten (z. B. Filter gewechselt, Achsen geschmiert)…",
+    "subtitle": "Betriebsstunden je Maschine und wann die nächste Wartung fällig ist.",
+    "load_error": "Wartungsstatus konnte nicht geladen werden",
+    "state_due": "Fällig",
+    "state_warning": "Bald fällig",
+    "state_ok": "OK",
+    "state_none": "Kein Intervall",
+    "last_done": "Letzte Wartung",
+    "never": "noch nie",
+    "set_interval": "Intervall festlegen",
+    "edit_interval": "Intervall ändern",
+    "interval_hours": "Intervall (Betriebsstunden)",
+    "warning_hours": "Vorwarnung (Stunden)",
+    "warning_hint": "So viele Stunden vor Ablauf des Intervalls wird die Maschine als „bald fällig“ angezeigt.",
+    "no_machines": "Noch keine aktiven Maschinen."
   },
   "status": {
     "pending": "Geplant",

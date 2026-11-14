@@ -71,3 +71,33 @@ test('BOM components need a quantity above 0', async () => {
   assert.equal(bad.status, 400);
   await c.api.post('/api/boms', { name: 'B1', parent_item_id: prod, tree: [{ item_id: steel, quantity: 2 }] }).expect(201);
 });
+
+test('follow-up buttons disappear once an order is fully delivered; file names keep umlauts readable', async () => {
+  const cust = (await c.api.post('/api/customers', { name: 'Kunde2', street: 'Weg 3', postal_code: '80331', city: 'München', country: 'DE' })).body;
+  await c.api.post('/api/stock/adjust', { item_id: prod, quantity: 10 }).expect(200);
+  const order = (await c.api.post('/api/sales', { doc_type: 'order', customer_id: cust.id, lines: [{ item_id: prod, quantity: 2, unit_price: 5 }] })).body;
+  await c.api.post(`/api/sales/${order.id}/issue`, {}).expect(200);
+  let o = (await c.api.get(`/api/sales/${order.id}`)).body;
+  assert.deepEqual([...o.conversions].sort(), ['delivery', 'invoice']);
+  assert.ok(o.files.some((f) => /^Auftragsbestaetigung_/.test(f.filename ?? f.name ?? '')), JSON.stringify(o.files));
+  const del = (await c.api.post(`/api/sales/${order.id}/convert`, { target: 'delivery' })).body;
+  await c.api.post(`/api/sales/${del.id}/issue`, {}).expect(200);
+  o = (await c.api.get(`/api/sales/${order.id}`)).body;
+  assert.deepEqual(o.conversions, ['invoice']);
+});
+
+test('maintenance: logging without an interval still resets the counter; interval must exceed the warning', async () => {
+  const machine = await t.createMachine(c.api, 'Wartung-M');
+  await t.db.withContext({ companyId: c.company.id }, () => t.db.run('UPDATE machines SET total_running_hours = 120 WHERE id = ?', [machine]));
+  const status = async () => (await c.api.get('/api/maintenance/status')).body.find((m) => m.id === machine);
+  assert.equal((await status()).hoursSinceLast, 120);
+  await c.api.post('/api/maintenance/log', { machine_id: machine, notes: 'Filter' }).expect(200);
+  assert.equal((await status()).hoursSinceLast, 0);
+  assert.ok((await status()).last_maintenance_date);
+  assert.equal((await c.api.post('/api/maintenance/config', { machine_id: machine, interval_hours: 30, warning_threshold_hours: 50 })).status, 400);
+  await c.api.post('/api/maintenance/config', { machine_id: machine, interval_hours: 500 }).expect(200);
+  await t.db.withContext({ companyId: c.company.id }, () => t.db.run('UPDATE machines SET total_running_hours = 200 WHERE id = ?', [machine]));
+  const s = await status();
+  assert.equal(s.hoursSinceLast, 80); // counted from the logged maintenance, not from 0
+  assert.equal(s.isDue, false);
+});

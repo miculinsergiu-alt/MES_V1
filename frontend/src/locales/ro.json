@@ -274,7 +274,21 @@
     "total_hours": "Total Ore Funcționare",
     "interval": "Interval",
     "reset_alert": "Înregistrarea mentenanței va reseta contorul de ore pentru acest utilaj la zero (relativ la ora curentă).",
-    "placeholder_notes": "Descrieți lucrările efectuate (ex: schimbat filtre, gresat axe)..."
+    "placeholder_notes": "Descrieți lucrările efectuate (ex: schimbat filtre, gresat axe)...",
+    "subtitle": "Orele de funcționare pe utilaj și când urmează următoarea revizie.",
+    "load_error": "Starea mentenanței nu a putut fi încărcată",
+    "state_due": "Scadentă",
+    "state_warning": "În curând",
+    "state_ok": "OK",
+    "state_none": "Fără interval",
+    "last_done": "Ultima mentenanță",
+    "never": "niciodată",
+    "set_interval": "Setează intervalul",
+    "edit_interval": "Modifică intervalul",
+    "interval_hours": "Interval (ore de funcționare)",
+    "warning_hours": "Avertizare înainte (ore)",
+    "warning_hint": "Utilajul apare „în curând” cu atâtea ore înainte de finalul intervalului.",
+    "no_machines": "Încă nu există utilaje active."
   },
   "status": {
     "pending": "În așteptare",

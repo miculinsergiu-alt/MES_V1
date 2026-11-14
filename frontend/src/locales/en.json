@@ -275,7 +275,21 @@
     "total_hours": "Total Running Hours",
     "interval": "Interval",
     "reset_alert": "Logging maintenance will reset the hour counter for this machine to zero (relative to current time).",
-    "placeholder_notes": "Describe the work performed (e.g., changed filters, greased axes)..."
+    "placeholder_notes": "Describe the work performed (e.g., changed filters, greased axes)...",
+    "subtitle": "Running hours per machine and when the next service is due.",
+    "load_error": "Could not load maintenance status",
+    "state_due": "Due",
+    "state_warning": "Due soon",
+    "state_ok": "OK",
+    "state_none": "No interval",
+    "last_done": "Last maintenance",
+    "never": "never",
+    "set_interval": "Set interval",
+    "edit_interval": "Change interval",
+    "interval_hours": "Interval (running hours)",
+    "warning_hours": "Warn before (hours)",
+    "warning_hint": "The machine is shown as \"due soon\" this many hours before the interval ends.",
+    "no_machines": "No active machines yet."
   },
   "status": {
     "pending": "Pending",

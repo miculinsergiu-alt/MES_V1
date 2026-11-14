@@ -119,7 +119,15 @@ router.get('/:id', requireRole(...READERS), h(async (req, res) => {
       WHERE id IN (?, ?) OR source_document_id = ? OR cancels_document_id = ?
       ORDER BY id`, [doc.source_document_id ?? 0, doc.cancels_document_id ?? 0, doc.id, doc.id]),
   ]);
-  res.json({ ...doc, payments, files, related: related.filter((r) => r.id !== doc.id), conversions: sales.CONVERSIONS[doc.doc_type] || [] });
+  // Only offer follow-ups that still have something to put on them.
+  const open = (field) => doc.lines.some((l) => Number(l.quantity) > Number(l[field] || 0));
+  const conversions = doc.status === 'cancelled' ? [] : (sales.CONVERSIONS[doc.doc_type] || []).filter((target) => {
+    if (target === 'delivery') return open('delivered_quantity');
+    if (target === 'invoice') return open('invoiced_quantity');
+    if (target === 'credit_note') return Number(doc.credited_total || 0) < Number(doc.gross_total);
+    return true;
+  });
+  res.json({ ...doc, payments, files, related: related.filter((r) => r.id !== doc.id), conversions });
 }));
 
 // POST /api/sales — create a draft

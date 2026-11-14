@@ -15,7 +15,9 @@ const sales = require('./sales');
 const { notFound } = require('../lib/errors');
 
 const sha256 = (buf) => crypto.createHash('sha256').update(buf).digest('hex');
-const safeName = (s) => String(s).replace(/[^A-Za-z0-9._-]+/g, '_');
+const UMLAUTS = { ä: 'ae', ö: 'oe', ü: 'ue', Ä: 'Ae', Ö: 'Oe', Ü: 'Ue', ß: 'ss' };
+const safeName = (s) => String(s).replace(/[äöüÄÖÜß]/g, (c) => UMLAUTS[c]).normalize('NFD').replace(/[̀-ͯ]/g, '')
+  .replace(/[^A-Za-z0-9._-]+/g, '_');
 
 async function storeFile(documentId, kind, filename, mimeType, buffer, { dunningId = null } = {}) {
   await db.run(`
