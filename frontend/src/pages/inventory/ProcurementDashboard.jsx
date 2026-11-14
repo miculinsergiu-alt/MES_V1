@@ -22,6 +22,12 @@ export default function ProcurementDashboard() {
   const [showConvertModal, setShowConvertModal] = useState(false);
   const [selectedPO, setSelectedPO] = useState(null);
   const [selectedRec, setSelectedRec] = useState(null);
+  const [showClosed, setShowClosed] = useState(false);
+
+  const isClosed = (po) => ['received', 'cancelled'].includes(po.status);
+  const openPOs = purchaseOrders.filter(po => !isClosed(po));
+  const closedCount = purchaseOrders.length - openPOs.length;
+  const visiblePOs = showClosed ? purchaseOrders : openPOs;
 
   const loadPOs = useCallback(async () => {
     try {
@@ -92,7 +98,7 @@ export default function ProcurementDashboard() {
 
       {activeTab === 'pos' && (
         <div className="grid grid-cols-1 gap-4">
-          {purchaseOrders.map(po => (
+          {visiblePOs.map(po => (
             <Card key={po.id} className="p-4 sm:p-6 flex flex-wrap gap-4 justify-between items-center group hover:border-accent/50 transition-all">
               <div className="flex items-center gap-6">
                 <div className="p-3 bg-muted rounded-2xl group-hover:bg-accent/10 transition-colors">
@@ -113,17 +119,25 @@ export default function ProcurementDashboard() {
                   <p className="text-[10px] uppercase font-black text-muted-foreground mt-1">{t('screens.procurement.expected')}: {dateDE(po.expected_date) || '—'}</p>
                 </div>
               </div>
-              <div className="flex gap-3">
-                <Button variant="ghost" size="sm" onClick={() => { setSelectedPO(po); setShowReceiptModal(true); }}>
-                  <PackageCheck size={16} className="mr-2" /> {t('screens.procurement.process_receipt')}
-                </Button>
-              </div>
+              {!isClosed(po) && (
+                <div className="flex gap-3">
+                  <Button variant="ghost" size="sm" onClick={() => { setSelectedPO(po); setShowReceiptModal(true); }}>
+                    <PackageCheck size={16} className="mr-2" /> {t('screens.procurement.process_receipt')}
+                  </Button>
+                </div>
+              )}
             </Card>
           ))}
-          {purchaseOrders.length === 0 && !loading && (
+          {visiblePOs.length === 0 && !loading && (
             <div className="py-20 text-center italic text-muted-foreground bg-muted/10 rounded-3xl border border-dashed border-border">
               {t('screens.procurement.no_pos')}
             </div>
+          )}
+          {closedCount > 0 && (
+            <button type="button" className="text-sm font-bold text-muted-foreground hover:text-accent justify-self-start"
+              onClick={() => setShowClosed(v => !v)}>
+              {showClosed ? t('screens.procurement.hide_closed') : t('screens.procurement.show_closed', { count: closedCount })}
+            </button>
           )}
         </div>
       )}
@@ -369,7 +383,7 @@ function ReceiptModal({ po, onClose, onSave }) {
 
     if (!po) {
       api.get('/procurement/purchase-orders').then(res => {
-        setAllPos(res.data.filter(p => p.status !== 'received'));
+        setAllPos(res.data.filter(p => !['received', 'cancelled'].includes(p.status)));
       });
     }
   }, [po]);

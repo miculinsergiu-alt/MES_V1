@@ -51,6 +51,8 @@
     "expected": "Erwartet",
     "process_receipt": "Wareneingang buchen",
     "no_pos": "Keine offenen Bestellungen.",
+    "show_closed": "Abgeschlossene Bestellungen anzeigen ({{count}})",
+    "hide_closed": "Abgeschlossene Bestellungen ausblenden",
     "required": "Bedarf",
     "caused_by": "Ausgelöst durch",
     "unknown_order": "unbekannter Auftrag",

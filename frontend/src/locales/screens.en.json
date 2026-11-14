@@ -51,6 +51,8 @@
     "expected": "Expected",
     "process_receipt": "Book goods receipt",
     "no_pos": "No open purchase orders.",
+    "show_closed": "Show completed orders ({{count}})",
+    "hide_closed": "Hide completed orders",
     "required": "Required",
     "caused_by": "Caused by",
     "unknown_order": "unknown order",

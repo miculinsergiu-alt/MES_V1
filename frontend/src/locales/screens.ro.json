@@ -52,6 +52,8 @@
     "expected": "Data estimată",
     "process_receipt": "Procesează recepție",
     "no_pos": "Nicio comandă de achiziție activă.",
+    "show_closed": "Arată comenzile finalizate ({{count}})",
+    "hide_closed": "Ascunde comenzile finalizate",
     "required": "Necesar",
     "caused_by": "Cauzată de",
     "unknown_order": "comandă necunoscută",
