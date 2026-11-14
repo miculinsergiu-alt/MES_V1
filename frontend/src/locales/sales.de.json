@@ -15,7 +15,8 @@
     "order": "Auftragsbestätigung",
     "delivery": "Lieferschein",
     "invoice": "Rechnung",
-    "credit_note": "Rechnungskorrektur"
+    "credit_note": "Rechnungskorrektur",
+    "purchase_order": "Bestellung"
   },
   "types_plural": {
     "all": "Alle",
@@ -209,7 +210,8 @@
     "issued": "{{number}} ausgestellt",
     "deleted": "Entwurf gelöscht",
     "payment_saved": "Zahlung erfasst",
-    "error": "Es ist ein Fehler aufgetreten"
+    "error": "Es ist ein Fehler aufgetreten",
+    "no_documents": "Noch keine Belege. Legen Sie den ersten über die Schaltflächen oben an."
   },
   "incoming": {
     "title": "Eingangsrechnungen",

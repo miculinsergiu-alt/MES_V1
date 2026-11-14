@@ -39,7 +39,7 @@ async function productionOrder(orderId) {
 
 async function receiptsOf(lot) {
   return db.all(`
-    SELECT gr.id AS receipt_id, gr.received_at, gr.document_reference, gr.po_id,
+    SELECT gr.id AS receipt_id, gr.received_at, gr.document_reference, gr.po_id, po.po_number,
            s.id AS supplier_id, s.name AS supplier_name, gri.quantity_received AS quantity, gri.quality_status
     FROM goods_receipt_items gri
     JOIN goods_receipts gr ON gr.id = gri.receipt_id

@@ -113,7 +113,7 @@ router.get('/:id', requireRole(...READERS), h(async (req, res) => {
   if (!row) throw notFound('Invoice');
   let po = null;
   if (row.po_id) {
-    po = await db.get('SELECT id, status, order_date, expected_date FROM purchase_orders WHERE id = ?', [row.po_id]);
+    po = await db.get('SELECT id, po_number, status, order_date, expected_date FROM purchase_orders WHERE id = ?', [row.po_id]);
     po.items = await db.all(`
       SELECT poi.quantity_ordered, poi.quantity_received, poi.unit_price, i.item_code, i.name
       FROM purchase_order_items poi JOIN items i ON i.id = poi.item_id WHERE poi.po_id = ?`, [row.po_id]);

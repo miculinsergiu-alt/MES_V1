@@ -15,6 +15,7 @@ const DEFAULTS = {
   invoice: { prefix: 'RE', yearly_reset: 1, digits: 5 },      // Rechnung
   credit_note: { prefix: 'RK', yearly_reset: 1, digits: 5 },  // Rechnungskorrektur
   dunning: { prefix: 'MA', yearly_reset: 1, digits: 5 },      // Mahnung
+  purchase_order: { prefix: 'BE', yearly_reset: 1, digits: 5 }, // Bestellung
   customer: { prefix: '', yearly_reset: 0, digits: 5, start: 10001 }, // usable as DATEV debtor account
 };
 

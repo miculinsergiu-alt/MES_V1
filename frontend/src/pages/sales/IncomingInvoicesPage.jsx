@@ -88,7 +88,7 @@ function Detail({ id, onChanged, t, canDecide }) {
           {!inv.supplier_id && <Button size="sm" variant="ghost" onClick={() => act(() => api.post(`/purchase-invoices/${id}/create-supplier`))}><UserPlus size={14} className="mr-1" />{t('sales.incoming.create_supplier')}</Button>}
           {inv.purchase_order && (
             <div className="rounded-lg bg-muted/50 p-2 text-xs">
-              {t('sales.incoming.po')} #{inv.purchase_order.id}: {eur(inv.purchase_order.net_total)} {t('sales.fields.net')}
+              {t('sales.incoming.po')} {inv.purchase_order.po_number || `#${inv.purchase_order.id}`}: {eur(inv.purchase_order.net_total)} {t('sales.fields.net')}
               {Math.abs(inv.purchase_order.net_total - inv.net_total) > 0.01 && <span className="ml-1 font-semibold text-amber-700">({t('sales.incoming.differs')} {eur(inv.net_total - inv.purchase_order.net_total)})</span>}
             </div>
           )}

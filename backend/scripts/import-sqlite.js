@@ -14,6 +14,7 @@
 const { parseArgs } = require('node:util');
 const path = require('node:path');
 const db = require('../db');
+const { nextNumber } = require('../lib/numbering');
 
 // Parents before children, so references can be checked on insert.
 const TABLES = [
@@ -79,10 +80,17 @@ async function main() {
 
       let imported = 0;
       for (const row of rows) {
-        const sql = `INSERT INTO ${table} (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`;
+        const insertCols = [...cols];
+        const values = cols.map((c) => (row[c] === '' && c.endsWith('_id') ? null : row[c]));
         await db.run('SAVEPOINT row_import');
         try {
-          await db.run(sql, cols.map((c) => (row[c] === '' && c.endsWith('_id') ? null : row[c])));
+          // The old database had no purchase order numbers: give each one the next number of its year.
+          if (table === 'purchase_orders' && !cols.includes('po_number')) {
+            insertCols.push('po_number');
+            values.push(await nextNumber('purchase_order', row.order_date));
+          }
+          const sql = `INSERT INTO ${table} (${insertCols.join(', ')}) VALUES (${insertCols.map(() => '?').join(', ')})`;
+          await db.run(sql, values);
           await db.run('RELEASE SAVEPOINT row_import');
           imported += 1;
         } catch (err) {

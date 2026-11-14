@@ -95,6 +95,29 @@ describe('procurement', () => {
   });
 });
 
+describe('purchase order numbers', () => {
+  test('purchase orders are numbered per company and year (BE-YYYY-nnnnn), separately from other companies', async () => {
+    const year = new Date().getFullYear();
+    const first = await c.api.post('/api/procurement/purchase-orders', {
+      supplier_id: supplier, items: [{ item_id: bolt, quantity_ordered: 1 }],
+    }).expect(200);
+    const second = await c.api.post('/api/procurement/purchase-orders', {
+      supplier_id: supplier, items: [{ item_id: bolt, quantity_ordered: 1 }],
+    }).expect(200);
+    assert.match(first.body.po_number, new RegExp(`^BE-${year}-[0-9]{5}$`));
+    assert.equal(Number(second.body.po_number.slice(-5)), Number(first.body.po_number.slice(-5)) + 1);
+
+    // Another company starts its own series at 1.
+    const other = await t.companyWithAdmin('FLOWPO');
+    const sup = (await other.api.post('/api/suppliers', { name: 'Other' })).body.id;
+    const item = await t.createItem(other.api, 'X1', 'raw_material');
+    const res = await other.api.post('/api/procurement/purchase-orders', {
+      supplier_id: sup, items: [{ item_id: item, quantity_ordered: 1 }],
+    }).expect(200);
+    assert.equal(res.body.po_number, `BE-${year}-00001`);
+  });
+});
+
 describe('production order with MRP', () => {
   test('BOM can be created as a tree', async () => {
     const res = await c.api.post('/api/boms', {
@@ -108,6 +131,20 @@ describe('production order with MRP', () => {
     bomId = res.body.id;
     const tree = await c.api.get(`/api/boms/${bomId}/tree`);
     assert.equal(tree.body.tree.length, 2);
+  });
+
+  test('a BOM cannot contain its own product, directly or through a component', async () => {
+    const direct = await c.api.post('/api/boms', {
+      parent_item_id: product, name: 'Self', tree: [{ item_id: product, quantity: 1, node_type: 'component' }],
+    });
+    assert.equal(direct.status, 400);
+
+    // STEEL's BOM containing BRACKET would close the loop BRACKET -> STEEL -> BRACKET.
+    const indirect = await c.api.post('/api/boms', {
+      parent_item_id: steel, name: 'Loop', tree: [{ item_id: product, quantity: 1, node_type: 'component' }],
+    });
+    assert.equal(indirect.status, 400);
+    assert.match(indirect.body.error, /circular/i);
   });
 
   let orderId;

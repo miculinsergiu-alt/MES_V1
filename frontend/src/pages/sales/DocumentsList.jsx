@@ -103,7 +103,7 @@ export default function DocumentsList() {
               </tr>
             ))}
             {!loading && !docs.length && (
-              <tr><td colSpan={6} className="py-10 text-center text-muted-foreground">—</td></tr>
+              <tr><td colSpan={6} className="py-10 text-center italic text-muted-foreground">{t('sales.messages.no_documents')}</td></tr>
             )}
           </tbody>
         </table>

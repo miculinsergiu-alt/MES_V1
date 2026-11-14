@@ -15,7 +15,8 @@
     "order": "Order confirmation",
     "delivery": "Delivery note",
     "invoice": "Invoice",
-    "credit_note": "Credit note"
+    "credit_note": "Credit note",
+    "purchase_order": "Purchase order"
   },
   "types_plural": {
     "all": "All",
@@ -209,7 +210,8 @@
     "issued": "{{number}} issued",
     "deleted": "Draft deleted",
     "payment_saved": "Payment recorded",
-    "error": "Something went wrong"
+    "error": "Something went wrong",
+    "no_documents": "No documents yet. Create the first one with the buttons above."
   },
   "incoming": {
     "title": "Incoming invoices",

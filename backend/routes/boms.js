@@ -75,6 +75,34 @@ function checkTreeSize(nodes, depth = 1, counter = { n: 0 }) {
   }
 }
 
+/**
+ * Refuses a BOM that contains its own product, directly or through the BOM of
+ * one of its components (A contains B, B's BOM contains A). Such a BOM could
+ * never be produced.
+ */
+async function checkNoCycle(parentItemId, nodes, bomId = null) {
+  if (!parentItemId) return;
+  const direct = new Set();
+  (function collect(list) {
+    for (const n of list || []) { if (n.item_id) direct.add(Number(n.item_id)); collect(n.children); }
+  })(nodes);
+  if (direct.has(Number(parentItemId))) throw badRequest('A BOM cannot contain its own product');
+  const seen = new Set();
+  let frontier = [...direct];
+  for (let depth = 0; frontier.length && depth < MAX_DEPTH * 2; depth += 1) {
+    const rows = await db.all(`
+      SELECT DISTINCT bp.item_id FROM boms b JOIN bom_positions bp ON bp.bom_id = b.id
+      WHERE b.parent_item_id = ANY(?::int[]) AND bp.item_id IS NOT NULL AND (?::int IS NULL OR b.id <> ?::int)`,
+    [frontier, bomId, bomId]);
+    frontier = [];
+    for (const r of rows) {
+      const itemId = Number(r.item_id);
+      if (itemId === Number(parentItemId)) throw badRequest('A component of this BOM already contains this product in its own BOM (circular BOM)');
+      if (!seen.has(itemId)) { seen.add(itemId); frontier.push(itemId); }
+    }
+  }
+}
+
 async function insertPositions(bomId, nodes, parentId = null, level = 1) {
   for (const [idx, node] of nodes.entries()) {
     const row = await db.get(`
@@ -145,6 +173,7 @@ router.get('/:id/flat', h(async (req, res) => {
 router.post('/', requireRole('planner', 'administrator'), h(async (req, res) => {
   const b = v.body(req, bomSchema);
   if (b.tree) checkTreeSize(b.tree);
+  await checkNoCycle(b.parent_item_id, b.tree);
   const row = await db.get('INSERT INTO boms (parent_item_id, name, description) VALUES (?, ?, ?) RETURNING id',
     [b.parent_item_id ?? null, b.name, b.description ?? '']);
   if (b.tree?.length) await insertPositions(row.id, b.tree);
@@ -156,6 +185,7 @@ router.put('/:id', requireRole('planner', 'administrator'), h(async (req, res) =
   const id = v.paramId(req);
   const b = v.body(req, bomSchema);
   if (b.tree) checkTreeSize(b.tree);
+  await checkNoCycle(b.parent_item_id, b.tree, id);
   const r = await db.run('UPDATE boms SET parent_item_id = ?, name = ?, description = ? WHERE id = ?',
     [b.parent_item_id ?? null, b.name, b.description ?? '', id]);
   if (!r.rowCount) throw notFound('BOM');

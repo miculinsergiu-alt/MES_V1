@@ -5,6 +5,7 @@ const v = require('../lib/validate');
 const { notFound, conflict, badRequest } = require('../lib/errors');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 const stock = require('../services/stock');
+const { nextNumber } = require('../lib/numbering');
 
 const router = express.Router();
 router.use(authenticateToken);
@@ -45,12 +46,13 @@ router.post('/recommendations/:id/convert', requireRole(...BUYERS), h(async (req
       (SELECT acquisition_cost FROM items WHERE id = ?)) AS unit_price`, [rec.item_id, b.supplier_id, rec.item_id]);
 
   const po = await db.get(`
-    INSERT INTO purchase_orders (supplier_id, expected_date, created_by, status)
-    VALUES (?, ?, ?, 'ordered') RETURNING id`, [b.supplier_id, b.expected_date ?? null, req.user.id]);
+    INSERT INTO purchase_orders (po_number, supplier_id, expected_date, created_by, status)
+    VALUES (?, ?, ?, ?, 'ordered') RETURNING id, po_number`,
+  [await nextNumber('purchase_order'), b.supplier_id, b.expected_date ?? null, req.user.id]);
   await db.run('INSERT INTO purchase_order_items (po_id, item_id, quantity_ordered, unit_price) VALUES (?, ?, ?, ?)',
     [po.id, rec.item_id, rec.recommended_qty, price?.unit_price ?? 0]);
   await db.run("UPDATE purchase_recommendations SET status = 'converted' WHERE id = ?", [id]);
-  res.json({ id: po.id, message: 'Recommendation converted to purchase order' });
+  res.json({ id: po.id, po_number: po.po_number, message: 'Recommendation converted to purchase order' });
 }));
 
 // ─── Purchase orders ────────────────────────────────────────────────────────
@@ -72,13 +74,13 @@ router.post('/purchase-orders', requireRole(...BUYERS), h(async (req, res) => {
       unit_price: v.nonNeg.default(0),
     })).min(1, 'At least one item is required'),
   }));
-  const po = await db.get('INSERT INTO purchase_orders (supplier_id, expected_date, created_by) VALUES (?, ?, ?) RETURNING id',
-    [b.supplier_id, b.expected_date ?? null, req.user.id]);
+  const po = await db.get('INSERT INTO purchase_orders (po_number, supplier_id, expected_date, created_by) VALUES (?, ?, ?, ?) RETURNING id, po_number',
+    [await nextNumber('purchase_order'), b.supplier_id, b.expected_date ?? null, req.user.id]);
   for (const item of b.items) {
     await db.run('INSERT INTO purchase_order_items (po_id, item_id, quantity_ordered, unit_price) VALUES (?, ?, ?, ?)',
       [po.id, item.item_id, item.quantity_ordered, item.unit_price]);
   }
-  res.json({ id: po.id });
+  res.json({ id: po.id, po_number: po.po_number });
 }));
 
 router.get('/purchase-orders/:id/items', h(async (req, res) => {

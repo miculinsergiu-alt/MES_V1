@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ShoppingCart, PackageCheck, Truck, Plus, Search, FileText, CheckCircle, AlertTriangle, QrCode, X, Trash2, Zap } from 'lucide-react';
 import api from '../../api/axios';
+import { dateDE } from '../../lib/format';
 import toast from 'react-hot-toast';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -99,7 +100,7 @@ export default function ProcurementDashboard() {
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h4 className="font-bold text-lg">PO #{po.id.toString().padStart(5, '0')}</h4>
+                    <h4 className="font-bold text-lg">{po.po_number}</h4>
                     <Badge className={
                       po.status === 'received' ? 'bg-green-100 text-green-700' :
                       po.status === 'partial' ? 'bg-orange-100 text-orange-700' :
@@ -109,7 +110,7 @@ export default function ProcurementDashboard() {
                     </Badge>
                   </div>
                   <p className="text-sm text-muted-foreground">{t('screens.procurement.supplier')}: <span className="font-bold text-foreground">{po.supplier_name}</span></p>
-                  <p className="text-[10px] uppercase font-black text-muted-foreground mt-1">{t('screens.procurement.expected')}: {po.expected_date}</p>
+                  <p className="text-[10px] uppercase font-black text-muted-foreground mt-1">{t('screens.procurement.expected')}: {dateDE(po.expected_date) || '—'}</p>
                 </div>
               </div>
               <div className="flex gap-3">
@@ -464,7 +465,7 @@ function ReceiptModal({ po, onClose, onSave }) {
       <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-3xl p-5 sm:p-8 w-full max-w-6xl border border-border shadow-2xl overflow-y-auto max-h-[90vh]" onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-start mb-8">
           <div>
-            <h3 className="font-display text-2xl uppercase tracking-tighter">{t('screens.procurement.receipt_title')} {po ? `(PO #${po.id})` : ''}</h3>
+            <h3 className="font-display text-2xl uppercase tracking-tighter">{t('screens.procurement.receipt_title')} {po ? `(${po.po_number})` : ''}</h3>
             <p className="text-muted-foreground italic text-sm">{t('screens.procurement.receipt_subtitle')}</p>
           </div>
           <Button variant="ghost" onClick={onClose}><X size={20}/></Button>
@@ -481,7 +482,7 @@ function ReceiptModal({ po, onClose, onSave }) {
                 required
               >
                 <option value="">{t('screens.procurement.choose_po_option')}</option>
-                {allPos.map(p => <option key={p.id} value={p.id}>PO #{p.id.toString().padStart(5, '0')} - {p.supplier_name}</option>)}
+                {allPos.map(p => <option key={p.id} value={p.id}>{p.po_number} - {p.supplier_name}</option>)}
               </select>
             </div>
           )}

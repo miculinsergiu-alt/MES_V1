@@ -4,6 +4,7 @@
 const express = require('express');
 const db = require('../db');
 const stock = require('../services/stock');
+const { nextNumber } = require('../lib/numbering');
 const { h } = require('../lib/handler');
 const { conflict } = require('../lib/errors');
 const { authenticateToken, requireRole } = require('../middleware/auth');
@@ -54,7 +55,8 @@ router.post('/sample-data', h(async (req, res) => {
   await db.run('INSERT INTO item_suppliers (item_id, supplier_id, purchase_price, lead_time_days, is_primary) VALUES (?, ?, 1.35, 5, 1)', [sheet, supplier.id]);
 
   // Opening stock as a received purchase order, in lots, so batch tracing works from the start.
-  const po = await db.get("INSERT INTO purchase_orders (supplier_id, created_by, status) VALUES (?, ?, 'received') RETURNING id", [supplier.id, req.user.id]);
+  const po = await db.get("INSERT INTO purchase_orders (po_number, supplier_id, created_by, status) VALUES (?, ?, ?, 'received') RETURNING id",
+    [await nextNumber('purchase_order'), supplier.id, req.user.id]);
   const receipt = await db.get("INSERT INTO goods_receipts (po_id, received_by, document_reference) VALUES (?, ?, 'LS-BEISPIEL-1') RETURNING id", [po.id, req.user.id]);
   for (const [itemId, qty, price, lot] of [[sheet, 500, 1.35, 'CH-BLECH-001'], [screw, 2000, 0.04, 'CH-SCHR-001']]) {
     await db.run('INSERT INTO purchase_order_items (po_id, item_id, quantity_ordered, quantity_received, unit_price) VALUES (?, ?, ?, ?, ?)', [po.id, itemId, qty, qty, price]);
