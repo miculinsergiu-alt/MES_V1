@@ -126,6 +126,50 @@ function Gauges({ t }) {
   );
 }
 
+function Incoming({ t }) {
+  const [rows, setRows] = useState([]);
+  const [open, setOpen] = useState(null); // { receipt_item, plan }
+  const [vals, setVals] = useState({});
+  const load = () => api.get('/quality/incoming').then((r) => setRows(r.data)).catch(() => {});
+  useEffect(() => { load(); }, []);
+  const start = async (ri) => { try { setVals({}); setOpen((await api.get(`/quality/receipts/${ri.id}/inspection`)).data); } catch (err) { toast.error(apiError(err, t('qm.error'))); } };
+  const save = async () => {
+    const values = open.plan.filter((c) => vals[c.id] !== undefined && vals[c.id] !== '').map((c) => (c.kind === 'attribute'
+      ? { characteristic_id: c.id, ok: vals[c.id] === 'ok' } : { characteristic_id: c.id, value: String(vals[c.id]).replace(',', '.') }));
+    if (!values.length) return;
+    try {
+      const r = await api.post(`/quality/receipts/${open.receipt_item.id}/measurements`, { values });
+      if (r.data.quarantine) toast.error(t('qm.incoming_nok'), { duration: 8000 }); else toast.success(t('qm.ok_saved'));
+      setOpen(null); load();
+    } catch (err) { toast.error(apiError(err, t('qm.error'))); }
+  };
+  return (
+    <div className="space-y-3">
+      {!rows.length && <p className="text-sm text-muted-foreground">{t('qm.incoming_none')}</p>}
+      {rows.map((r) => (
+        <Card key={r.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+          <div><span className="font-mono font-semibold">{r.lot_number}</span> · {r.item_code} {r.item_name} · {r.quantity_received} · {r.source_name || '-'} <span className="text-xs text-muted-foreground">{dateDE(r.received_at)}</span></div>
+          <Button size="sm" onClick={() => start(r)}>{t('qm.inspect')}</Button>
+        </Card>
+      ))}
+      {open && (
+        <Card className="space-y-2">
+          <h3 className="font-semibold">{open.receipt_item.lot_number} · {open.receipt_item.item_code}</h3>
+          {open.plan.map((c) => (
+            <div key={c.id} className="flex flex-wrap items-center gap-3 text-sm">
+              <div className="min-w-[12rem] flex-1">{c.name}<div className="text-xs text-muted-foreground">{c.kind === 'measure' ? `${c.lower_limit} … ${c.upper_limit} ${c.unit}` : t('qm.kind.attribute')}</div></div>
+              {c.kind === 'measure'
+                ? <input className={`${cls} w-28 text-right font-mono`} inputMode="decimal" value={vals[c.id] ?? ''} onChange={(e) => setVals({ ...vals, [c.id]: e.target.value })} aria-label={c.name} />
+                : ['ok', 'nok'].map((o) => <button key={o} type="button" onClick={() => setVals({ ...vals, [c.id]: o })} className={`h-9 rounded-lg px-3 text-xs font-semibold ${vals[c.id] === o ? (o === 'ok' ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white') : 'bg-muted'}`}>{o.toUpperCase()}</button>)}
+            </div>
+          ))}
+          <div className="flex gap-2"><Button size="sm" onClick={save}>{t('qm.save_values')}</Button><Button size="sm" variant="ghost" onClick={() => setOpen(null)}>✕</Button></div>
+        </Card>
+      )}
+    </div>
+  );
+}
+
 export default function QualityPage() {
   const { t } = useTranslation();
   const [tab, setTab] = useState('complaints');
@@ -133,10 +177,12 @@ export default function QualityPage() {
     <div className="max-w-6xl">
       <PageHeader title={t('shell.nav.quality')}>
         <div className="flex rounded-lg border border-border bg-white p-1 text-sm">
-          {['complaints', 'gauges'].map((x) => <button key={x} type="button" onClick={() => setTab(x)} className={`rounded-md px-3 py-1 ${tab === x ? 'bg-accent text-white' : 'text-muted-foreground'}`}>{t(`qm.tab.${x}`)}</button>)}
+          {['complaints', 'incoming', 'gauges'].map((x) => <button key={x} type="button" onClick={() => setTab(x)} className={`rounded-md px-3 py-1 ${tab === x ? 'bg-accent text-white' : 'text-muted-foreground'}`}>{t(`qm.tab.${x}`)}</button>)}
         </div>
       </PageHeader>
-      {tab === 'complaints' ? <Complaints t={t} /> : <Gauges t={t} />}
+      {tab === 'complaints' && <Complaints t={t} />}
+      {tab === 'incoming' && <Incoming t={t} />}
+      {tab === 'gauges' && <Gauges t={t} />}
     </div>
   );
 }

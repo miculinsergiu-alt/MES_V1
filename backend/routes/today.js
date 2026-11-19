@@ -63,6 +63,12 @@ router.get('/', h(async (req, res) => {
     add('gauges_due', 'medium', await db.all(`
       SELECT id, code, name, next_due FROM gauges WHERE active = 1 AND next_due IS NOT NULL AND next_due <= ? ORDER BY next_due LIMIT 50`, [addDays(today, 14)]),
     (r) => ({ id: r.id, title: `${r.code} · ${r.name}`, date: r.next_due, overdue: r.next_due < today, link: '/quality' }));
+    add('incoming_inspection', 'medium', await db.all(`
+      SELECT gri.id, gri.lot_number, i.item_code FROM goods_receipt_items gri JOIN goods_receipts gr ON gr.id = gri.receipt_id JOIN items i ON i.id = gri.item_id
+      WHERE gri.quality_status <> 'rejected' AND gr.received_at::date >= (now()::date - 60)
+        AND EXISTS (SELECT 1 FROM inspection_characteristics ic WHERE ic.item_id = gri.item_id AND ic.incoming = 1 AND ic.active = 1)
+        AND NOT EXISTS (SELECT 1 FROM measurements m WHERE m.receipt_item_id = gri.id) ORDER BY gr.received_at LIMIT 50`),
+    (r) => ({ id: r.id, title: `${r.item_code} · ${r.lot_number}`, link: '/quality' }));
     add('complaints_due', 'high', await db.all(`
       SELECT id, number, description, due_date FROM complaints WHERE status IN ('open','analysis','action') AND due_date IS NOT NULL AND due_date <= ? ORDER BY due_date LIMIT 50`, [today]),
     (r) => ({ id: r.id, title: `${r.number} · ${r.description}`, date: r.due_date, link: '/quality' }));

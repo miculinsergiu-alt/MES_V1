@@ -18,6 +18,7 @@
     "quotes_expiring": "Angebot läuft ab",
     "forgot_clock_out": "Nicht ausgestempelt",
     "tools_worn": "Werkzeug verschlissen",
-    "tool_spares_low": "Ersatzwerkzeuge fehlen"
+    "tool_spares_low": "Ersatzwerkzeuge fehlen",
+    "incoming_inspection": "Wareneingangsprüfung"
   }
 }

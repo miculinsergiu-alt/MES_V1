@@ -18,6 +18,7 @@
     "quotes_expiring": "Quote expiring",
     "forgot_clock_out": "Not clocked out",
     "tools_worn": "Tool worn",
-    "tool_spares_low": "Spare tools low"
+    "tool_spares_low": "Spare tools low",
+    "incoming_inspection": "Incoming inspection"
   }
 }

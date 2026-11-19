@@ -63,7 +63,8 @@
   },
   "tab": {
     "complaints": "Reclamații (8D)",
-    "gauges": "Instrumente de măsură"
+    "gauges": "Instrumente de măsură",
+    "incoming": "Inspecție la recepție"
   },
   "cstatus": {
     "open": "Deschisă",
@@ -81,5 +82,9 @@
     "d6_implemented": "D6 Implementat și verificat",
     "d7_prevention": "D7 Prevenire",
     "d8_closure": "D8 Închidere"
-  }
+  },
+  "incoming_hint": "Se verifică și la recepție (inspecție la intrare)",
+  "incoming_none": "Nicio inspecție la recepție deschisă.",
+  "inspect": "Verifică",
+  "incoming_nok": "Inspecția la recepție a picat: lotul e în carantină."
 }

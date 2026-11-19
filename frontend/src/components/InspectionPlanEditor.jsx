@@ -35,7 +35,7 @@ export default function InspectionPlanEditor({ itemId }) {
     setBusy(true);
     try {
       const characteristics = rows.filter((r) => r.name.trim()).map((r) => ({
-        id: r.id, name: r.name, kind: r.kind, unit: r.unit || 'mm', frequency: r.frequency, critical: r.critical ? 1 : 0,
+        id: r.id, name: r.name, kind: r.kind, unit: r.unit || 'mm', frequency: r.frequency, critical: r.critical ? 1 : 0, incoming: r.incoming ? 1 : 0,
         nominal: r.nominal === '' ? undefined : r.nominal, lower_limit: r.lower_limit === '' ? undefined : r.lower_limit,
         upper_limit: r.upper_limit === '' ? undefined : r.upper_limit, every_n: r.every_n === '' ? undefined : r.every_n,
         gauge_id: r.gauge_id || undefined,
@@ -78,6 +78,7 @@ export default function InspectionPlanEditor({ itemId }) {
               </select>}
           <div className="flex items-center justify-between gap-1">
             <label className="flex items-center gap-1" title={t('qm.critical')}><input type="checkbox" checked={!!r.critical} onChange={(e) => set(i, { critical: e.target.checked ? 1 : 0 })} />!</label>
+            <label className="flex items-center gap-1" title={t('qm.incoming_hint')}><input type="checkbox" checked={!!r.incoming} onChange={(e) => set(i, { incoming: e.target.checked ? 1 : 0 })} />WE</label>
             <button type="button" onClick={() => setRows(rows.filter((_, idx) => idx !== i))} className="text-rose-600"><Trash2 size={14} /></button>
           </div>
         </div>

@@ -28,6 +28,7 @@ export default function ToolsPage() {
   const { t } = useTranslation();
   const [rows, setRows] = useState([]);
   const [machines, setMachines] = useState([]);
+  const [spareQty, setSpareQty] = useState({}); // per tool: how many spares arrived
   const [f, setF] = useState({ code: '', name: '', tool_type: '', machine_id: '', life_limit_parts: '', spare_count: 0, min_spares: 0 });
   const load = useCallback(() => { api.get('/tools').then((r) => setRows(r.data)).catch(() => {}); }, []);
   useEffect(() => { load(); api.get('/machines').then((r) => setMachines(Array.isArray(r.data) ? r.data : [])).catch(() => {}); }, [load]);
@@ -71,7 +72,12 @@ export default function ToolsPage() {
                 <td className="whitespace-nowrap text-right">
                   <button type="button" className="mr-2 inline-flex items-center gap-1 text-xs text-accent" onClick={() => act(x, 'replace', { kind: 'replaced' })}><RefreshCw size={12} />{t('tools.replace')}</button>
                   <button type="button" className="mr-2 text-xs text-accent" onClick={() => act(x, 'replace', { kind: 'regrind' })}>{t('tools.regrind')}</button>
-                  <button type="button" className="inline-flex items-center gap-1 text-xs text-accent" onClick={() => { const n = Number(window.prompt(t('tools.how_many'), '1')); if (n > 0) act(x, 'spares', { quantity: n }); }}><PackagePlus size={12} />{t('tools.add_spares')}</button>
+                  <span className="inline-flex items-center gap-1">
+                    <input type="number" min="1" aria-label={t('tools.how_many')} placeholder="1" className="h-7 w-14 rounded border border-border px-1 text-right text-xs"
+                      value={spareQty[x.id] ?? ''} onChange={(e) => setSpareQty({ ...spareQty, [x.id]: e.target.value })} />
+                    <button type="button" className="inline-flex items-center gap-1 text-xs text-accent"
+                      onClick={() => { const n = Number(spareQty[x.id] || 1); if (n > 0) { act(x, 'spares', { quantity: n }); setSpareQty({ ...spareQty, [x.id]: '' }); } }}><PackagePlus size={12} />{t('tools.add_spares')}</button>
+                  </span>
                 </td>
               </tr>
             ))}

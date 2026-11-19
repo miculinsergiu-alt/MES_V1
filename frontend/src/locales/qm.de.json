@@ -63,7 +63,8 @@
   },
   "tab": {
     "complaints": "Reklamationen (8D)",
-    "gauges": "Prüfmittel"
+    "gauges": "Prüfmittel",
+    "incoming": "Wareneingangsprüfung"
   },
   "cstatus": {
     "open": "Offen",
@@ -81,5 +82,9 @@
     "d6_implemented": "D6 Umgesetzt & wirksam",
     "d7_prevention": "D7 Vorbeugung",
     "d8_closure": "D8 Abschluss"
-  }
+  },
+  "incoming_hint": "Auch bei der Wareneingangsprüfung prüfen",
+  "incoming_none": "Keine offenen Wareneingangsprüfungen.",
+  "inspect": "Prüfen",
+  "incoming_nok": "Wareneingangsprüfung n.i.O.: Charge in Quarantäne."
 }

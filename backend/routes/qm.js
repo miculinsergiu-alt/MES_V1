@@ -331,4 +331,72 @@ router.get('/complaints/:id/8d.pdf', h(async (req, res) => {
   res.send(Buffer.concat(chunks));
 }));
 
+// ─── Incoming inspection (Wareneingangsprüfung) ─────────────────────────────
+// Characteristics flagged "incoming" are checked on received lots; a NOK
+// result puts the lot into quarantine.
+
+const RECEIPT_ITEM = `
+  SELECT gri.id, gri.item_id, gri.lot_number, gri.quantity_received, gri.quality_status, gr.received_at, gr.document_reference,
+         i.item_code, i.name AS item_name, COALESCE(s.name, c.name) AS source_name
+  FROM goods_receipt_items gri JOIN goods_receipts gr ON gr.id = gri.receipt_id JOIN items i ON i.id = gri.item_id
+  LEFT JOIN purchase_orders po ON po.id = gr.po_id LEFT JOIN suppliers s ON s.id = po.supplier_id
+  LEFT JOIN customers c ON c.id = gr.customer_id`;
+
+// GET /api/quality/incoming — receipts of the last 60 days that still need their incoming inspection
+router.get('/incoming', h(async (req, res) => {
+  res.json(await db.all(`${RECEIPT_ITEM}
+    WHERE gri.quality_status <> 'rejected' AND gr.received_at::date >= (now()::date - 60)
+      AND EXISTS (SELECT 1 FROM inspection_characteristics ic WHERE ic.item_id = gri.item_id AND ic.incoming = 1 AND ic.active = 1)
+      AND NOT EXISTS (SELECT 1 FROM measurements m WHERE m.receipt_item_id = gri.id)
+    ORDER BY gr.received_at, gri.id LIMIT 200`));
+}));
+
+router.get('/receipts/:id/inspection', h(async (req, res) => {
+  const ri = await db.get(`${RECEIPT_ITEM} WHERE gri.id = ?`, [v.paramId(req)]);
+  if (!ri) throw notFound('Goods receipt line');
+  const plan = (await planOf(ri.item_id)).filter((c) => c.incoming);
+  const measurements = await db.all('SELECT * FROM measurements WHERE receipt_item_id = ? ORDER BY id', [ri.id]);
+  res.json({ receipt_item: ri, plan, measurements });
+}));
+
+// POST /api/quality/receipts/:id/measurements { values: [{ characteristic_id, value? , ok? }], gauge_id? }
+router.post('/receipts/:id/measurements', requireRole(...QUALITY_ROLES), h(async (req, res) => {
+  const id = v.paramId(req);
+  const b = v.body(req, v.z.object({
+    gauge_id: v.optId, notes: v.optStr(1000),
+    values: v.z.array(v.z.object({ characteristic_id: v.id, value: optNum, ok: v.z.boolean().optional() })).min(1).max(200),
+  }));
+  const ri = await db.get('SELECT * FROM goods_receipt_items WHERE id = ? FOR UPDATE', [id]);
+  if (!ri) throw notFound('Goods receipt line');
+  const today = new Date().toISOString().slice(0, 10);
+  if (b.gauge_id) {
+    const g = await db.get('SELECT code, next_due, active FROM gauges WHERE id = ?', [b.gauge_id]);
+    if (!g || !g.active) throw badRequest('Gauge not found or inactive');
+    if (g.next_due && g.next_due < today) throw badRequest(`Gauge ${g.code} is overdue for calibration (${g.next_due})`);
+  }
+  const results = [];
+  for (const x of b.values) {
+    const ch = await db.get('SELECT * FROM inspection_characteristics WHERE id = ? AND item_id = ? AND active = 1 AND incoming = 1', [x.characteristic_id, ri.item_id]);
+    if (!ch) throw badRequest('Characteristic is not an incoming check of this item');
+    if (ch.kind === 'measure' && x.value === undefined) throw badRequest(`${ch.name}: value missing`);
+    if (ch.kind === 'attribute' && x.ok === undefined) throw badRequest(`${ch.name}: OK / not OK missing`);
+    const result = judge(ch, x.value, x.ok);
+    const sample = (await db.get('SELECT COALESCE(MAX(sample_no), 0) AS n FROM measurements WHERE receipt_item_id = ? AND characteristic_id = ?', [id, ch.id])).n + 1;
+    await db.run(`INSERT INTO measurements (characteristic_id, receipt_item_id, stage, sample_no, value, attribute_ok, result, gauge_id, measured_by, notes)
+      VALUES (?, ?, 'incoming', ?, ?, ?, ?, ?, ?, ?)`,
+    [ch.id, id, sample, ch.kind === 'measure' ? x.value : null, ch.kind === 'attribute' ? (x.ok ? 1 : 0) : null, result, b.gauge_id ?? ch.gauge_id ?? null, req.user.id, b.notes ?? null]);
+    results.push({ characteristic_id: ch.id, name: ch.name, result });
+  }
+  const nok = results.some((r) => r.result === 'nok');
+  if (nok) {
+    const open = await db.get("SELECT id FROM quarantine_logs WHERE lot_number = ? AND status = 'pending'", [ri.lot_number]);
+    if (!open) {
+      await db.run('INSERT INTO quarantine_logs (receipt_item_id, item_id, lot_number, quantity, reason, reported_by) VALUES (?,?,?,?,?,?)',
+        [ri.id, ri.item_id, ri.lot_number, ri.quantity_received, 'Wareneingangsprüfung n.i.O. / incoming inspection failed', req.user.id]);
+    }
+    await db.run("UPDATE goods_receipt_items SET quality_status = 'quarantine' WHERE id = ?", [ri.id]);
+  }
+  res.status(201).json({ results, quarantine: nok });
+}));
+
 module.exports = router;

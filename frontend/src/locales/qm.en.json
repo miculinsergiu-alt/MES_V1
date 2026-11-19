@@ -63,7 +63,8 @@
   },
   "tab": {
     "complaints": "Complaints (8D)",
-    "gauges": "Gauges"
+    "gauges": "Gauges",
+    "incoming": "Incoming inspection"
   },
   "cstatus": {
     "open": "Open",
@@ -81,5 +82,9 @@
     "d6_implemented": "D6 Implemented & verified",
     "d7_prevention": "D7 Prevention",
     "d8_closure": "D8 Closure"
-  }
+  },
+  "incoming_hint": "Also check at goods receipt (incoming inspection)",
+  "incoming_none": "No open incoming inspections.",
+  "inspect": "Inspect",
+  "incoming_nok": "Incoming inspection failed: the lot is in quarantine."
 }
