@@ -1,0 +1,32 @@
+{
+  "error": "Aktion fehlgeschlagen",
+  "customer": "Kunde",
+  "reference": "Kunden-Vertragsnr.",
+  "valid_from": "Gültig ab",
+  "valid_to": "Gültig bis",
+  "item": "Artikel",
+  "quantity": "Menge",
+  "price": "Preis",
+  "create": "Rahmenauftrag anlegen",
+  "called": "Abgerufen",
+  "remaining": "Rest",
+  "call_off": "Abrufen",
+  "delivery_date": "Liefertermin",
+  "called_off": "Abruf als Auftragsbestätigung angelegt",
+  "calloffs": "Abrufe",
+  "draft": "Entwurf",
+  "new": "Neuer Rahmenauftrag",
+  "intro": "Rahmenvereinbarungen mit Gesamtmenge und Festpreis für einen Zeitraum. Jeder Abruf wird zur Auftragsbestätigung zum vereinbarten Preis; ein gelöschter Abruf-Entwurf gibt die Menge wieder frei.",
+  "empty": "Keine Rahmenaufträge.",
+  "status": {
+    "active": "Aktiv",
+    "closed": "Vollständig abgerufen",
+    "cancelled": "Storniert",
+    "expired": "Abgelaufen"
+  },
+  "filter": {
+    "active": "Aktiv",
+    "closed": "Abgeschlossen",
+    "all": "Alle"
+  }
+}

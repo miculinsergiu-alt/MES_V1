@@ -35,15 +35,18 @@ import qmRo from './locales/qm.ro.json';
 import timeDe from './locales/time.de.json';
 import timeEn from './locales/time.en.json';
 import timeRo from './locales/time.ro.json';
+import blanketDe from './locales/blanket.de.json';
+import blanketEn from './locales/blanket.en.json';
+import blanketRo from './locales/blanket.ro.json';
 
 i18n
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
     resources: {
-      de: { translation: { ...de, sales: salesDe, shell: shellDe, onboarding: onboardingDe, screens: screensDe, ops: opsDe, account: accountDe, files: filesDe, sub: subDe, calc: calcDe, qm: qmDe, time: timeDe } },
-      en: { translation: { ...en, sales: salesEn, shell: shellEn, onboarding: onboardingEn, screens: screensEn, ops: opsEn, account: accountEn, files: filesEn, sub: subEn, calc: calcEn, qm: qmEn, time: timeEn, roles: { ...en.roles, material_planner: 'Material Planner', sales: 'Sales', accounting: 'Accounting' } } },
-      ro: { translation: { ...ro, sales: salesEn, shell: shellRo, onboarding: onboardingEn, screens: screensRo, ops: opsEn, account: accountRo, files: filesRo, sub: subRo, calc: calcRo, qm: qmRo, time: timeRo, roles: { ...ro.roles, sales: 'Vânzări', accounting: 'Contabilitate' } } },
+      de: { translation: { ...de, sales: salesDe, shell: shellDe, onboarding: onboardingDe, screens: screensDe, ops: opsDe, account: accountDe, files: filesDe, sub: subDe, calc: calcDe, qm: qmDe, time: timeDe, blanket: blanketDe } },
+      en: { translation: { ...en, sales: salesEn, shell: shellEn, onboarding: onboardingEn, screens: screensEn, ops: opsEn, account: accountEn, files: filesEn, sub: subEn, calc: calcEn, qm: qmEn, time: timeEn, blanket: blanketEn, roles: { ...en.roles, material_planner: 'Material Planner', sales: 'Sales', accounting: 'Accounting' } } },
+      ro: { translation: { ...ro, sales: salesEn, shell: shellRo, onboarding: onboardingEn, screens: screensRo, ops: opsEn, account: accountRo, files: filesRo, sub: subRo, calc: calcRo, qm: qmRo, time: timeRo, blanket: blanketRo, roles: { ...ro.roles, sales: 'Vânzări', accounting: 'Contabilitate' } } },
     },
     supportedLngs: ['de', 'en', 'ro'],
     nonExplicitSupportedLngs: true,

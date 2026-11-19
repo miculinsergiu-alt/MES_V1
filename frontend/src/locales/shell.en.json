@@ -24,6 +24,7 @@
     "subcontracting": "Outside processing",
     "quality": "Quality",
     "time": "Working time",
+    "blanket_orders": "Blanket orders",
     "documents": "Sales documents",
     "open_items": "Open items",
     "dunning": "Payment reminders",

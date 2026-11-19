@@ -1,0 +1,32 @@
+{
+  "error": "Action failed",
+  "customer": "Customer",
+  "reference": "Customer contract no.",
+  "valid_from": "Valid from",
+  "valid_to": "Valid to",
+  "item": "Item",
+  "quantity": "Quantity",
+  "price": "Price",
+  "create": "Create blanket order",
+  "called": "Called off",
+  "remaining": "Remaining",
+  "call_off": "Call off",
+  "delivery_date": "Delivery date",
+  "called_off": "Call-off created as order confirmation",
+  "calloffs": "Call-offs",
+  "draft": "Draft",
+  "new": "New blanket order",
+  "intro": "Framework agreements with total quantity and fixed price for a period. Each call-off becomes an order confirmation at the agreed price; deleting a draft call-off releases its quantity again.",
+  "empty": "No blanket orders.",
+  "status": {
+    "active": "Active",
+    "closed": "Fully called off",
+    "cancelled": "Cancelled",
+    "expired": "Expired"
+  },
+  "filter": {
+    "active": "Active",
+    "closed": "Closed",
+    "all": "All"
+  }
+}

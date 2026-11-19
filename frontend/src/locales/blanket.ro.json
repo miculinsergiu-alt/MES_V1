@@ -1,0 +1,32 @@
+{
+  "error": "Acțiunea a eșuat",
+  "customer": "Client",
+  "reference": "Nr. contract client",
+  "valid_from": "Valabil de la",
+  "valid_to": "Valabil până la",
+  "item": "Articol",
+  "quantity": "Cantitate",
+  "price": "Preț",
+  "create": "Creează comanda-cadru",
+  "called": "Livrat",
+  "remaining": "Rămas",
+  "call_off": "Abruf",
+  "delivery_date": "Termen livrare",
+  "called_off": "Abruful a fost creat ca confirmare de comandă",
+  "calloffs": "Abrufuri",
+  "draft": "Ciornă",
+  "new": "Comandă-cadru nouă",
+  "intro": "Contracte-cadru cu cantitate totală și preț fix pe o perioadă. Fiecare abruf devine o confirmare de comandă la prețul convenit; dacă ștergi ciorna, cantitatea se eliberează.",
+  "empty": "Nicio comandă-cadru.",
+  "status": {
+    "active": "Activă",
+    "closed": "Livrată complet",
+    "cancelled": "Anulată",
+    "expired": "Expirată"
+  },
+  "filter": {
+    "active": "Active",
+    "closed": "Închise",
+    "all": "Toate"
+  }
+}
