@@ -7,7 +7,7 @@
  */
 const { Server } = require('socket.io');
 const config = require('../config');
-const { verifyToken } = require('../middleware/auth');
+const { verifyToken, COOKIE_NAME } = require('../middleware/auth');
 const db = require('../db');
 
 let io;
@@ -21,7 +21,10 @@ function initSocket(server) {
 
   io.use((socket, next) => {
     try {
-      const token = socket.handshake.auth?.token;
+      // Browser: the httpOnly session cookie; other clients: auth.token.
+      const cookie = (socket.handshake.headers.cookie || '').split(';').map((s) => s.trim())
+        .find((s) => s.startsWith(`${COOKIE_NAME}=`));
+      const token = socket.handshake.auth?.token || (cookie ? decodeURIComponent(cookie.slice(COOKIE_NAME.length + 1)) : null);
       if (!token) return next(new Error('unauthorized'));
       socket.data.user = verifyToken(token);
       return next();

@@ -1,0 +1,48 @@
+{
+  "forgot_link": "Passwort vergessen?",
+  "back_to_login": "Zurück zur Anmeldung",
+  "totp_label": "Bestätigungscode",
+  "totp_hint": "Geben Sie den 6-stelligen Code aus Ihrer Authenticator-App ein.",
+  "forgot": {
+    "title": "Passwort zurücksetzen",
+    "text": "Geben Sie Ihren Firmencode und die E-Mail-Adresse Ihres Benutzers ein. Wenn die Angaben passen, senden wir Ihnen einen Link für ein neues Passwort.",
+    "email": "E-Mail-Adresse",
+    "button": "Link senden",
+    "sent": "Wenn die Angaben zu einem Benutzer passen, ist ein Link unterwegs. Er ist 1 Stunde gültig."
+  },
+  "reset": {
+    "title": "Neues Passwort festlegen",
+    "password": "Neues Passwort (mindestens 10 Zeichen)",
+    "confirm": "Neues Passwort wiederholen",
+    "mismatch": "Die Passwörter stimmen nicht überein",
+    "button": "Passwort speichern",
+    "done": "Passwort geändert. Bitte melden Sie sich an."
+  },
+  "verify": {
+    "title": "E-Mail-Adresse bestätigen",
+    "working": "Wird bestätigt …",
+    "done": "Ihre E-Mail-Adresse ist bestätigt. Sie können sich jetzt anmelden.",
+    "failed": "Dieser Link ist ungültig oder abgelaufen.",
+    "check_inbox": "Fast geschafft: Wir haben Ihnen einen Bestätigungslink per E-Mail gesendet. Ihr Firmencode ist {{code}}, Ihr Benutzer ist {{badge}}."
+  },
+  "security": {
+    "title": "Mein Konto",
+    "subtitle": "Passwort und Zwei-Faktor-Anmeldung",
+    "change_password": "Passwort ändern",
+    "current_password": "Aktuelles Passwort",
+    "new_password": "Neues Passwort (mindestens 10 Zeichen)",
+    "save": "Speichern",
+    "password_changed": "Passwort geändert. Andere Geräte wurden abgemeldet.",
+    "twofa": "Zwei-Faktor-Anmeldung",
+    "twofa_on": "Aktiv: Bei der Anmeldung ist zusätzlich ein Code aus Ihrer Authenticator-App nötig.",
+    "twofa_off": "Aus. Für Administratoren empfohlen.",
+    "twofa_start": "Einschalten",
+    "twofa_scan": "Scannen Sie den QR-Code mit einer Authenticator-App (Google Authenticator, Microsoft Authenticator, 1Password …) oder geben Sie den Schlüssel von Hand ein:",
+    "twofa_confirm": "Geben Sie zum Abschluss den Code aus der App ein:",
+    "twofa_enable": "Aktivieren",
+    "twofa_enabled": "Zwei-Faktor-Anmeldung ist aktiv",
+    "twofa_disable": "Ausschalten",
+    "twofa_disable_password": "Ihr Passwort, zum Ausschalten",
+    "twofa_disabled": "Zwei-Faktor-Anmeldung ist aus"
+  }
+}

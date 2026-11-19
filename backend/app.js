@@ -15,9 +15,29 @@ const app = express();
 app.disable('x-powered-by');
 app.set('trust proxy', config.trustProxy);
 
-// Security headers. The content security policy is left off for now because
-// the frontend loads inline styles/fonts; revisit when the UI is consolidated.
-app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
+// Security headers incl. a content security policy: scripts only from this
+// server, no inline scripts, no framing. Inline styles stay allowed (React
+// style props); fonts may come from Google Fonts.
+app.use(helmet({
+  contentSecurityPolicy: {
+    useDefaults: false,
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+      fontSrc: ["'self'", 'data:', 'https://fonts.gstatic.com'],
+      imgSrc: ["'self'", 'data:', 'blob:'],
+      connectSrc: ["'self'", 'ws:', 'wss:'],
+      frameSrc: ["'self'", 'blob:'],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+      formAction: ["'self'"],
+      frameAncestors: ["'none'"],
+    },
+  },
+  crossOriginEmbedderPolicy: false,
+}));
+app.use(require('cookie-parser')());
 if (config.corsOrigins.length) app.use(cors({ origin: config.corsOrigins, credentials: true }));
 // Uploaded e-invoices are sent as base64 JSON and may be larger.
 app.use('/api/purchase-invoices', express.json({ limit: '21mb' }));

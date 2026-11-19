@@ -1,24 +1,26 @@
 import axios from 'axios';
 
+// The login session lives in an httpOnly cookie set by the server, so page
+// scripts never see the token. The custom header marks requests as coming
+// from this app (the server refuses cookie-authenticated changes without it).
 const api = axios.create({
   baseURL: '/api',
-  headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
+  headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'NOVA' },
 });
 
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('sf_token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
+// Tokens kept by older versions in localStorage are no longer used.
+try { localStorage.removeItem('sf_token'); } catch { /* storage unavailable */ }
+
+const PUBLIC_AUTH_CALLS = ['/auth/login', '/auth/signup', '/auth/forgot-password', '/auth/reset-password', '/auth/verify-email'];
 
 api.interceptors.response.use(
   (res) => res,
   (err) => {
     // 401 = not logged in / session expired -> back to login.
     // 403 = logged in but not allowed (role) -> let the screen show the error.
-    const isLoginCall = err.config?.url?.includes('/auth/login');
-    if (err.response?.status === 401 && !isLoginCall) {
-      localStorage.removeItem('sf_token');
+    const url = err.config?.url || '';
+    if (err.response?.status === 401 && !PUBLIC_AUTH_CALLS.some((p) => url.includes(p))) {
       localStorage.removeItem('sf_user');
       if (window.location.pathname !== '/login') window.location.href = '/login';
     }

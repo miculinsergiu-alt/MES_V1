@@ -83,7 +83,7 @@ router.put('/:id', requireRole('administrator'), h(async (req, res) => {
   }
   const hash = b.password ? await bcrypt.hash(b.password, 10) : user.password_hash;
   await db.run(
-    'UPDATE users SET first_name=?, last_name=?, email=?, role=?, roles=?, active=?, password_hash=? WHERE id=?',
+    `UPDATE users SET first_name=?, last_name=?, email=?, role=?, roles=?, active=?, password_hash=?${b.password ? ', token_version = token_version + 1' : ''} WHERE id=?`,
     [b.first_name ?? user.first_name, b.last_name ?? user.last_name, b.email !== undefined ? b.email : user.email,
       next.role, next.roles, b.active ?? user.active, hash, id],
   );

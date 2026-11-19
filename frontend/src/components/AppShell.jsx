@@ -2,7 +2,7 @@ import { hasAnyRole, rolesOf } from '../lib/roles';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { LogOut, Menu, Search, X } from 'lucide-react';
+import { LogOut, Menu, Search, UserCog, X } from 'lucide-react';
 import api from '../api/axios';
 import { useAuth } from '../contexts/AuthContext';
 import { navFor, rolesFor, homeFor } from '../navigation';
@@ -158,6 +158,9 @@ export default function AppShell() {
         </div>
         <LanguageSwitcher />
       </div>
+      <button type="button" onClick={() => navigate('/account')} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground">
+        <UserCog size={16} /> {t('account.security.title')}
+      </button>
       <button type="button" onClick={handleLogout} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground">
         <LogOut size={16} /> {t('shell.logout')}
       </button>

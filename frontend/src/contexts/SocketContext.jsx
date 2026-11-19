@@ -13,13 +13,13 @@ export const SocketProvider = ({ children }) => {
 
   useEffect(() => {
     // Real-time updates need a login: the server only sends events of the user's own company.
-    const token = localStorage.getItem('sf_token');
-    if (!user || !token) {
+    if (!user) {
       setSocket(null);
       return undefined;
     }
 
-    const newSocket = io({ auth: { token } });
+    // The browser sends the httpOnly session cookie with the handshake.
+    const newSocket = io({ withCredentials: true });
 
     newSocket.on('order:completed', (data) => {
       toast.success(`Order #${data.order_id} completed`, { duration: 5000 });

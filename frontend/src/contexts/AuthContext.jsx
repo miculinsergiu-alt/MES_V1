@@ -3,8 +3,9 @@ import api from '../api/axios';
 
 const AuthContext = createContext(null);
 
+// Only the user's display data is kept in the browser; the session token stays
+// in the httpOnly cookie.
 function store(session) {
-  localStorage.setItem('sf_token', session.token);
   localStorage.setItem('sf_user', JSON.stringify(session.user));
   try { localStorage.setItem('sf_company', session.user.company_code); } catch { /* storage unavailable */ }
 }
@@ -14,8 +15,8 @@ export function AuthProvider({ children }) {
     try { return JSON.parse(localStorage.getItem('sf_user')); } catch { return null; }
   });
 
-  const login = async (company_code, badge_number, password) => {
-    const res = await api.post('/auth/login', { company_code, badge_number, password });
+  const login = async (company_code, badge_number, password, totp_code) => {
+    const res = await api.post('/auth/login', { company_code, badge_number, password, totp_code: totp_code || undefined });
     store(res.data);
     setUser(res.data.user);
     return res.data.user;
@@ -24,6 +25,8 @@ export function AuthProvider({ children }) {
   /** After self-service registration the new administrator is logged in directly. */
   const signup = async (data) => {
     const res = await api.post('/auth/signup', data);
+    // With e-mail verification on, the account must be confirmed before the first login.
+    if (res.data.verification_required) return res.data;
     store(res.data);
     setUser(res.data.user);
     return res.data.user;
@@ -56,7 +59,7 @@ export function AuthProvider({ children }) {
   }, [loggedIn]);
 
   const logout = () => {
-    localStorage.removeItem('sf_token');
+    api.post('/auth/logout').catch(() => { /* cookie expires anyway */ });
     localStorage.removeItem('sf_user');
     setUser(null);
   };

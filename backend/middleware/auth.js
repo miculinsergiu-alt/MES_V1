@@ -20,6 +20,9 @@ function isOnlyOperator(user) {
   return r.length > 0 && r.every((x) => x === 'operator');
 }
 
+const COOKIE_NAME = 'nova_session';
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
 function signToken(user, company) {
   return jwt.sign(
     {
@@ -32,6 +35,7 @@ function signToken(user, company) {
       roles: rolesOf(user),
       first_name: user.first_name,
       last_name: user.last_name,
+      tv: user.token_version || 0,
     },
     config.jwtSecret,
     { expiresIn: config.jwtExpiresIn },
@@ -51,8 +55,14 @@ function verifyToken(token) {
  */
 async function authenticateToken(req, res, next) {
   const header = req.headers.authorization || '';
-  const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+  const bearer = header.startsWith('Bearer ') ? header.slice(7) : null;
+  const token = bearer || req.cookies?.[COOKIE_NAME] || null;
   if (!token) return next(unauthorized('Missing token'));
+  // Cookie sessions: state-changing requests must carry the custom header that
+  // only our own frontend sends (protection against cross-site request forgery).
+  if (!bearer && !SAFE_METHODS.has(req.method) && req.headers['x-requested-with'] !== 'NOVA') {
+    return next(forbidden('Missing request header'));
+  }
   let decoded;
   try {
     decoded = verifyToken(token);
@@ -62,8 +72,10 @@ async function authenticateToken(req, res, next) {
   try {
     const db = require('../db');
     const current = await db.withContext({ companyId: decoded.company_id, userId: decoded.id, timezone: decoded.timezone },
-      () => db.get('SELECT role, roles FROM users WHERE id = ? AND active = 1', [decoded.id]));
+      () => db.get('SELECT role, roles, token_version FROM users WHERE id = ? AND active = 1', [decoded.id]));
     if (!current) return next(unauthorized('User no longer active'));
+    // A password change, reset or "log out everywhere" invalidates older tokens.
+    if ((decoded.tv || 0) !== (current.token_version || 0)) return next(unauthorized('Session expired, please log in again'));
     req.user = { ...decoded, role: current.role, roles: rolesOf(current) };
     return next();
   } catch (err) {
@@ -79,4 +91,4 @@ function requireRole(...roles) {
   };
 }
 
-module.exports = { authenticateToken, requireRole, signToken, verifyToken, rolesOf, hasRole, isOnlyOperator, ROLES };
+module.exports = { COOKIE_NAME, authenticateToken, requireRole, signToken, verifyToken, rolesOf, hasRole, isOnlyOperator, ROLES };

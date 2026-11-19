@@ -1,0 +1,48 @@
+{
+  "forgot_link": "Forgot password?",
+  "back_to_login": "Back to login",
+  "totp_label": "Authentication code",
+  "totp_hint": "Enter the 6-digit code from your authenticator app.",
+  "forgot": {
+    "title": "Reset password",
+    "text": "Enter your company code and the e-mail address of your user. If they match, we send you a link to set a new password.",
+    "email": "E-mail address",
+    "button": "Send link",
+    "sent": "If the details match a user, a link is on its way. It is valid for 1 hour."
+  },
+  "reset": {
+    "title": "Set a new password",
+    "password": "New password (at least 10 characters)",
+    "confirm": "Repeat new password",
+    "mismatch": "The passwords do not match",
+    "button": "Save password",
+    "done": "Password changed. Please log in."
+  },
+  "verify": {
+    "title": "Confirm e-mail address",
+    "working": "Confirming…",
+    "done": "Your e-mail address is confirmed. You can log in now.",
+    "failed": "This link is invalid or has expired.",
+    "check_inbox": "Almost done: we sent a confirmation link to your e-mail address. Your company code is {{code}}, your user is {{badge}}."
+  },
+  "security": {
+    "title": "My account",
+    "subtitle": "Password and two-factor login",
+    "change_password": "Change password",
+    "current_password": "Current password",
+    "new_password": "New password (at least 10 characters)",
+    "save": "Save",
+    "password_changed": "Password changed. Other devices were logged out.",
+    "twofa": "Two-factor login",
+    "twofa_on": "On: logging in also needs a code from your authenticator app.",
+    "twofa_off": "Off. Recommended for administrators.",
+    "twofa_start": "Turn on",
+    "twofa_scan": "Scan the QR code with an authenticator app (Google Authenticator, Microsoft Authenticator, 1Password…) or enter the key by hand:",
+    "twofa_confirm": "Enter the code shown in the app to finish:",
+    "twofa_enable": "Activate",
+    "twofa_enabled": "Two-factor login is on",
+    "twofa_disable": "Turn off",
+    "twofa_disable_password": "Your password, to turn it off",
+    "twofa_disabled": "Two-factor login is off"
+  }
+}

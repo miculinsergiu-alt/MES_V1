@@ -47,12 +47,18 @@ export default function SignupPage() {
         {created ? (
           <>
             <h1 className="font-display text-2xl">{t('onboarding.signup.done_title')}</h1>
-            <p className="text-sm text-muted-foreground">{t('onboarding.signup.done_text')}</p>
+            <p className="text-sm text-muted-foreground">
+              {created.verification_required
+                ? t('account.verify.check_inbox', { code: created.company_code, badge: created.badge_number })
+                : t('onboarding.signup.done_text')}
+            </p>
             <dl className="grid grid-cols-2 gap-2 rounded-xl bg-muted/50 p-4 font-mono text-sm">
               <dt className="font-sans text-muted-foreground">{t('login.company')}</dt><dd className="font-bold">{created.company_code}</dd>
               <dt className="font-sans text-muted-foreground">{t('login.badge')}</dt><dd className="font-bold">{created.badge_number}</dd>
             </dl>
-            <Button className="w-full" onClick={() => navigate('/setup')}>{t('onboarding.signup.continue')}</Button>
+            {created.verification_required
+              ? <Button className="w-full" onClick={() => navigate('/login')}>{t('account.back_to_login')}</Button>
+              : <Button className="w-full" onClick={() => navigate('/setup')}>{t('onboarding.signup.continue')}</Button>}
           </>
         ) : (
           <>

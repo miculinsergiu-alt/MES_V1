@@ -1,0 +1,48 @@
+{
+  "forgot_link": "Ai uitat parola?",
+  "back_to_login": "Înapoi la autentificare",
+  "totp_label": "Cod de autentificare",
+  "totp_hint": "Introdu codul de 6 cifre din aplicația de autentificare.",
+  "forgot": {
+    "title": "Resetare parolă",
+    "text": "Introdu codul firmei și adresa de e-mail a utilizatorului tău. Dacă se potrivesc, îți trimitem un link pentru o parolă nouă.",
+    "email": "Adresă de e-mail",
+    "button": "Trimite link",
+    "sent": "Dacă datele se potrivesc unui utilizator, linkul e pe drum. E valabil 1 oră."
+  },
+  "reset": {
+    "title": "Setează o parolă nouă",
+    "password": "Parolă nouă (minim 10 caractere)",
+    "confirm": "Repetă parola nouă",
+    "mismatch": "Parolele nu se potrivesc",
+    "button": "Salvează parola",
+    "done": "Parola a fost schimbată. Te rugăm să te autentifici."
+  },
+  "verify": {
+    "title": "Confirmare adresă de e-mail",
+    "working": "Se confirmă…",
+    "done": "Adresa de e-mail e confirmată. Te poți autentifica acum.",
+    "failed": "Linkul nu e valid sau a expirat.",
+    "check_inbox": "Aproape gata: ți-am trimis un link de confirmare pe e-mail. Codul firmei este {{code}}, utilizatorul tău este {{badge}}."
+  },
+  "security": {
+    "title": "Contul meu",
+    "subtitle": "Parolă și autentificare în doi pași",
+    "change_password": "Schimbă parola",
+    "current_password": "Parola actuală",
+    "new_password": "Parolă nouă (minim 10 caractere)",
+    "save": "Salvează",
+    "password_changed": "Parola a fost schimbată. Celelalte dispozitive au fost deconectate.",
+    "twofa": "Autentificare în doi pași",
+    "twofa_on": "Activă: la autentificare e nevoie și de un cod din aplicația de autentificare.",
+    "twofa_off": "Oprită. Recomandată pentru administratori.",
+    "twofa_start": "Activează",
+    "twofa_scan": "Scanează codul QR cu o aplicație de autentificare (Google Authenticator, Microsoft Authenticator, 1Password…) sau introdu cheia manual:",
+    "twofa_confirm": "Pentru a termina, introdu codul afișat în aplicație:",
+    "twofa_enable": "Activează",
+    "twofa_enabled": "Autentificarea în doi pași e activă",
+    "twofa_disable": "Dezactivează",
+    "twofa_disable_password": "Parola ta, pentru dezactivare",
+    "twofa_disabled": "Autentificarea în doi pași e oprită"
+  }
+}

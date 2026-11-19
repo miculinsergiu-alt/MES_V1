@@ -47,5 +47,22 @@ module.exports = {
   signupEnabled: process.env.SIGNUP_ENABLED ? process.env.SIGNUP_ENABLED === 'true' : !isProduction,
   // Optional: registration only with this invitation code (e.g. for a closed beta).
   signupInviteCode: process.env.SIGNUP_INVITE_CODE || null,
-  trustProxy: process.env.TRUST_PROXY ? Number(process.env.TRUST_PROXY) || process.env.TRUST_PROXY : (isProduction ? 1 : false),
+  // Public address of the app, used in links sent by e-mail (password reset, verification).
+  appUrl: (process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || 'http://localhost:5173').replace(/\/$/, ''),
+  // Outgoing e-mail. Without SMTP_HOST, messages are only written to the log.
+  smtp: {
+    host: process.env.SMTP_HOST || null,
+    port: Number(process.env.SMTP_PORT || 587),
+    user: process.env.SMTP_USER || null,
+    pass: process.env.SMTP_PASS || null,
+    from: process.env.SMTP_FROM || 'NOVA <no-reply@localhost>',
+  },
+  // New registrations must confirm their e-mail before logging in. On by default
+  // once SMTP is configured (without SMTP nobody could receive the link).
+  requireEmailVerification: process.env.REQUIRE_EMAIL_VERIFICATION
+    ? process.env.REQUIRE_EMAIL_VERIFICATION === 'true'
+    : !!process.env.SMTP_HOST,
+  // Cookie flag: Secure in production (HTTPS only).
+  cookieSecure: process.env.COOKIE_SECURE ? process.env.COOKIE_SECURE === 'true' : isProduction,
+  trustProxy:process.env.TRUST_PROXY ? Number(process.env.TRUST_PROXY) || process.env.TRUST_PROXY : (isProduction ? 1 : false),
 };

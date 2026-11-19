@@ -40,6 +40,9 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [signupOpen, setSignupOpen] = useState(false);
+  // Second step for users with two-factor login.
+  const [needsTotp, setNeedsTotp] = useState(false);
+  const [totpCode, setTotpCode] = useState('');
 
   useEffect(() => {
     api.get('/auth/signup-config').then((r) => setSignupOpen(!!r.data.enabled)).catch(() => {});
@@ -51,11 +54,12 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const companyCode = company.trim().toUpperCase();
-      const user = await login(companyCode, badge.trim().toUpperCase(), password);
+      const user = await login(companyCode, badge.trim().toUpperCase(), password, needsTotp ? totpCode : undefined);
       try { localStorage.setItem(COMPANY_KEY, companyCode); } catch { /* storage unavailable */ }
       toast.success(t('login.welcome', { name: user.first_name }));
       navigate(homeFor(user));
     } catch (err) {
+      if (err.response?.data?.code === 'TOTP_REQUIRED') { setNeedsTotp(true); return; }
       toast.error(err.response?.data?.error || t('login.auth_error'));
     } finally {
       setLoading(false);
@@ -141,6 +145,24 @@ export default function LoginPage() {
                 </div>
               </div>
 
+              {needsTotp && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground/80 ml-1" htmlFor="totp-input">{t('account.totp_label')}</label>
+                  <Input
+                    id="totp-input"
+                    className="text-center font-mono text-xl tracking-[0.5em]"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={6}
+                    placeholder="000000"
+                    value={totpCode}
+                    onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, ''))}
+                    autoFocus
+                  />
+                  <p className="text-xs text-muted-foreground ml-1">{t('account.totp_hint')}</p>
+                </div>
+              )}
+
               <Button type="submit" className="w-full group h-14" disabled={loading}>
                 {loading ? (
                   <Loader className="animate-spin mr-2" size={20} />
@@ -152,6 +174,10 @@ export default function LoginPage() {
                 )}
               </Button>
             </form>
+
+            <p className="mt-4 text-center text-sm">
+              <Link to="/forgot-password" className="text-muted-foreground hover:text-accent hover:underline">{t('account.forgot_link')}</Link>
+            </p>
 
             {signupOpen && (
               <p className="mt-6 text-center text-sm">

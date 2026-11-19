@@ -26,6 +26,8 @@ import HomePage from './pages/HomePage';
 import ImportPage from './pages/ImportPage';
 import SignupPage from './pages/SignupPage';
 import SetupWizard from './pages/SetupWizard';
+import { ForgotPasswordPage, ResetPasswordPage, VerifyEmailPage } from './pages/AccountPages';
+import AccountSecurityPage from './pages/AccountSecurityPage';
 import './index.css';
 import TracePage from './pages/ops/TracePage';
 import CostingPage from './pages/ops/CostingPage';
@@ -52,10 +54,16 @@ export default function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
             <Route path="/setup" element={<SetupWizard />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/verify-email" element={<VerifyEmailPage />} />
             <Route path="/" element={<RootRedirect />} />
 
             {/* Everything after login lives in one shell; access is checked there (navigation.js). */}
             <Route element={<AppShell />}>
+              {/* Own account (every role) */}
+              <Route path="/account" element={<AccountSecurityPage />} />
+
               {/* Production */}
               <Route path="/admin/*" element={<AdminDashboard />} />
               <Route path="/planner/items" element={<ItemsManager />} />
