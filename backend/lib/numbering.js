@@ -17,6 +17,7 @@ const DEFAULTS = {
   dunning: { prefix: 'MA', yearly_reset: 1, digits: 5 },      // Mahnung
   purchase_order: { prefix: 'BE', yearly_reset: 1, digits: 5 }, // Bestellung
   subcontract_delivery: { prefix: 'LL', yearly_reset: 1, digits: 5 }, // Lieferschein Lohnbearbeitung
+  complaint: { prefix: 'QM', yearly_reset: 1, digits: 4 }, // Reklamation (RK is taken by credit notes)
   customer: { prefix: '', yearly_reset: 0, digits: 5, start: 10001 }, // usable as DATEV debtor account
 };
 
