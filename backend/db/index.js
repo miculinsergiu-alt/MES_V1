@@ -238,6 +238,37 @@ function currentContext() {
   return als.getStore()?.ctx || null;
 }
 
+/**
+ * Runs fn in one transaction on the database OWNER connection (not the app
+ * role), in system context. Only for maintenance scripts such as restoring a
+ * backup, which must temporarily switch off triggers. Never use in requests.
+ */
+async function withOwnerTransaction(fn) {
+  if (!driver) throw new Error('Database not initialised. Call initDb() first.');
+  return driver.admin(async (conn) => {
+    const pglite = driver.kind === 'pglite';
+    if (pglite) await conn.exec('RESET ROLE'); // PGlite shares one connection with the app role
+    try {
+      await conn.query('BEGIN');
+      await conn.query("SELECT set_config('app.system', 'on', true), set_config('app.company_id', '', true), set_config('app.user_id', '', true)");
+      const state = { conn, ctx: { system: true }, afterCommit: [] };
+      try {
+        const result = await als.run(state, fn);
+        await conn.query('COMMIT');
+        return result;
+      } catch (err) {
+        await conn.query('ROLLBACK').catch(() => {});
+        throw err;
+      }
+    } finally {
+      if (pglite) {
+        const { rows } = await conn.query(`SELECT 1 FROM pg_roles WHERE rolname = '${APP_ROLE}'`);
+        if (rows.length) await conn.exec(`SET ROLE ${APP_ROLE}`);
+      }
+    }
+  });
+}
+
 /** Converts `?` placeholders to PostgreSQL `$1, $2, ...`. */
 function toPg(sql) {
   let i = 0;
@@ -271,6 +302,7 @@ module.exports = {
   initDb,
   closeDb,
   withContext,
+  withOwnerTransaction,
   rollbackWith,
   afterCommit,
   currentContext,

@@ -5,13 +5,13 @@
  *
  *   node scripts/export-company.js --code ACME [--out acme-2026-11-13.json]
  *
- * Password hashes are never exported.
+ * Password hashes, two-factor secrets and login-link hashes are never exported.
  */
 const { parseArgs } = require('node:util');
 const fs = require('node:fs');
 const db = require('../db');
 
-const EXCLUDED_COLUMNS = { users: ['password_hash'] };
+const EXCLUDED_COLUMNS = { users: ['password_hash', 'totp_secret'], auth_tokens: ['token_hash'] };
 
 async function main() {
   const { values } = parseArgs({ options: { code: { type: 'string' }, out: { type: 'string' } } });

@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [main, 'fixes-**', 'hardening-**']
+  pull_request:
+  schedule:
+    - cron: '0 4 * * 1' # Mondays: re-check e-invoices against the latest official validators
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api-tests:
+    name: API tests (backend)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm test
+
+  e2e:
+    name: Browser test (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+        env: { CI: 'true' }
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with: { name: playwright-report, path: playwright-report, retention-days: 7 }
+
+  einvoices:
+    name: E-invoices (KoSIT / XRechnung, Mustang / ZUGFeRD)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      NOVA_TOOLS: ${{ github.workspace }}/.nova-tools
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '21' }
+      - run: npm ci
+      - name: Download official validators
+        run: bash .github/scripts/fetch-einvoice-validators.sh
+      - name: Generate and validate e-invoices for every tax case
+        working-directory: backend
+        run: |
+          node --test tests/einvoice-official.test.js 2>&1 | tee einvoice.log
+          # The test skips itself when the tools are missing: fail instead of passing silently.
+          if grep -q '^# skipped [1-9]' einvoice.log; then echo 'Validators not found: test was skipped'; exit 1; fi

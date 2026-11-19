@@ -12,7 +12,9 @@
     "create-company": "node scripts/create-company.js",
     "import:sqlite": "node scripts/import-sqlite.js",
     "export-company": "node scripts/export-company.js",
-    "validate:einvoices": "node scripts/validate-einvoices.js"
+    "validate:einvoices": "node scripts/validate-einvoices.js",
+    "backup": "node scripts/backup.js",
+    "restore-backup": "node scripts/restore-backup.js"
   },
   "keywords": [],
   "author": "",
