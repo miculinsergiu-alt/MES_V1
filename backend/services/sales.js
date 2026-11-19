@@ -88,6 +88,7 @@ async function prepareLines(lines, treatment) {
       tax_rate: tax.tax_rate,
       tax_category: tax.tax_category,
       source_line_id: l.source_line_id ?? null,
+      calculation_id: l.calculation_id ?? null,
     });
   }
   const totals = money.computeTotals(prepared);
@@ -101,10 +102,10 @@ async function writeLines(documentId, lines) {
     await db.run(`
       INSERT INTO sales_document_lines
         (document_id, position, item_id, item_code, description, quantity, unit, unit_price, discount_percent,
-         tax_rate, tax_category, line_net, source_line_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         tax_rate, tax_category, line_net, source_line_id, calculation_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [documentId, l.position, l.item_id, l.item_code, l.description, l.quantity, l.unit, l.unit_price,
-      l.discount_percent, l.tax_rate, l.tax_category, l.line_net, l.source_line_id]);
+      l.discount_percent, l.tax_rate, l.tax_category, l.line_net, l.source_line_id, l.calculation_id ?? null]);
   }
 }
 
@@ -238,7 +239,7 @@ async function convert(sourceId, targetType, userId) {
     intro_text: targetType === 'credit_note' ? `Korrektur zu Rechnung ${src.number} vom ${formatDateDE(src.document_date)}.` : null,
     lines: lines.map((l) => ({
       item_id: l.item_id, description: l.description, quantity: l.quantity, unit: l.unit,
-      unit_price: l.unit_price, discount_percent: l.discount_percent, tax_rate: l.tax_rate, source_line_id: l.id,
+      unit_price: l.unit_price, discount_percent: l.discount_percent, tax_rate: l.tax_rate, source_line_id: l.id, calculation_id: l.calculation_id,
     })),
   };
   const draft = await saveDraft(null, input, userId);

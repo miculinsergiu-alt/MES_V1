@@ -11,6 +11,7 @@ test('quote to invoice to DATEV, through the browser session', async ({ page }) 
   const problems = [];
   page.on('console', (m) => { if (m.type() === 'error') problems.push(m.text()); });
   page.on('pageerror', (e) => problems.push(e.message));
+  page.on('response', (r) => { if (r.status() === 400 || r.status() >= 500) problems.push(`${r.status()} ${r.request().method()} ${r.url()}`); });
 
   // Login through the form
   await page.goto('/login');

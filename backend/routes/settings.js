@@ -16,7 +16,7 @@ const COMPANY_FIELDS = [
   'bank_name', 'iban', 'bic', 'logo_data_url', 'default_payment_terms_days', 'default_skonto_days',
   'default_skonto_percent', 'small_business', 'invoice_footer_text', 'datev_consultant_number',
   'datev_client_number', 'datev_chart', 'dunning_fee', 'dunning_grace_days', 'timezone',
-  'negative_stock', 'labor_rate',
+  'negative_stock', 'labor_rate', 'calc_material_surcharge', 'calc_overhead', 'calc_margin',
 ];
 
 /** IBAN check digits (ISO 13616, mod 97). */
@@ -67,6 +67,9 @@ const settingsSchema = v.z.object({
   dunning_grace_days: v.z.coerce.number().int().min(0).max(90).optional(),
   negative_stock: v.z.enum(['allow', 'warn', 'block']).optional(),
   labor_rate: v.z.coerce.number().min(0).max(10000).optional(),
+  calc_material_surcharge: v.z.coerce.number().min(0).max(500).optional(),
+  calc_overhead: v.z.coerce.number().min(0).max(500).optional(),
+  calc_margin: v.z.coerce.number().min(0).max(500).optional(),
   timezone: v.z.string().refine((tz) => { try { new Intl.DateTimeFormat('en', { timeZone: tz }); return true; } catch { return false; } }, 'Unknown time zone').optional(),
 });
 

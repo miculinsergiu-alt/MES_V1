@@ -23,6 +23,10 @@ export default function DocumentsList() {
   const [search, setSearch] = useState('');
   const [docs, setDocs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState(null);
+  useEffect(() => {
+    if (type === 'quote') api.get('/quote-calc/stats').then((r) => setStats(r.data)).catch(() => setStats(null));
+  }, [type]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -75,6 +79,10 @@ export default function DocumentsList() {
           <Input className="h-10 pl-9" placeholder={t('sales.fields.search')} value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
       </div>
+
+      {type === 'quote' && stats && stats.win_rate !== null && (
+        <p className="mb-3 text-sm text-muted-foreground">{t('calc.stats', { rate: stats.win_rate, won: stats.won, lost: stats.lost, open: stats.open })}</p>
+      )}
 
       <div className="table-container overflow-x-auto">
         <table>

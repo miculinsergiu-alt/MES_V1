@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Plus, Trash2, FileText, Save, Send, ShieldCheck, Download, ArrowRight, X } from 'lucide-react';
+import { Plus, Trash2, FileText, Save, Send, ShieldCheck, Download, ArrowRight, X, Calculator } from 'lucide-react';
+import CalcDialog from '../../components/CalcDialog';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import { Button } from '../../components/ui/Button';
@@ -11,6 +12,47 @@ import { useAuth } from '../../contexts/AuthContext';
 import { eur, num, dateDE, todayISO, apiError, openFile, downloadFile, showStockWarnings } from '../../lib/format';
 import { StatusPill } from './components';
 import { EDIT_ROLES, ACCOUNTING_ROLES, hasAnyRole } from '../../lib/roles';
+
+const LOSS_REASONS = ['price', 'delivery_time', 'quality', 'no_demand', 'competitor', 'other'];
+
+/** Won / lost (with reason and competitor) for an issued quote — feeds the win rate. */
+function QuoteOutcome({ documentId, t }) {
+  const [o, setO] = useState({ outcome: '', reason: 'price', competitor: '', competitor_price: '' });
+  useEffect(() => {
+    api.get(`/quote-calc/outcome/${documentId}`).then((r) => r.data && setO({ ...r.data, competitor: r.data.competitor || '', competitor_price: r.data.competitor_price ?? '', reason: r.data.reason || 'price' })).catch(() => {});
+  }, [documentId]);
+  const save = async (outcome) => {
+    try {
+      const body = { outcome, ...(outcome === 'lost' ? { reason: o.reason, competitor: o.competitor || undefined, competitor_price: o.competitor_price === '' ? undefined : o.competitor_price } : {}) };
+      const r = await api.post(`/quote-calc/outcome/${documentId}`, body);
+      setO((x) => ({ ...x, outcome: r.data.outcome }));
+      toast.success(t('calc.outcome.saved'));
+    } catch (err) { toast.error(apiError(err, t('sales.messages.error'))); }
+  };
+  const cls = 'h-9 rounded-lg border border-border bg-white px-2 text-sm';
+  return (
+    <Card className="mt-6 space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h3 className="font-semibold">{t('calc.outcome.title')}</h3>
+        <div className="flex gap-2">
+          <Button size="sm" variant={o.outcome === 'won' ? 'primary' : 'secondary'} onClick={() => save('won')}>{t('calc.outcome.won')}</Button>
+          <Button size="sm" variant={o.outcome === 'lost' ? 'primary' : 'secondary'} onClick={() => setO({ ...o, outcome: 'lost_pending' })}>{t('calc.outcome.lost')}</Button>
+        </div>
+      </div>
+      {(o.outcome === 'lost' || o.outcome === 'lost_pending') && (
+        <div className="flex flex-wrap items-end gap-2 text-sm">
+          <label>{t('calc.outcome.reason')}<br />
+            <select className={cls} value={o.reason} onChange={(e) => setO({ ...o, reason: e.target.value })}>
+              {LOSS_REASONS.map((r) => <option key={r} value={r}>{t(`calc.outcome.reasons.${r}`)}</option>)}
+            </select></label>
+          <label>{t('calc.outcome.competitor')}<br /><input className={cls} value={o.competitor} onChange={(e) => setO({ ...o, competitor: e.target.value })} /></label>
+          <label>{t('calc.outcome.competitor_price')}<br /><input type="number" min="0" step="0.01" className={`${cls} w-32`} value={o.competitor_price} onChange={(e) => setO({ ...o, competitor_price: e.target.value })} /></label>
+          <Button size="sm" onClick={() => save('lost')}>{t('calc.outcome.save')}</Button>
+        </div>
+      )}
+    </Card>
+  );
+}
 
 /** Certificates (EN 10204) of the material in this delivery, as one PDF for the customer. */
 function CertificatePack({ documentId, t }) {
@@ -138,6 +180,7 @@ export default function DocumentEditor() {
   const showPrices = docType !== 'delivery';
 
   const setField = (k, v) => { setForm((f) => ({ ...f, [k]: v })); setDirty(true); };
+  const [calcFor, setCalcFor] = useState(null); // line index with the Vorkalkulation dialog open
   const setLine = (i, patch) => { setLines((ls) => ls.map((l, idx) => (idx === i ? { ...l, ...patch } : l))); setDirty(true); };
   const pickItem = (i, itemId) => {
     const it = items.find((x) => String(x.id) === String(itemId));
@@ -158,6 +201,7 @@ export default function DocumentEditor() {
       unit_price: l.unit_price,
       discount_percent: l.discount_percent || 0,
       tax_rate: l.tax_rate,
+      calculation_id: l.calculation_id || null,
     })),
   });
 
@@ -362,7 +406,12 @@ export default function DocumentEditor() {
                   )}
                   {showPrices && <td className="pt-4 text-right text-sm tabular-nums">{eur(locked ? l.line_net : lineNet)}</td>}
                   {canEdit && (
-                    <td className="pt-2">
+                    <td className="whitespace-nowrap pt-2">
+                      {showPrices && l.item_id && (
+                        <button type="button" title={t('calc.button')} aria-label={t('calc.button')}
+                          className={`rounded p-2 hover:bg-muted ${l.calculation_id ? 'text-accent' : 'text-muted-foreground'}`}
+                          onClick={() => setCalcFor(i)}><Calculator size={14} /></button>
+                      )}
                       <button type="button" aria-label="remove line" className="rounded p-2 text-muted-foreground hover:bg-rose-50 hover:text-rose-600"
                         onClick={() => { setLines((ls) => ls.filter((_, idx) => idx !== i)); setDirty(true); }}><X size={14} /></button>
                     </td>
@@ -405,6 +454,15 @@ export default function DocumentEditor() {
           </Card>
         )}
       </div>
+
+      {calcFor !== null && lines[calcFor]?.item_id && (
+        <CalcDialog itemId={Number(lines[calcFor].item_id)} quantity={lines[calcFor].quantity} customerId={customerId}
+          onClose={() => setCalcFor(null)}
+          onUse={({ calculation_id, quantity, price_per_piece }) => { setLine(calcFor, { calculation_id, quantity, unit_price: price_per_piece }); setCalcFor(null); }} />
+      )}
+
+      {/* Issued quote: won / lost with reason */}
+      {locked && doc.doc_type === 'quote' && <QuoteOutcome documentId={doc.id} t={t} />}
 
       {/* Issued delivery note: material certificate pack */}
       {locked && doc.doc_type === 'delivery' && <CertificatePack documentId={doc.id} t={t} />}

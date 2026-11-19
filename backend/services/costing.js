@@ -126,14 +126,24 @@ async function costOrder(rootId) {
   // Revenue
   let revenuePerPiece = Number(root.sales_price) || 0;
   let salesOrder = null;
+  let quotedCalcId = null;
   if (root.sales_line_id) {
     const line = await db.get(`
-      SELECT sl.line_net, sl.quantity, sd.id, sd.number, sd.customer_name
+      SELECT sl.line_net, sl.quantity, sl.calculation_id, sd.id, sd.number, sd.customer_name
       FROM sales_document_lines sl JOIN sales_documents sd ON sd.id = sl.document_id WHERE sl.id = ?`, [root.sales_line_id]);
     if (line && Number(line.quantity) > 0) {
       revenuePerPiece = Number(line.line_net) / Number(line.quantity);
       salesOrder = { id: line.id, number: line.number, customer_name: line.customer_name };
+      quotedCalcId = line.calculation_id;
     }
+  }
+  // Vorkalkulation the price was based on: the tier for this quantity (or the nearest smaller one).
+  let quoted = null;
+  if (quotedCalcId) {
+    const qc = await db.get('SELECT id, result FROM quote_calculations WHERE id = ?', [quotedCalcId]);
+    const tiers = (qc?.result?.tiers || []).slice().sort((a, b) => a.quantity - b.quantity);
+    const tier = tiers.filter((x) => x.quantity <= root.quantity).pop() || tiers[0];
+    if (tier) quoted = { calculation_id: qc.id, quantity: tier.quantity, cost_per_piece: tier.cost_per_piece, price_per_piece: tier.price_per_piece, cost_total: round2(tier.cost_per_piece * root.quantity) };
   }
 
   // Outside processing (subcontractors): planned = price × quantity (or minimum charge),
@@ -186,7 +196,7 @@ async function costOrder(rootId) {
     planned, actual,
     deviation: round2(actual.total - planned.total),
     times_estimated: stepRows.some((s) => s.estimated),
-    materials, steps: stepRows, external: externalRows,
+    materials, steps: stepRows, external: externalRows, quoted,
   };
 }
 

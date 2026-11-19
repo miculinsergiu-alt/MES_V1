@@ -53,6 +53,13 @@ function CostingDetail({ id }) {
         <Card><div className="text-sm text-muted-foreground">{t('ops.costing.good_scrap')}</div><div className="text-2xl font-bold tabular-nums">{num(c.actual.quantity)} / {num(c.actual.scrap)}</div><div className="text-xs text-muted-foreground">{t('ops.costing.of_planned', { qty: num(c.planned.quantity) })}</div></Card>
       </div>
 
+      {c.quoted && (
+        <p className="rounded-lg border border-border bg-white px-4 py-2 text-sm">
+          {t('calc.quoted')}: {t('calc.price_per_piece')} <b>{eur(c.quoted.price_per_piece)}</b> · {t('calc.cost')} {eur(c.quoted.cost_per_piece)}
+          {' '}→ {t('ops.costing.actual')} {eur(c.actual.per_piece)} <Deviation value={Math.round((c.actual.per_piece - c.quoted.cost_per_piece) * 100) / 100} />
+        </p>
+      )}
+
       <div className="table-container overflow-x-auto">
         <table>
           <thead><tr><th>{t('ops.costing.cost_type')}</th><th className="text-right">{t('ops.costing.plan')}</th><th className="text-right">{t('ops.costing.actual')}</th><th className="text-right">{t('ops.costing.deviation')}</th></tr></thead>

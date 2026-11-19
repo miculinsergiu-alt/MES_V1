@@ -1,0 +1,41 @@
+{
+  "title": "Pre-calculation",
+  "button": "Calculate price",
+  "error": "Calculation failed",
+  "quantities": "Quantities (e.g. 10, 50, 100)",
+  "quantity": "Quantity",
+  "rate": { "labor_rate": "Labour", "material_surcharge": "Material surcharge", "overhead": "Overhead", "margin": "Margin" },
+  "material": "Material",
+  "material_surcharge": "Material surcharge",
+  "machine": "Machine time",
+  "labour": "Labour",
+  "external": "Outside processing",
+  "extra": "Extra per batch",
+  "overhead": "Overhead",
+  "cost": "Cost price",
+  "margin": "Margin",
+  "net": "Net price (batch)",
+  "price_per_piece": "Price per piece",
+  "use": "Use",
+  "hint": "Setup time is spread over the batch, so larger quantities get a lower price per piece. Rates come from the company settings and machine hourly rates; changes here apply only to this calculation.",
+  "warn": {
+    "NO_ROUTING": "The item has no routing: machine time is missing.",
+    "NO_BOM": "The item has no bill of materials: material cost is missing.",
+    "MACHINE_RATE_MISSING": "At least one machine has no hourly rate (Admin → machines).",
+    "LABOR_RATE_MISSING": "No labour rate set (Settings)."
+  },
+  "quoted": "Quoted (pre-calculation)",
+  "settings_title": "Pre-calculation defaults",
+  "outcome": {
+    "title": "Quote outcome",
+    "won": "Won",
+    "lost": "Lost",
+    "reason": "Reason",
+    "competitor": "Competitor",
+    "competitor_price": "Competitor price €",
+    "save": "Save",
+    "saved": "Saved",
+    "reasons": { "price": "Price", "delivery_time": "Delivery time", "quality": "Quality / capability", "no_demand": "No demand any more", "competitor": "Existing supplier / competitor", "other": "Other" }
+  },
+  "stats": "Win rate {{rate}} % · {{won}} won · {{lost}} lost · {{open}} open"
+}

@@ -11,7 +11,7 @@ const inputCls = 'h-10 w-full rounded-lg border border-border bg-white px-3 text
 const FIELDS = ['name', 'legal_name', 'street', 'postal_code', 'city', 'country', 'vat_id', 'tax_number', 'register_court', 'register_number',
   'managing_directors', 'email', 'phone', 'website', 'bank_name', 'iban', 'bic', 'logo_data_url', 'default_payment_terms_days',
   'default_skonto_days', 'default_skonto_percent', 'small_business', 'invoice_footer_text', 'datev_consultant_number',
-  'datev_client_number', 'datev_chart', 'dunning_fee', 'dunning_grace_days', 'negative_stock', 'labor_rate'];
+  'datev_client_number', 'datev_chart', 'dunning_fee', 'dunning_grace_days', 'negative_stock', 'labor_rate', 'calc_material_surcharge', 'calc_overhead', 'calc_margin'];
 
 export default function SettingsPage() {
   const { t } = useTranslation();
@@ -133,6 +133,8 @@ export default function SettingsPage() {
           </select>
         </label>
         {F('labor_rate', t('ops.settings.labor_rate'), { type: 'number' })}
+        <p className="pt-2 text-sm font-semibold sm:col-span-2">{t('calc.settings_title')}</p>
+        {F('calc_material_surcharge', `${t('calc.rate.material_surcharge')} %`, { type: 'number' })}{F('calc_overhead', `${t('calc.rate.overhead')} %`, { type: 'number' })}{F('calc_margin', `${t('calc.rate.margin')} %`, { type: 'number' })}
         <p className="text-xs text-muted-foreground sm:col-span-2">{t('ops.settings.costing_hint')}</p>
       </> })}
 

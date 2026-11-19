@@ -6,6 +6,7 @@ const PORT = process.env.E2E_PORT || '3101';
 module.exports = defineConfig({
   testDir: 'e2e',
   timeout: 90_000,
+  workers: 1, // one shared demo database: run the specs one after another
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
   use: { baseURL: `http://localhost:${PORT}`, trace: 'retain-on-failure', locale: 'de-DE' },

@@ -1,0 +1,41 @@
+{
+  "title": "Calcul de preț",
+  "button": "Calculează prețul",
+  "error": "Calculul a eșuat",
+  "quantities": "Cantități (ex. 10, 50, 100)",
+  "quantity": "Cantitate",
+  "rate": { "labor_rate": "Manoperă", "material_surcharge": "Adaos material", "overhead": "Regie", "margin": "Marjă" },
+  "material": "Material",
+  "material_surcharge": "Adaos material",
+  "machine": "Timp mașină",
+  "labour": "Manoperă",
+  "external": "Operații externe",
+  "extra": "Altele pe lot",
+  "overhead": "Regie",
+  "cost": "Cost total",
+  "margin": "Marjă",
+  "net": "Preț net (lot)",
+  "price_per_piece": "Preț pe bucată",
+  "use": "Folosește",
+  "hint": "Timpul de reglaj se împarte pe lot, deci cantitățile mari au un preț pe bucată mai mic. Tarifele vin din setările firmei și tarifele orare ale mașinilor; modificările de aici sunt doar pentru acest calcul.",
+  "warn": {
+    "NO_ROUTING": "Articolul nu are rutare: lipsește timpul de mașină.",
+    "NO_BOM": "Articolul nu are listă de materiale: lipsește costul materialului.",
+    "MACHINE_RATE_MISSING": "Cel puțin o mașină nu are tarif orar (Admin → mașini).",
+    "LABOR_RATE_MISSING": "Tariful de manoperă nu e setat (Setări)."
+  },
+  "quoted": "Ofertat (calcul de preț)",
+  "settings_title": "Calcul de preț – valori implicite",
+  "outcome": {
+    "title": "Rezultatul ofertei",
+    "won": "Câștigată",
+    "lost": "Pierdută",
+    "reason": "Motiv",
+    "competitor": "Concurent",
+    "competitor_price": "Preț concurent €",
+    "save": "Salvează",
+    "saved": "Salvat",
+    "reasons": { "price": "Preț", "delivery_time": "Termen de livrare", "quality": "Calitate / capabilitate", "no_demand": "Nu mai e nevoie", "competitor": "Furnizor existent / concurent", "other": "Altele" }
+  },
+  "stats": "Rată de câștig {{rate}} % · {{won}} câștigate · {{lost}} pierdute · {{open}} deschise"
+}

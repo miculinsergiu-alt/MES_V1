@@ -1,0 +1,41 @@
+{
+  "title": "Vorkalkulation",
+  "button": "Preis kalkulieren",
+  "error": "Kalkulation fehlgeschlagen",
+  "quantities": "Mengen (z. B. 10, 50, 100)",
+  "quantity": "Menge",
+  "rate": { "labor_rate": "Lohn", "material_surcharge": "MGK", "overhead": "Gemeinkosten", "margin": "Gewinn" },
+  "material": "Material",
+  "material_surcharge": "Materialgemeinkosten",
+  "machine": "Maschinenzeit",
+  "labour": "Lohn",
+  "external": "Fremdbearbeitung",
+  "extra": "Sonstiges je Los",
+  "overhead": "Gemeinkosten",
+  "cost": "Selbstkosten",
+  "margin": "Gewinn",
+  "net": "Nettopreis (Los)",
+  "price_per_piece": "Preis je Stück",
+  "use": "Übernehmen",
+  "hint": "Die Rüstzeit verteilt sich auf das Los, größere Mengen erhalten daher einen niedrigeren Stückpreis. Sätze aus den Firmeneinstellungen und Maschinenstundensätzen; Änderungen hier gelten nur für diese Kalkulation.",
+  "warn": {
+    "NO_ROUTING": "Der Artikel hat keinen Arbeitsplan: Maschinenzeit fehlt.",
+    "NO_BOM": "Der Artikel hat keine Stückliste: Materialkosten fehlen.",
+    "MACHINE_RATE_MISSING": "Mindestens eine Maschine hat keinen Stundensatz (Admin → Maschinen).",
+    "LABOR_RATE_MISSING": "Kein Lohnsatz hinterlegt (Einstellungen)."
+  },
+  "quoted": "Angeboten (Vorkalkulation)",
+  "settings_title": "Vorkalkulation – Standardsätze",
+  "outcome": {
+    "title": "Ergebnis des Angebots",
+    "won": "Gewonnen",
+    "lost": "Verloren",
+    "reason": "Grund",
+    "competitor": "Wettbewerber",
+    "competitor_price": "Preis Wettbewerber €",
+    "save": "Speichern",
+    "saved": "Gespeichert",
+    "reasons": { "price": "Preis", "delivery_time": "Lieferzeit", "quality": "Qualität / Fähigkeit", "no_demand": "Kein Bedarf mehr", "competitor": "Bestandslieferant / Wettbewerber", "other": "Sonstiges" }
+  },
+  "stats": "Trefferquote {{rate}} % · {{won}} gewonnen · {{lost}} verloren · {{open}} offen"
+}

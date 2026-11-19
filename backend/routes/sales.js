@@ -20,6 +20,7 @@ const dec = (max, decimals) => v.z.coerce.number().finite().refine((x) => Math.a
 const lineSchema = v.z.object({
   item_id: v.optId,
   source_line_id: v.optId, // link to the line of the document this one was created from
+  calculation_id: v.optId, // Vorkalkulation the price came from
   description: v.z.preprocess((x) => (x === '' ? undefined : x), v.z.string().trim().max(2000).optional()),
   quantity: dec(1e9, 3).refine((x) => x > 0, 'Quantity must be greater than 0'),
   unit: v.z.preprocess((x) => (x === '' ? undefined : x), v.z.string().trim().max(20).optional()),
