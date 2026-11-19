@@ -1,0 +1,18 @@
+{
+  "error": "Nu s-a putut încărca",
+  "weekly_hours": "Ore disponibile pe săptămână (capacitate)",
+  "check_title": "Verificare termen de livrare",
+  "item": "Articol",
+  "quantity": "Cantitate",
+  "desired": "Termen dorit",
+  "check": "Verifică",
+  "earliest": "Cea mai devreme livrare: {{date}}",
+  "late": "{{days}} zile după termenul dorit",
+  "ok": "termenul dorit se poate respecta",
+  "material_short": "{{item}} lipsește: +{{days}} zile termen de livrare",
+  "queue": "așteaptă mașina",
+  "weeks": "{{n}} săptămâni",
+  "machine": "Mașină",
+  "week": "săpt.",
+  "hint": "Încărcare = timpul planificat pe săptămână față de orele disponibile ale mașinii (Admin → mașini). Roșu: supraîncărcat, galben: peste 85 %."
+}

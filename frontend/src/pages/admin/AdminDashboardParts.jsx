@@ -407,7 +407,7 @@ export function AreaModal({ onClose, onSave }) {
 
 export function MachineModal({ machine, area, onClose, onSave }) {
   const { t } = useTranslation();
-  const [form, setForm] = useState({ name:machine?.name||'', setup_time_min:machine?.setup_time_min||30, working_time_min:machine?.working_time_min||480, supervision_time_min:machine?.supervision_time_min||30, hourly_rate:machine?.hourly_rate||0 });
+  const [form, setForm] = useState({ name:machine?.name||'', setup_time_min:machine?.setup_time_min||30, working_time_min:machine?.working_time_min||480, supervision_time_min:machine?.supervision_time_min||30, hourly_rate:machine?.hourly_rate||0, weekly_hours:machine?.weekly_hours??40 });
   
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -440,6 +440,8 @@ export function MachineModal({ machine, area, onClose, onSave }) {
           <label className="text-sm font-medium ml-1">{t('ops.machines.hourly_rate')}</label>
           <Input type="number" min="0" step="0.01" value={form.hourly_rate} onChange={e=>setForm(p=>({...p,hourly_rate:+e.target.value}))} />
           <p className="text-xs text-muted-foreground ml-1">{t('ops.machines.hourly_rate_hint')}</p>
+          <label className="text-sm font-medium ml-1">{t('cap.weekly_hours')}</label>
+          <Input type="number" min="0" max="168" step="0.5" value={form.weekly_hours} onChange={e=>setForm(p=>({...p,weekly_hours:+e.target.value}))} />
         </div>
         <div className="pt-4 flex justify-end gap-3">
           <Button variant="secondary" onClick={onClose} type="button">{t('common.cancel')}</Button>

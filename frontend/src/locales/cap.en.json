@@ -1,0 +1,18 @@
+{
+  "error": "Could not load",
+  "weekly_hours": "Available hours per week (capacity)",
+  "check_title": "Delivery date check",
+  "item": "Item",
+  "quantity": "Quantity",
+  "desired": "Desired date",
+  "check": "Check",
+  "earliest": "Earliest delivery: {{date}}",
+  "late": "{{days}} day(s) after the desired date",
+  "ok": "the desired date can be met",
+  "material_short": "{{item}} is missing: +{{days}} days delivery time",
+  "queue": "waits for the machine",
+  "weeks": "{{n}} weeks",
+  "machine": "Machine",
+  "week": "week",
+  "hint": "Load = planned order time per week compared with the machine's available hours (Admin → machines). Red: overloaded, yellow: over 85 %."
+}

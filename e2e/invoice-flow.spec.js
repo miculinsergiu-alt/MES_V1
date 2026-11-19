@@ -64,7 +64,7 @@ test('quote to invoice to DATEV, through the browser session', async ({ page }) 
   await page.goto('/account');
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   // The large screens (split into parts) still open, and their dialogs too
-  for (const url of ['/admin', '/planner', '/planner/items', '/quality', '/subcontracting', '/time', '/sales/blanket-orders']) {
+  for (const url of ['/admin', '/planner', '/planner/items', '/quality', '/subcontracting', '/time', '/sales/blanket-orders', '/capacity']) {
     await page.goto(url);
     await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
   }

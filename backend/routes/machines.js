@@ -67,6 +67,7 @@ const machineSchema = v.z.object({
   working_time_min: v.nonNeg.default(480),
   supervision_time_min: v.nonNeg.default(30),
   hourly_rate: v.nonNeg.default(0), // € per machine hour, for actual costing
+  weekly_hours: v.z.coerce.number().min(0).max(168).optional(), // available hours per week (capacity)
 });
 
 // POST /api/machines — create machine (admin)
@@ -76,6 +77,7 @@ router.post('/', requireRole('administrator'), h(async (req, res) => {
     'INSERT INTO machines (area_id, name, setup_time_min, working_time_min, supervision_time_min, hourly_rate) VALUES (?,?,?,?,?,?) RETURNING id',
     [b.area_id, b.name, b.setup_time_min, b.working_time_min, b.supervision_time_min, b.hourly_rate],
   );
+  if (b.weekly_hours !== undefined) await db.run('UPDATE machines SET weekly_hours = ? WHERE id = ?', [b.weekly_hours, row.id]);
   res.status(201).json({ id: row.id, message: 'Machine created' });
 }));
 
@@ -90,6 +92,7 @@ router.put('/:id', requireRole('administrator'), h(async (req, res) => {
     [b.area_id ?? m.area_id, b.name ?? m.name, b.setup_time_min ?? m.setup_time_min,
       b.working_time_min ?? m.working_time_min, b.supervision_time_min ?? m.supervision_time_min, b.hourly_rate ?? m.hourly_rate, id],
   );
+  if (b.weekly_hours !== undefined) await db.run('UPDATE machines SET weekly_hours = ? WHERE id = ?', [b.weekly_hours, id]);
   res.json({ message: 'Machine updated' });
 }));
 

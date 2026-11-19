@@ -28,6 +28,7 @@ export const NAV_GROUPS = [
       { path: '/supervisor', key: 'control_room', icon: Factory, roles: ['area_supervisor', 'administrator'] },
       { path: '/shift', key: 'shift', icon: ClipboardList, roles: ['shift_responsible', 'administrator'] },
       { path: '/operator', key: 'my_tasks', icon: HardHat, roles: ['operator', 'administrator'] },
+      { path: '/capacity', key: 'capacity', icon: BarChart3, roles: ['planner', 'administrator', 'area_supervisor', 'sales', 'material_planner'] },
       { path: '/supervisor/oee', key: 'oee', icon: Gauge, roles: ['area_supervisor', 'administrator', 'planner'] },
       { path: '/supervisor/maintenance', key: 'maintenance', icon: Wrench, roles: ['area_supervisor', 'administrator'] },
     ],

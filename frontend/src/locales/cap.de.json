@@ -1,0 +1,18 @@
+{
+  "error": "Laden fehlgeschlagen",
+  "weekly_hours": "Verfügbare Stunden pro Woche (Kapazität)",
+  "check_title": "Liefertermin prüfen",
+  "item": "Artikel",
+  "quantity": "Menge",
+  "desired": "Wunschtermin",
+  "check": "Prüfen",
+  "earliest": "Frühester Liefertermin: {{date}}",
+  "late": "{{days}} Tag(e) nach Wunschtermin",
+  "ok": "Wunschtermin ist machbar",
+  "material_short": "{{item}} fehlt: +{{days}} Tage Lieferzeit",
+  "queue": "wartet auf Maschine",
+  "weeks": "{{n}} Wochen",
+  "machine": "Maschine",
+  "week": "Woche",
+  "hint": "Auslastung = geplante Auftragszeit pro Woche im Verhältnis zu den verfügbaren Stunden der Maschine (Admin → Maschinen). Rot: überlastet, gelb: über 85 %."
+}
