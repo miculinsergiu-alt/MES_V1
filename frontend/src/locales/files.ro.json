@@ -12,12 +12,28 @@
   "show_history": "Arată reviziile vechi",
   "hide_history": "Doar revizia curentă",
   "heat_number": "Nr. șarjă",
-  "kinds": { "certificate": "Certificat", "drawing": "Desen", "nc_program": "Program NC", "report": "Raport", "photo": "Foto", "other": "Altele" },
-  "kinds_plural": { "certificate": "Certificate de material", "drawing": "Desene și programe NC", "nc_program": "Programe NC", "report": "Rapoarte", "photo": "Fotografii", "other": "Fișiere" },
+  "kinds": {
+    "certificate": "Certificat",
+    "drawing": "Desen",
+    "nc_program": "Program NC",
+    "report": "Raport",
+    "photo": "Foto",
+    "other": "Altele"
+  },
+  "kinds_plural": {
+    "certificate": "Certificate de material",
+    "drawing": "Desene și programe NC",
+    "nc_program": "Programe NC",
+    "report": "Rapoarte",
+    "photo": "Fotografii",
+    "other": "Fișiere"
+  },
   "requires_certificates": "Cere certificate de material la fiecare livrare",
   "requires_certificate": "Material certificat (certificat obligatoriu la recepție)",
   "cert_pack": "Certificate de material (PDF)",
   "cert_missing": "{{count}} lot(uri) de material fără certificat",
   "cert_ok": "Toate certificatele sunt disponibile",
-  "cert_none": "Nu există certificate pentru materialul acestei livrări"
+  "cert_none": "Nu există certificate pentru materialul acestei livrări",
+  "outdated": "Comanda a fost planificată cu revizia {{planned}}; revizia curentă este {{current}}. Verifică cu planificatorul înainte de start.",
+  "adopt": "Folosește revizia nouă"
 }

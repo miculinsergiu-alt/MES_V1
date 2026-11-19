@@ -208,6 +208,43 @@ router.get('/gantt', h(async (req, res) => {
   }));
 }));
 
+// GET /api/orders/:id/documents — drawing and NC program the order was planned with,
+// and whether the item has a newer revision since then (warning at the machine).
+router.get('/:id/documents', h(async (req, res) => {
+  const order = await db.get('SELECT id, item_id, parent_order_id, drawing_attachment_id, nc_attachment_id FROM orders WHERE id = ?', [v.paramId(req)]);
+  if (!order) throw notFound('Order');
+  // Routing steps share the root order's revisions.
+  const root = order.parent_order_id
+    ? await db.get('SELECT id, item_id, drawing_attachment_id, nc_attachment_id FROM orders WHERE id = ?', [order.parent_order_id])
+    : order;
+  const describe = async (frozenId, kind) => {
+    const META = 'id, filename, mime_type, revision, is_current, created_at';
+    const frozen = frozenId ? await db.get(`SELECT ${META} FROM attachments WHERE id = ?`, [frozenId]) : null;
+    const current = root.item_id ? await db.get(
+      `SELECT ${META} FROM attachments WHERE owner_type = 'item' AND owner_id = ? AND kind = ? AND is_current = 1 ORDER BY id DESC LIMIT 1`,
+      [root.item_id, kind]) : null;
+    return {
+      file: frozen || current || null,
+      current_revision: current?.revision ?? null,
+      outdated: !!(frozen && current && frozen.id !== current.id),
+    };
+  };
+  res.json({ drawing: await describe(root.drawing_attachment_id, 'drawing'), nc_program: await describe(root.nc_attachment_id, 'nc_program') });
+}));
+
+// POST /api/orders/:id/adopt-revision — planner confirms the order is made to the newest drawing / NC revision
+router.post('/:id/adopt-revision', requireRole(...PLANNERS), h(async (req, res) => {
+  const order = await db.get('SELECT id, item_id, parent_order_id FROM orders WHERE id = ?', [v.paramId(req)]);
+  if (!order) throw notFound('Order');
+  const rootId = order.parent_order_id || order.id;
+  const cur = async (kind) => (await db.get(
+    "SELECT id FROM attachments WHERE owner_type = 'item' AND owner_id = ? AND kind = ? AND is_current = 1 ORDER BY id DESC LIMIT 1",
+    [order.item_id, kind]))?.id ?? null;
+  await db.run('UPDATE orders SET drawing_attachment_id = ?, nc_attachment_id = ? WHERE id = ? OR parent_order_id = ?',
+    [await cur('drawing'), await cur('nc_program'), rootId, rootId]);
+  res.json({ ok: true });
+}));
+
 // GET /api/orders/:id
 router.get('/:id', h(async (req, res) => {
   const order = await db.get('SELECT * FROM orders WHERE id = ?', [v.paramId(req)]);
@@ -239,12 +276,18 @@ const newOrderSchema = v.z.object({
 async function createProductionOrders(orders, userId) {
   const created = [];
 
-  const insert = (o, machineId, name, start, end, parentId, sequence) => db.get(`
+  // The order keeps the drawing / NC program revision that was current when it was planned.
+  const currentFile = async (itemId, kind) => (itemId ? (await db.get(
+    "SELECT id FROM attachments WHERE owner_type = 'item' AND owner_id = ? AND kind = ? AND is_current = 1 ORDER BY id DESC LIMIT 1",
+    [itemId, kind]))?.id ?? null : null);
+
+  const insert = async (o, machineId, name, start, end, parentId, sequence) => db.get(`
     INSERT INTO orders (machine_id, product_name, item_id, bom_id, quantity, planned_start, planned_end, status, order_type,
-                        created_by, parent_order_id, routing_sequence, is_fixed_time, sales_line_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?) RETURNING id`,
+                        created_by, parent_order_id, routing_sequence, is_fixed_time, sales_line_id, drawing_attachment_id, nc_attachment_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
   [machineId, name, o.item_id ?? null, o.bom_id ?? null, o.quantity, start, end, o.order_type,
-    userId, parentId, sequence, o.is_fixed_time ? 1 : 0, o.sales_line_id ?? null]);
+    userId, parentId, sequence, o.is_fixed_time ? 1 : 0, o.sales_line_id ?? null,
+    await currentFile(o.item_id, 'drawing'), await currentFile(o.item_id, 'nc_program')]);
 
   for (const o of orders) {
     let productName = o.product_name;

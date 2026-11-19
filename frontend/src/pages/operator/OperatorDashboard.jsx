@@ -1,3 +1,4 @@
+import OrderDocuments from '../../components/OrderDocuments';
 import { useState, useEffect, useCallback } from 'react';
 import { LayoutDashboard, Clock, CheckCircle, AlertTriangle, X, FileText, Image as ImageIcon, Play, Square, Settings } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -161,6 +162,9 @@ export default function OperatorDashboard() {
                   )}
                 </div>
               </div>
+
+              {/* Drawing / NC program this order is made to (revision frozen at planning) */}
+              <div className="mb-6"><OrderDocuments orderId={selectedAlloc.order_id} large /></div>
 
               <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-6 sm:mb-8">
                 <div className="card text-center px-2 py-4 sm:py-8">

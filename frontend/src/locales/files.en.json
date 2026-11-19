@@ -12,12 +12,28 @@
   "show_history": "Show older revisions",
   "hide_history": "Current only",
   "heat_number": "Heat number",
-  "kinds": { "certificate": "Certificate", "drawing": "Drawing", "nc_program": "NC program", "report": "Report", "photo": "Photo", "other": "Other" },
-  "kinds_plural": { "certificate": "Material certificates", "drawing": "Drawings & NC programs", "nc_program": "NC programs", "report": "Reports", "photo": "Photos", "other": "Files" },
+  "kinds": {
+    "certificate": "Certificate",
+    "drawing": "Drawing",
+    "nc_program": "NC program",
+    "report": "Report",
+    "photo": "Photo",
+    "other": "Other"
+  },
+  "kinds_plural": {
+    "certificate": "Material certificates",
+    "drawing": "Drawings & NC programs",
+    "nc_program": "NC programs",
+    "report": "Reports",
+    "photo": "Photos",
+    "other": "Files"
+  },
   "requires_certificates": "Needs material certificates with every delivery",
   "requires_certificate": "Certified material (certificate required at goods receipt)",
   "cert_pack": "Material certificates (PDF)",
   "cert_missing": "{{count}} material lot(s) without certificate",
   "cert_ok": "All certificates available",
-  "cert_none": "No certificates attached to the material of this delivery"
+  "cert_none": "No certificates attached to the material of this delivery",
+  "outdated": "This order was planned with revision {{planned}}; the current revision is {{current}}. Check with the planner before you start.",
+  "adopt": "Use new revision"
 }

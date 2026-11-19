@@ -12,12 +12,28 @@
   "show_history": "Ältere Stände zeigen",
   "hide_history": "Nur aktueller Stand",
   "heat_number": "Schmelze",
-  "kinds": { "certificate": "Zeugnis", "drawing": "Zeichnung", "nc_program": "NC-Programm", "report": "Bericht", "photo": "Foto", "other": "Sonstiges" },
-  "kinds_plural": { "certificate": "Werkszeugnisse", "drawing": "Zeichnungen & NC-Programme", "nc_program": "NC-Programme", "report": "Berichte", "photo": "Fotos", "other": "Dateien" },
+  "kinds": {
+    "certificate": "Zeugnis",
+    "drawing": "Zeichnung",
+    "nc_program": "NC-Programm",
+    "report": "Bericht",
+    "photo": "Foto",
+    "other": "Sonstiges"
+  },
+  "kinds_plural": {
+    "certificate": "Werkszeugnisse",
+    "drawing": "Zeichnungen & NC-Programme",
+    "nc_program": "NC-Programme",
+    "report": "Berichte",
+    "photo": "Fotos",
+    "other": "Dateien"
+  },
   "requires_certificates": "Benötigt Werkszeugnisse zu jeder Lieferung",
   "requires_certificate": "Zeugnispflichtiges Material (Zeugnis beim Wareneingang)",
   "cert_pack": "Werkszeugnisse (PDF)",
   "cert_missing": "{{count}} Materialcharge(n) ohne Zeugnis",
   "cert_ok": "Alle Zeugnisse vorhanden",
-  "cert_none": "Zum Material dieser Lieferung sind keine Zeugnisse hinterlegt"
+  "cert_none": "Zum Material dieser Lieferung sind keine Zeugnisse hinterlegt",
+  "outdated": "Dieser Auftrag wurde mit Index {{planned}} geplant, aktuell ist Index {{current}}. Vor dem Start mit der Planung klären.",
+  "adopt": "Neuen Index übernehmen"
 }

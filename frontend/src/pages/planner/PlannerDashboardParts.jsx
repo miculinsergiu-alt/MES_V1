@@ -1,4 +1,5 @@
 /** Dialogs and sub-views of PlannerDashboard (split out to keep the screen file small). */
+import OrderDocuments from '../../components/OrderDocuments';
 import { useState, useEffect } from 'react';
 import { Plus, X, ChevronRight, Box, AlertCircle, Trash2, Edit2, Zap, GitBranch } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -523,6 +524,7 @@ export function OrderDetailModal({ order, machines, onClose, onDelay, onEdit, on
         </div>
 
         <div className="p-8 overflow-y-auto space-y-8">
+          {order.order_type !== 'maintenance' && <OrderDocuments orderId={order.id} canAdopt />}
           <div className="grid grid-cols-2 gap-x-12 gap-y-6">
             {[
               [t('planner.planning_type'), order.order_type === 'maintenance' ? `🔧 ${t('planner.maintenance')}` : `📦 ${t('planner.production')}`],
