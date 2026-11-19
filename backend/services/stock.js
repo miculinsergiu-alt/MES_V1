@@ -32,12 +32,13 @@ async function bookIn(p) {
   let lotId = null;
   if (p.lotNumber) {
     const lot = await db.get(`
-      INSERT INTO inventory_lots (item_id, lot_number, quantity, expiration_date, source_type, production_order_id)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO inventory_lots (item_id, lot_number, quantity, expiration_date, source_type, production_order_id, owner_customer_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT (company_id, lot_number) DO UPDATE SET quantity = inventory_lots.quantity + EXCLUDED.quantity
-      RETURNING id, item_id`,
-    [p.itemId, p.lotNumber, p.qty, p.expirationDate ?? null, p.sourceType || 'receipt', p.productionOrderId ?? null]);
+      RETURNING id, item_id, owner_customer_id`,
+    [p.itemId, p.lotNumber, p.qty, p.expirationDate ?? null, p.sourceType || 'receipt', p.productionOrderId ?? null, p.ownerCustomerId ?? null]);
     if (lot.item_id !== p.itemId) throw new AppError(400, 'LOT_ITEM_MISMATCH', `Lot ${p.lotNumber} belongs to a different item`);
+    if ((lot.owner_customer_id ?? null) !== (p.ownerCustomerId ?? null)) throw new AppError(400, 'LOT_OWNER_MISMATCH', `Lot ${p.lotNumber} has a different owner`);
     lotId = lot.id;
   }
   await db.run(`
@@ -51,15 +52,20 @@ async function bookIn(p) {
   return { lotId };
 }
 
-/** Lots with stock, oldest first, without lots blocked in quarantine. */
-async function availableLots(itemId) {
+/**
+ * Lots with stock, oldest first, without lots blocked in quarantine.
+ * Customer-supplied lots are only offered for that customer's work (and first);
+ * other customers' material is never used.
+ */
+async function availableLots(itemId, customerId = null) {
   return db.all(`
-    SELECT il.id, il.lot_number, il.quantity
+    SELECT il.id, il.lot_number, il.quantity, il.owner_customer_id
     FROM inventory_lots il
     WHERE il.item_id = ? AND il.quantity > 0
+      AND (il.owner_customer_id IS NULL OR il.owner_customer_id = ?::int)
       AND NOT EXISTS (SELECT 1 FROM quarantine_logs q WHERE q.lot_number = il.lot_number AND q.status = 'pending')
-    ORDER BY il.created_at, il.id
-    FOR UPDATE`, [itemId]);
+    ORDER BY (il.owner_customer_id IS NULL), il.created_at, il.id
+    FOR UPDATE`, [itemId, customerId]);
 }
 
 /**
@@ -91,7 +97,7 @@ async function consume(p) {
 
   const unitCost = await unitCostOf(p.itemId);
   let rest = p.qty;
-  let lots = await availableLots(p.itemId);
+  let lots = await availableLots(p.itemId, p.customerId ?? null);
   if (p.preferLotNumber) {
     lots = [...lots.filter((l) => l.lot_number === p.preferLotNumber), ...lots.filter((l) => l.lot_number !== p.preferLotNumber)];
   }
@@ -101,7 +107,7 @@ async function consume(p) {
     await db.run('UPDATE inventory_lots SET quantity = quantity - ? WHERE id = ?', [take, lot.id]);
     await db.run(`
       INSERT INTO stock_transactions (item_id, lot_id, quantity, type, reference_type, reference_id, user_id, unit_cost)
-      VALUES (?, ?, ?, 'out', ?, ?, ?, ?)`, [p.itemId, lot.id, -take, p.referenceType, p.referenceId ?? null, p.userId ?? null, unitCost]);
+      VALUES (?, ?, ?, 'out', ?, ?, ?, ?)`, [p.itemId, lot.id, -take, p.referenceType, p.referenceId ?? null, p.userId ?? null, lot.owner_customer_id ? 0 : unitCost]);
     if (p.orderId) {
       await db.run('INSERT INTO order_material_lots (order_id, item_id, lot_id, quantity_used) VALUES (?, ?, ?, ?)',
         [p.orderId, p.itemId, lot.id, take]);

@@ -1,0 +1,14 @@
+{
+  "button": "Material client",
+  "title": "Recepție material de la client",
+  "hint": "Material adus de client: fără preț, rămâne al clientului, se folosește doar (și primul) pentru comenzile acestui client, nu intră în valoarea stocului.",
+  "customer": "Client",
+  "item": "Articol",
+  "lot": "Lot / șarjă",
+  "quantity": "Cantitate",
+  "delivery_note": "Aviz client",
+  "save": "Înregistrează",
+  "saved": "Materialul clientului a fost înregistrat",
+  "error": "Înregistrarea a eșuat",
+  "owner": "Material client"
+}

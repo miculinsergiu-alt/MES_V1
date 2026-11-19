@@ -16,7 +16,8 @@ const MAX_DEPTH = 12;
 async function lotById(id) {
   return db.get(`
     SELECT il.id, il.lot_number, il.item_id, il.quantity, il.source_type, il.production_order_id,
-           il.expiration_date, il.created_at, i.item_code, i.name AS item_name, i.uom
+           il.expiration_date, il.created_at, il.owner_customer_id, i.item_code, i.name AS item_name, i.uom,
+           (SELECT name FROM customers WHERE id = il.owner_customer_id) AS owner_customer_name
     FROM inventory_lots il JOIN items i ON i.id = il.item_id
     WHERE il.id = ?`, [id]);
 }

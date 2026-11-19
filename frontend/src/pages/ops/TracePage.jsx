@@ -144,6 +144,7 @@ export default function TracePage() {
                 <div>
                   <div className="font-mono text-xl font-bold">{data.lot.lot_number}</div>
                   <div className="text-sm text-muted-foreground">{data.lot.item_code} · {data.lot.item_name}</div>
+                  {data.lot.owner_customer_name && <span className="mt-1 inline-block rounded bg-violet-50 px-2 py-0.5 text-xs font-semibold text-violet-700">{t('cm.owner')}: {data.lot.owner_customer_name}</span>}
                 </div>
                 <div className="text-right text-sm">
                   <div>{t('ops.trace.in_stock')}: <span className="font-semibold tabular-nums">{num(data.lot.quantity)} {data.lot.uom}</span></div>

@@ -1,3 +1,4 @@
+import CustomerMaterialReceipt from '../../components/CustomerMaterialReceipt';
 import { useState, useEffect } from 'react';
 import { Package, ArrowDownUp, Edit, Plus, Truck, Home, ShoppingCart, ShieldAlert, LogOut, Inbox } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -55,6 +56,7 @@ export default function InventoryPage() {
               <h1 className="font-display text-3xl sm:text-4xl text-foreground">{t('screens.inventory.title')}</h1>
               <p className="text-muted-foreground mt-2">{t('screens.inventory.subtitle')}</p>
            </div>
+           <CustomerMaterialReceipt />
            <div className="flex gap-2 overflow-x-auto bg-muted/30 p-1 rounded-2xl border border-border/50">
              {tabs.map(tab => (
                <button

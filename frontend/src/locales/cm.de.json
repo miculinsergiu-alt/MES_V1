@@ -1,0 +1,14 @@
+{
+  "button": "Beistellung",
+  "title": "Beistellmaterial erfassen",
+  "hint": "Material, das der Kunde beistellt: ohne Preis, bleibt Eigentum des Kunden, wird nur (und zuerst) für Aufträge dieses Kunden verbraucht, nicht im Lagerwert.",
+  "customer": "Kunde",
+  "item": "Artikel",
+  "lot": "Charge / Schmelze",
+  "quantity": "Menge",
+  "delivery_note": "Lieferschein des Kunden",
+  "save": "Einbuchen",
+  "saved": "Beistellmaterial eingebucht",
+  "error": "Buchung fehlgeschlagen",
+  "owner": "Beistellung"
+}

@@ -59,6 +59,7 @@ async function stockValue() {
   const rows = (await db.all(`
     SELECT i.item_code, i.name AS item_name, i.type, i.uom, COALESCE(s.quantity, 0) AS quantity,
            COALESCE(s.allocated_quantity, 0) AS allocated,
+           COALESCE((SELECT SUM(il.quantity) FROM inventory_lots il WHERE il.item_id = i.id AND il.owner_customer_id IS NOT NULL AND il.quantity > 0), 0) AS customer_owned,
            CASE WHEN COALESCE(i.avg_cost, 0) > 0 THEN i.avg_cost
                 WHEN i.type = 'raw_material' THEN i.acquisition_cost
                 ELSE COALESCE(NULLIF(i.production_cost, 0), i.acquisition_cost, 0) END AS unit_cost
@@ -66,7 +67,9 @@ async function stockValue() {
     WHERE COALESCE(s.quantity, 0) <> 0
     ORDER BY i.type, i.item_code`)).map((r) => ({
     // Negative stock (bookings ahead of a stock count) is not an asset: valued at 0, but listed.
-    ...r, unit_cost: Math.round(Number(r.unit_cost || 0) * 10000) / 10000, value: r2(Math.max(0, Number(r.quantity)) * Number(r.unit_cost || 0)),
+    // Customer-supplied material belongs to the customer: not part of our stock value.
+    ...r, customer_owned: Number(r.customer_owned), unit_cost: Math.round(Number(r.unit_cost || 0) * 10000) / 10000,
+    value: r2(Math.max(0, Number(r.quantity) - Number(r.customer_owned)) * Number(r.unit_cost || 0)),
   }));
   const byType = {};
   for (const r of rows) byType[r.type || 'other'] = r2((byType[r.type || 'other'] || 0) + r.value);

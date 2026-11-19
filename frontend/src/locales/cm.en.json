@@ -1,0 +1,14 @@
+{
+  "button": "Customer material",
+  "title": "Receive customer-supplied material",
+  "hint": "Material the customer provides: received without price, belongs to the customer, used only (and first) for this customer's orders, not part of the stock value.",
+  "customer": "Customer",
+  "item": "Item",
+  "lot": "Lot / heat no.",
+  "quantity": "Quantity",
+  "delivery_note": "Customer delivery note",
+  "save": "Book in",
+  "saved": "Customer material booked in",
+  "error": "Booking failed",
+  "owner": "Customer material"
+}

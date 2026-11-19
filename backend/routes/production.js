@@ -42,7 +42,10 @@ function overlapMinutes(start, end, conflicts) {
  */
 async function deductStock(orderId, producedQty, userId, preferLotNumber) {
   const warnings = [];
-  const order = await db.get('SELECT bom_id, parent_order_id FROM orders WHERE id = ?', [orderId]);
+  const order = await db.get(`
+    SELECT o.bom_id, o.parent_order_id, sd.customer_id
+    FROM orders o LEFT JOIN sales_document_lines sl ON sl.id = o.sales_line_id LEFT JOIN sales_documents sd ON sd.id = sl.document_id
+    WHERE o.id = ?`, [orderId]);
   if (!order || order.parent_order_id !== null || !order.bom_id) return warnings;
 
   const positions = await db.all(`
@@ -66,6 +69,7 @@ async function deductStock(orderId, producedQty, userId, preferLotNumber) {
     }
     const r = await stock.consume({
       itemId: pos.item_id, qty: required, referenceType: 'order_completion', referenceId: orderId, userId, orderId, preferLotNumber,
+      customerId: order.customer_id ?? null, // customer-supplied material only for that customer's orders
     });
     if (r.warning) warnings.push(r.warning);
   }

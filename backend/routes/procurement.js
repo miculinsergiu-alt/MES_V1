@@ -94,6 +94,7 @@ router.get('/purchase-orders/:id/items', h(async (req, res) => {
 
 const receiptSchema = v.z.object({
   po_id: v.optId,
+  customer_id: v.optId, // customer-supplied material (Beistellung)
   document_reference: v.optStr(200),
   notes: v.optStr(5000),
   items: v.z.array(v.z.object({
@@ -116,9 +117,11 @@ router.post('/receipts', requireRole(...BUYERS), h(async (req, res) => {
     if (['received', 'cancelled'].includes(po.status)) throw conflict(`Purchase order is already ${po.status}`);
   }
 
+  if (b.customer_id && b.po_id) throw badRequest('Customer-supplied material is received without a purchase order');
+  if (b.customer_id && !(await db.get('SELECT id FROM customers WHERE id = ?', [b.customer_id]))) throw badRequest('Customer not found');
   const receipt = await db.get(`
-    INSERT INTO goods_receipts (po_id, received_by, document_reference, notes) VALUES (?, ?, ?, ?) RETURNING id`,
-  [b.po_id ?? null, req.user.id, b.document_reference ?? null, b.notes ?? null]);
+    INSERT INTO goods_receipts (po_id, customer_id, received_by, document_reference, notes) VALUES (?, ?, ?, ?, ?) RETURNING id`,
+  [b.po_id ?? null, b.customer_id ?? null, req.user.id, b.document_reference ?? null, b.notes ?? null]);
 
   for (const item of b.items) {
     if (b.po_id && !(await db.get('SELECT 1 FROM purchase_order_items WHERE po_id = ? AND item_id = ?', [b.po_id, item.item_id]))) {
@@ -141,12 +144,13 @@ router.post('/receipts', requireRole(...BUYERS), h(async (req, res) => {
     const priceRow = b.po_id
       ? await db.get('SELECT unit_price FROM purchase_order_items WHERE po_id = ? AND item_id = ? ORDER BY id LIMIT 1', [b.po_id, item.item_id])
       : null;
-    const unitPrice = priceRow?.unit_price ?? (await db.get('SELECT acquisition_cost FROM items WHERE id = ?', [item.item_id]))?.acquisition_cost ?? 0;
-    await stock.updateAverageCost(item.item_id, item.quantity_received, Number(unitPrice));
+    const unitPrice = b.customer_id ? 0 : priceRow?.unit_price ?? (await db.get('SELECT acquisition_cost FROM items WHERE id = ?', [item.item_id]))?.acquisition_cost ?? 0;
+    // Customer material has no value for us and must not change the average cost.
+    if (!b.customer_id) await stock.updateAverageCost(item.item_id, item.quantity_received, Number(unitPrice));
     await stock.bookIn({
       itemId: item.item_id, qty: item.quantity_received, lotNumber: item.lot_number, sourceType: 'receipt',
       expirationDate: item.expiration_date ?? null, unitCost: Number(unitPrice),
-      referenceType: 'receipt', referenceId: receipt.id, userId: req.user.id,
+      referenceType: 'receipt', referenceId: receipt.id, userId: req.user.id, ownerCustomerId: b.customer_id ?? null,
     });
 
     if (b.po_id) {
