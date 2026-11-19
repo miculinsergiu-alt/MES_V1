@@ -38,11 +38,12 @@ const customerSchema = v.z.object({
   datev_account: v.z.preprocess((x) => (x === '' ? null : x), v.z.coerce.number().int().min(10000).max(69999).nullable().optional()),
   notes: optText(5000),
   active: v.flag.optional(),
+  requires_certificates: v.flag.optional(),
 });
 
 const FIELDS = ['customer_number', 'name', 'name2', 'street', 'postal_code', 'city', 'country', 'vat_id', 'tax_treatment',
   'contact_person', 'email', 'invoice_email', 'phone', 'payment_terms_days', 'skonto_days', 'skonto_percent',
-  'leitweg_id', 'datev_account', 'notes', 'active'];
+  'leitweg_id', 'datev_account', 'notes', 'active', 'requires_certificates'];
 
 /** Intra-EU supply needs the customer's VAT ID; fall back to the default treatment otherwise. */
 function resolveTaxTreatment(country, vatId, requested) {
@@ -81,7 +82,7 @@ router.post('/', requireRole(...EDITORS), h(async (req, res) => {
   const number = b.customer_number || await numbering.nextNumber('customer');
   const treatment = resolveTaxTreatment(b.country, b.vat_id, b.tax_treatment);
   const datev = b.datev_account ?? (/^\d{5}$/.test(number) && Number(number) >= 10000 && Number(number) <= 69999 ? Number(number) : null);
-  const values = { ...b, customer_number: number, tax_treatment: treatment, datev_account: datev, active: b.active ?? 1 };
+  const values = { ...b, customer_number: number, tax_treatment: treatment, datev_account: datev, active: b.active ?? 1, requires_certificates: b.requires_certificates ?? 0 };
   const row = await db.get(
     `INSERT INTO customers (${FIELDS.join(', ')}) VALUES (${FIELDS.map(() => '?').join(', ')}) RETURNING *`,
     FIELDS.map((f) => values[f] ?? null),

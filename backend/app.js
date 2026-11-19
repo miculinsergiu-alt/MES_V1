@@ -42,6 +42,7 @@ if (config.corsOrigins.length) app.use(cors({ origin: config.corsOrigins, creden
 // Uploaded e-invoices are sent as base64 JSON and may be larger.
 app.use('/api/purchase-invoices', express.json({ limit: '21mb' }));
 app.use('/api/import', express.json({ limit: '15mb' }));
+app.use('/api/attachments', express.json({ limit: '21mb' }));
 app.use(express.json({ limit: '2mb' }));
 
 // Request log (method, path, status, duration) — never bodies, they can contain passwords.
@@ -95,6 +96,7 @@ app.use('/api/import', require('./routes/import'));
 app.use('/api/setup', require('./routes/setup'));
 app.use('/api/trace', require('./routes/trace'));
 app.use('/api/reports', require('./routes/reports'));
+app.use('/api/attachments', require('./routes/attachments'));
 app.use('/api', require('./routes/dashboard'));
 
 app.use('/api', (req, res, next) => next(notFound(`API route ${req.method} ${req.path}`)));

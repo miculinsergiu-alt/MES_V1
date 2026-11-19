@@ -49,6 +49,7 @@ const itemFields = {
   tax_rate: v.z.coerce.number().refine((x) => [0, 7, 19].includes(x), 'VAT rate must be 0, 7 or 19').optional(),
   sop_url: v.optStr(2000),
   drawing_url: v.optStr(2000),
+  requires_certificate: v.flag.optional(),
   routes: v.z.array(routeStep).optional(),
 };
 
@@ -70,6 +71,7 @@ router.post('/', requireRole('planner', 'administrator'), h(async (req, res) => 
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
   [b.item_code, b.name, b.type, b.uom || 'Stk', b.acquisition_cost ?? 0, b.production_cost ?? 0, b.unit_price ?? 0,
     b.production_time_min ?? 0, b.supplier_name || null, b.lead_time_days ?? 0, b.sop_url || null, b.drawing_url || null, b.tax_rate ?? 19]);
+  if (b.requires_certificate !== undefined) await db.run('UPDATE items SET requires_certificate = ? WHERE id = ?', [b.requires_certificate, row.id]);
   if (b.routes) await replaceRoutes(row.id, b.routes);
   res.status(201).json({ id: row.id, message: 'Item created' });
 }));
@@ -90,6 +92,7 @@ router.put('/:id', requireRole('planner', 'administrator'), h(async (req, res) =
     b.lead_time_days ?? item.lead_time_days,
     b.sop_url !== undefined ? b.sop_url : item.sop_url,
     b.drawing_url !== undefined ? b.drawing_url : item.drawing_url, b.tax_rate ?? item.tax_rate, id]);
+  if (b.requires_certificate !== undefined) await db.run('UPDATE items SET requires_certificate = ? WHERE id = ?', [b.requires_certificate, id]);
   if (b.routes) await replaceRoutes(id, b.routes);
   res.json({ message: 'Item updated' });
 }));

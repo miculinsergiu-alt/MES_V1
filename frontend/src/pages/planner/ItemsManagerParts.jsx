@@ -1,4 +1,5 @@
 /** Dialogs and sub-views of ItemsManager (split out to keep the screen file small). */
+import Attachments from '../../components/Attachments';
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Edit2, Trash2, X, Clock, Euro, TrendingUp, Zap, GitBranch, Printer, Truck } from 'lucide-react';
@@ -222,6 +223,17 @@ export function ItemModal({ item, machines, onClose, onSave }) {
                   </div>
                 </div>
               </div>
+            )}
+
+            {formData.type === 'raw_material' && (
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={!!formData.requires_certificate} onChange={(e) => setFormData({ ...formData, requires_certificate: e.target.checked ? 1 : 0 })} />
+                {t('files.requires_certificate')}
+              </label>
+            )}
+
+            {item?.id && formData.type !== 'raw_material' && (
+              <Attachments ownerType="item" ownerId={item.id} kinds={['drawing', 'nc_program', 'other']} />
             )}
 
             <div className="grid grid-cols-4 gap-4 bg-muted/20 p-6 rounded-2xl border border-border/50">

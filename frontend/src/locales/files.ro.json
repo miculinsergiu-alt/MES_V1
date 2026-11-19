@@ -1,0 +1,23 @@
+{
+  "upload": "Încarcă",
+  "uploaded": "Fișier salvat",
+  "error": "Fișierul nu a putut fi salvat",
+  "none": "Niciun fișier încă.",
+  "delete": "Șterge",
+  "kind": "Tip",
+  "revision": "Revizie",
+  "revision_required": "Introdu indexul de revizie (ex. A sau 01)",
+  "rev": "Rev.",
+  "old": "veche",
+  "show_history": "Arată reviziile vechi",
+  "hide_history": "Doar revizia curentă",
+  "heat_number": "Nr. șarjă",
+  "kinds": { "certificate": "Certificat", "drawing": "Desen", "nc_program": "Program NC", "report": "Raport", "photo": "Foto", "other": "Altele" },
+  "kinds_plural": { "certificate": "Certificate de material", "drawing": "Desene și programe NC", "nc_program": "Programe NC", "report": "Rapoarte", "photo": "Fotografii", "other": "Fișiere" },
+  "requires_certificates": "Cere certificate de material la fiecare livrare",
+  "requires_certificate": "Material certificat (certificat obligatoriu la recepție)",
+  "cert_pack": "Certificate de material (PDF)",
+  "cert_missing": "{{count}} lot(uri) de material fără certificat",
+  "cert_ok": "Toate certificatele sunt disponibile",
+  "cert_none": "Nu există certificate pentru materialul acestei livrări"
+}

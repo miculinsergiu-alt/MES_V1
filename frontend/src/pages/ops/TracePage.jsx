@@ -7,6 +7,7 @@ import api from '../../api/axios';
 import { Card } from '../../components/ui/Card';
 import { num, dateDE, apiError } from '../../lib/format';
 import { PageHeader } from '../sales/components';
+import Attachments from '../../components/Attachments';
 
 const inputCls = 'h-10 w-full rounded-lg border border-border bg-white pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent';
 
@@ -150,6 +151,9 @@ export default function TracePage() {
                 </div>
               </div>
             </Card>
+
+            {/* Material certificates (EN 10204) of this lot */}
+            <Attachments ownerType="lot" ownerId={data.lot.id} kinds={['certificate', 'report', 'photo', 'other']} title={t('files.kinds_plural.certificate')} />
 
             <div className="grid gap-4 md:grid-cols-2">
               <Card>

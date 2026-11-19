@@ -90,6 +90,10 @@ function CustomerModal({ initial, onClose, onSaved }) {
             <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('sales.customers.notes')}</span>
             <textarea rows={2} className={`${inputCls} h-auto py-2`} value={form.notes} onChange={set('notes')} />
           </label>
+          <label className="flex items-center gap-2 text-sm sm:col-span-6">
+            <input type="checkbox" checked={!!form.requires_certificates} onChange={(e) => setForm({ ...form, requires_certificates: e.target.checked ? 1 : 0 })} />
+            {t('files.requires_certificates')}
+          </label>
           <div className="flex justify-end gap-2 sm:col-span-6">
             <Button type="button" size="sm" variant="ghost" onClick={onClose}>✕</Button>
             <Button type="submit" size="sm" disabled={saving}>{t('sales.actions.save_plain')}</Button>

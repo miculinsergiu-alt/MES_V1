@@ -12,6 +12,32 @@ import { eur, num, dateDE, todayISO, apiError, openFile, downloadFile, showStock
 import { StatusPill } from './components';
 import { EDIT_ROLES, ACCOUNTING_ROLES, hasAnyRole } from '../../lib/roles';
 
+/** Certificates (EN 10204) of the material in this delivery, as one PDF for the customer. */
+function CertificatePack({ documentId, t }) {
+  const [pack, setPack] = useState(null);
+  useEffect(() => {
+    api.get(`/trace/delivery/${documentId}/certificates`).then((r) => setPack(r.data)).catch(() => setPack(null));
+  }, [documentId]);
+  if (!pack || !pack.lines.length) return null;
+  const count = pack.lines.reduce((n, l) => n + l.certificates.length, 0);
+  if (!count && !pack.customer_requires_certificates && !pack.missing_count) return null;
+  return (
+    <Card className="mt-6 flex flex-wrap items-center justify-between gap-3">
+      <div className="text-sm">
+        <div className="font-semibold">{t('files.kinds_plural.certificate')}</div>
+        <div className={pack.missing_count ? 'text-amber-700' : 'text-muted-foreground'}>
+          {pack.missing_count ? t('files.cert_missing', { count: pack.missing_count }) : count ? t('files.cert_ok') : t('files.cert_none')}
+        </div>
+      </div>
+      {count > 0 && (
+        <Button size="sm" variant="secondary" onClick={() => openFile(`/trace/delivery/${documentId}/certificates.pdf`).catch(() => {})}>
+          <FileText size={14} className="mr-1" />{t('files.cert_pack')}
+        </Button>
+      )}
+    </Card>
+  );
+}
+
 const HEADER_FIELDS = ['document_date', 'service_date', 'service_period_end', 'valid_until', 'delivery_date', 'payment_terms_days',
   'skonto_days', 'skonto_percent', 'customer_reference', 'buyer_reference', 'intro_text', 'closing_text', 'internal_notes'];
 
@@ -379,6 +405,9 @@ export default function DocumentEditor() {
           </Card>
         )}
       </div>
+
+      {/* Issued delivery note: material certificate pack */}
+      {locked && doc.doc_type === 'delivery' && <CertificatePack documentId={doc.id} t={t} />}
 
       {/* Issued document: follow-ups */}
       {locked && (
