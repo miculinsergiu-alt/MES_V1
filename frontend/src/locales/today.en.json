@@ -1,0 +1,21 @@
+{
+  "title": "Today: {{count}} thing(s) need attention",
+  "nothing": "Nothing urgent today.",
+  "more": "Show {{count}} more",
+  "less": "Show less",
+  "cat": {
+    "late_orders": "Late order",
+    "quality_hold": "Quality hold",
+    "material_short": "Material missing",
+    "subcontract_overdue": "Subcontractor late",
+    "subcontract_to_send": "To send out",
+    "quarantine": "Quarantine",
+    "gauges_due": "Gauge calibration",
+    "complaints_due": "Complaint due",
+    "po_overdue": "Supplier late",
+    "invoices_overdue": "Invoice overdue",
+    "deliveries_due": "Delivery due",
+    "quotes_expiring": "Quote expiring",
+    "forgot_clock_out": "Not clocked out"
+  }
+}

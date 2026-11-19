@@ -1,0 +1,21 @@
+{
+  "title": "Azi: {{count}} lucruri de rezolvat",
+  "nothing": "Nimic urgent azi.",
+  "more": "Arată încă {{count}}",
+  "less": "Arată mai puține",
+  "cat": {
+    "late_orders": "Comandă întârziată",
+    "quality_hold": "Blocare calitate",
+    "material_short": "Lipsă material",
+    "subcontract_overdue": "Subcontractor întârziat",
+    "subcontract_to_send": "De trimis",
+    "quarantine": "Carantină",
+    "gauges_due": "Calibrare instrument",
+    "complaints_due": "Reclamație scadentă",
+    "po_overdue": "Furnizor întârziat",
+    "invoices_overdue": "Factură restantă",
+    "deliveries_due": "Livrare scadentă",
+    "quotes_expiring": "Ofertă care expiră",
+    "forgot_clock_out": "Fără ieșire pontată"
+  }
+}

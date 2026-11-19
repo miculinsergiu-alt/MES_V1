@@ -1,0 +1,21 @@
+{
+  "title": "Heute: {{count}} Punkt(e) zu erledigen",
+  "nothing": "Heute ist nichts dringend.",
+  "more": "{{count}} weitere anzeigen",
+  "less": "Weniger anzeigen",
+  "cat": {
+    "late_orders": "Auftrag im Verzug",
+    "quality_hold": "Qualitätssperre",
+    "material_short": "Material fehlt",
+    "subcontract_overdue": "Lohnbearbeiter überfällig",
+    "subcontract_to_send": "Zu versenden",
+    "quarantine": "Quarantäne",
+    "gauges_due": "Prüfmittel kalibrieren",
+    "complaints_due": "Reklamation fällig",
+    "po_overdue": "Lieferant überfällig",
+    "invoices_overdue": "Rechnung überfällig",
+    "deliveries_due": "Liefertermin",
+    "quotes_expiring": "Angebot läuft ab",
+    "forgot_clock_out": "Nicht ausgestempelt"
+  }
+}

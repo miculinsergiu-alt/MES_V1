@@ -1,3 +1,4 @@
+import TodayPanel from '../components/TodayPanel';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -37,6 +38,8 @@ export default function HomePage() {
         <h1 className="font-display text-3xl">{t('shell.home.title', { name: user.first_name })}</h1>
         <p className="text-muted-foreground">{t('shell.home.subtitle')}</p>
       </header>
+
+      <TodayPanel />
 
       {setup && openSteps.length > 0 && (
         <Card className="border-accent/30">
