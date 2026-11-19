@@ -19,6 +19,7 @@ const DEFAULTS = {
   subcontract_delivery: { prefix: 'LL', yearly_reset: 1, digits: 5 }, // Lieferschein Lohnbearbeitung
   complaint: { prefix: 'QM', yearly_reset: 1, digits: 4 }, // Reklamation (RK is taken by credit notes)
   blanket_order: { prefix: 'RA', yearly_reset: 1, digits: 4 }, // Rahmenauftrag
+  project: { prefix: 'PR', yearly_reset: 1, digits: 3 }, // Projekt
   customer: { prefix: '', yearly_reset: 0, digits: 5, start: 10001 }, // usable as DATEV debtor account
 };
 

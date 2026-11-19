@@ -1,0 +1,31 @@
+{
+  "error": "Action failed",
+  "new": "New project",
+  "create": "Create",
+  "number": "No.",
+  "name": "Project",
+  "customer": "Customer",
+  "budget": "Cost budget €",
+  "due": "Due",
+  "ordered": "Order intake",
+  "quoted": "quoted",
+  "invoiced": "Invoiced",
+  "cost": "Actual cost",
+  "margin": "Margin",
+  "link": "Link",
+  "unlink": "Remove from project",
+  "files": "Project files",
+  "empty": "No projects.",
+  "hint": "Production orders made for a linked order confirmation are included automatically. Cost = actual production cost (material, machine, labour, outside processing) + linked buy-out purchase orders + outside processing linked on its own. Margin is based on invoiced value, or the order value until invoiced.",
+  "kind": {
+    "sales_document": "Sales documents",
+    "production_order": "Production orders",
+    "purchase_order": "Purchase orders",
+    "subcontract_job": "Outside processing"
+  },
+  "filter": {
+    "open": "Open",
+    "closed": "Closed",
+    "all": "All"
+  }
+}

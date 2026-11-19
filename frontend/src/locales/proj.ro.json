@@ -1,0 +1,31 @@
+{
+  "error": "Acțiunea a eșuat",
+  "new": "Proiect nou",
+  "create": "Creează",
+  "number": "Nr.",
+  "name": "Proiect",
+  "customer": "Client",
+  "budget": "Buget cost €",
+  "due": "Termen",
+  "ordered": "Valoare comenzi",
+  "quoted": "ofertat",
+  "invoiced": "Facturat",
+  "cost": "Cost real",
+  "margin": "Marjă",
+  "link": "Leagă",
+  "unlink": "Scoate din proiect",
+  "files": "Fișiere proiect",
+  "empty": "Niciun proiect.",
+  "hint": "Comenzile de producție ale unei confirmări de comandă legate intră automat. Cost = cost real de producție (material, mașină, manoperă, operații externe) + comenzi de achiziție legate + operații externe legate separat. Marja se calculează pe facturat sau, până atunci, pe valoarea comenzii.",
+  "kind": {
+    "sales_document": "Documente vânzare",
+    "production_order": "Comenzi producție",
+    "purchase_order": "Comenzi achiziție",
+    "subcontract_job": "Operații externe"
+  },
+  "filter": {
+    "open": "Deschise",
+    "closed": "Închise",
+    "all": "Toate"
+  }
+}

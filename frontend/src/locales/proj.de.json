@@ -1,0 +1,31 @@
+{
+  "error": "Aktion fehlgeschlagen",
+  "new": "Neues Projekt",
+  "create": "Anlegen",
+  "number": "Nr.",
+  "name": "Projekt",
+  "customer": "Kunde",
+  "budget": "Kostenbudget €",
+  "due": "Termin",
+  "ordered": "Auftragswert",
+  "quoted": "angeboten",
+  "invoiced": "Fakturiert",
+  "cost": "Ist-Kosten",
+  "margin": "Deckungsbeitrag",
+  "link": "Verknüpfen",
+  "unlink": "Aus Projekt entfernen",
+  "files": "Projektdateien",
+  "empty": "Keine Projekte.",
+  "hint": "Fertigungsaufträge zu einer verknüpften Auftragsbestätigung zählen automatisch. Kosten = Ist-Fertigungskosten (Material, Maschine, Lohn, Fremdbearbeitung) + verknüpfte Zukaufbestellungen + separat verknüpfte Fremdbearbeitung. Deckungsbeitrag auf Basis fakturiert, bis dahin Auftragswert.",
+  "kind": {
+    "sales_document": "Verkaufsbelege",
+    "production_order": "Fertigungsaufträge",
+    "purchase_order": "Bestellungen",
+    "subcontract_job": "Fremdbearbeitung"
+  },
+  "filter": {
+    "open": "Offen",
+    "closed": "Abgeschlossen",
+    "all": "Alle"
+  }
+}
