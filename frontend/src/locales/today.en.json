@@ -16,6 +16,8 @@
     "invoices_overdue": "Invoice overdue",
     "deliveries_due": "Delivery due",
     "quotes_expiring": "Quote expiring",
-    "forgot_clock_out": "Not clocked out"
+    "forgot_clock_out": "Not clocked out",
+    "tools_worn": "Tool worn",
+    "tool_spares_low": "Spare tools low"
   }
 }

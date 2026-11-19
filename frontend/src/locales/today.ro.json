@@ -16,6 +16,8 @@
     "invoices_overdue": "Factură restantă",
     "deliveries_due": "Livrare scadentă",
     "quotes_expiring": "Ofertă care expiră",
-    "forgot_clock_out": "Fără ieșire pontată"
+    "forgot_clock_out": "Fără ieșire pontată",
+    "tools_worn": "Sculă uzată",
+    "tool_spares_low": "Rezervă scule sub minim"
   }
 }

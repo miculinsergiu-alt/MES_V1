@@ -104,6 +104,7 @@ app.use('/api/time', require('./routes/timeclock'));
 app.use('/api/blanket-orders', require('./routes/blanket'));
 app.use('/api/capacity', require('./routes/capacity'));
 app.use('/api/today', require('./routes/today'));
+app.use('/api/tools', require('./routes/tools'));
 app.use('/api', require('./routes/dashboard'));
 
 app.use('/api', (req, res, next) => next(notFound(`API route ${req.method} ${req.path}`)));

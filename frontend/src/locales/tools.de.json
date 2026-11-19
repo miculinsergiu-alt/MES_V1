@@ -1,0 +1,20 @@
+{
+  "error": "Aktion fehlgeschlagen",
+  "code": "Nr.",
+  "name": "Werkzeug",
+  "type": "Art",
+  "machine": "Maschine",
+  "store": "Werkzeuglager",
+  "life": "Standmenge (Stk)",
+  "spares": "Ersatz",
+  "min_spares": "Min.",
+  "wear": "Verschleiß",
+  "replace": "Gewechselt",
+  "regrind": "Nachgeschliffen",
+  "add_spares": "Ersatz zu",
+  "how_many": "Wie viele Ersatzwerkzeuge sind eingetroffen?",
+  "empty": "Noch keine Werkzeuge.",
+  "done": "Gespeichert",
+  "hint": "Gemeldete Stückzahlen einer Maschine werden auf alle dort eingesetzten Werkzeuge gezählt. Ab 90 % der Standmenge sieht der Bediener das Werkzeug, auch in der Heute-Liste; „Gewechselt\" verbraucht ein Ersatzwerkzeug und setzt den Zähler zurück.",
+  "worn_msg": "{{code}} {{name}}: {{used}} von {{life}} Stk, bald wechseln"
+}

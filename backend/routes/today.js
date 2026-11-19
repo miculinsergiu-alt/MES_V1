@@ -48,6 +48,13 @@ router.get('/', h(async (req, res) => {
       SELECT j.id, j.description, j.planned_send, s.name AS supplier FROM subcontract_jobs j JOIN suppliers s ON s.id = j.supplier_id
       WHERE j.status = 'planned' AND j.planned_send::date <= ?::date ORDER BY j.planned_send LIMIT 50`, [today]),
     (r) => ({ id: r.id, title: `${r.description} · ${r.supplier}`, date: r.planned_send, link: '/subcontracting' }));
+    add('tools_worn', 'medium', await db.all(`
+      SELECT t.id, t.code, t.name, t.used_parts, t.life_limit_parts, m.name AS machine FROM tools t LEFT JOIN machines m ON m.id = t.machine_id
+      WHERE t.active = 1 AND t.life_limit_parts > 0 AND t.used_parts >= 0.9 * t.life_limit_parts ORDER BY t.used_parts::float / t.life_limit_parts DESC LIMIT 50`),
+    (r) => ({ id: r.id, title: `${r.code} · ${r.name}${r.machine ? ` · ${r.machine}` : ''} (${Math.round((r.used_parts / r.life_limit_parts) * 100)} %)`, link: '/tools' }));
+    add('tool_spares_low', 'low', await db.all(`
+      SELECT id, code, name, spare_count, min_spares FROM tools WHERE active = 1 AND min_spares > 0 AND spare_count < min_spares ORDER BY code LIMIT 50`),
+    (r) => ({ id: r.id, title: `${r.code} · ${r.name} (${r.spare_count}/${r.min_spares})`, link: '/tools' }));
   }
   if (hasRole(u, ...QUALITY)) {
     add('quarantine', 'medium', await db.all(`

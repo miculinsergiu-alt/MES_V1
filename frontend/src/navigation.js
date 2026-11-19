@@ -6,7 +6,7 @@
  * server enforces its own checks independently.
  */
 import {
-  Home, Clock, Layers, LayoutDashboard, Factory, ClipboardList, HardHat, Gauge, Wrench, Boxes, Truck, Users, Warehouse,
+  Home, Clock, Layers, Hammer, LayoutDashboard, Factory, ClipboardList, HardHat, Gauge, Wrench, Boxes, Truck, Users, Warehouse,
   Inbox, ArrowRightLeft, FileText, Wallet, BellRing, FileDown, Settings, ShieldCheck, Upload, GitBranch, Calculator, BarChart3,
 } from 'lucide-react';
 import { rolesOf } from './lib/roles';
@@ -30,6 +30,7 @@ export const NAV_GROUPS = [
       { path: '/operator', key: 'my_tasks', icon: HardHat, roles: ['operator', 'administrator'] },
       { path: '/capacity', key: 'capacity', icon: BarChart3, roles: ['planner', 'administrator', 'area_supervisor', 'sales', 'material_planner'] },
       { path: '/supervisor/oee', key: 'oee', icon: Gauge, roles: ['area_supervisor', 'administrator', 'planner'] },
+      { path: '/tools', key: 'tools', icon: Hammer, roles: ['area_supervisor', 'administrator', 'planner', 'shift_responsible', 'warehouse_manager'] },
       { path: '/supervisor/maintenance', key: 'maintenance', icon: Wrench, roles: ['area_supervisor', 'administrator'] },
     ],
   },

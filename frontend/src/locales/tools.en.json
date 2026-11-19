@@ -1,0 +1,20 @@
+{
+  "error": "Action failed",
+  "code": "No.",
+  "name": "Tool",
+  "type": "Type",
+  "machine": "Machine",
+  "store": "Tool store",
+  "life": "Life (parts)",
+  "spares": "Spares",
+  "min_spares": "Min.",
+  "wear": "Wear",
+  "replace": "Replaced",
+  "regrind": "Reground",
+  "add_spares": "Spares in",
+  "how_many": "How many spares arrived?",
+  "empty": "No tools yet.",
+  "done": "Saved",
+  "hint": "Parts reported on a machine are counted on every tool mounted there. From 90 % of the tool life the tool is shown to the operator and in today's list; \"Replaced\" uses one spare and resets the counter.",
+  "worn_msg": "{{code}} {{name}}: {{used}} of {{life}} parts, change soon"
+}

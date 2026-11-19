@@ -305,6 +305,8 @@ router.post('/results', h(async (req, res) => {
   const lotNumber = await bookFinishedGoods(order, b.qty_ok, req.user.id);
   // A production order on quality hold: its lot stays in quarantine until released.
   await require('../services/quality').quarantineHeldLot(order.parent_order_id || order.id, req.user.id);
+  // Tool life: count the parts on the tools mounted on this machine.
+  await require('./tools').countUsage(order.machine_id, b.qty_ok + b.qty_fail);
 
   const total = await db.get('SELECT COALESCE(SUM(qty_ok + qty_fail), 0) AS produced FROM production_results WHERE order_id = ?', [order.id]);
   if (total.produced >= order.quantity && order.status !== 'done') {

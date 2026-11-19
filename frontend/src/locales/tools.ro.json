@@ -1,0 +1,20 @@
+{
+  "error": "Acțiunea a eșuat",
+  "code": "Cod",
+  "name": "Sculă",
+  "type": "Tip",
+  "machine": "Mașină",
+  "store": "Magazie scule",
+  "life": "Durată (buc)",
+  "spares": "Rezervă",
+  "min_spares": "Min.",
+  "wear": "Uzură",
+  "replace": "Schimbată",
+  "regrind": "Reascuțită",
+  "add_spares": "Rezervă intrată",
+  "how_many": "Câte scule de rezervă au sosit?",
+  "empty": "Nicio sculă încă.",
+  "done": "Salvat",
+  "hint": "Piesele raportate pe o mașină se numără pe toate sculele montate pe ea. De la 90 % din durată, scula apare la operator și în lista de azi; „Schimbată\" consumă o rezervă și resetează contorul.",
+  "worn_msg": "{{code}} {{name}}: {{used}} din {{life}} buc, schimb-o curând"
+}

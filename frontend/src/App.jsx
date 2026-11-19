@@ -37,6 +37,7 @@ import QualityPage from './pages/ops/QualityPage';
 import TimePage from './pages/ops/TimePage';
 import BlanketOrdersPage from './pages/sales/BlanketOrdersPage';
 import CapacityPage from './pages/ops/CapacityPage';
+import ToolsPage from './pages/ops/ToolsPage';
 
 function RootRedirect() {
   const { user } = useAuth();
@@ -102,6 +103,7 @@ export default function App() {
                 <Route path="/quality" element={<QualityPage />} />
                 <Route path="/time" element={<TimePage />} />
                 <Route path="/capacity" element={<CapacityPage />} />
+                <Route path="/tools" element={<ToolsPage />} />
                 <Route path="/sales/blanket-orders" element={<BlanketOrdersPage />} />
                 <Route path="/trace/:lot" element={<TracePage />} />
                 <Route path="/costing" element={<CostingPage />} />

@@ -16,6 +16,8 @@
     "invoices_overdue": "Rechnung überfällig",
     "deliveries_due": "Liefertermin",
     "quotes_expiring": "Angebot läuft ab",
-    "forgot_clock_out": "Nicht ausgestempelt"
+    "forgot_clock_out": "Nicht ausgestempelt",
+    "tools_worn": "Werkzeug verschlissen",
+    "tool_spares_low": "Ersatzwerkzeuge fehlen"
   }
 }
