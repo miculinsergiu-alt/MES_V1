@@ -258,6 +258,7 @@
     "type": "Typ",
     "quantity": "Menge",
     "uom": "Einheit",
+    "pcs": "Stk",
     "location": "Lagerplatz",
     "last_updated": "Zuletzt geändert",
     "adjust": "Korrigieren",

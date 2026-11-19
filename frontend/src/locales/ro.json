@@ -257,6 +257,7 @@
     "type": "Tip",
     "quantity": "Cantitate",
     "uom": "UOM",
+    "pcs": "buc",
     "location": "Locație",
     "last_updated": "Ultima Actualizare",
     "adjust": "Ajustează",

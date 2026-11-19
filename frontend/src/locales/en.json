@@ -258,6 +258,7 @@
     "type": "Type",
     "quantity": "Quantity",
     "uom": "UoM",
+    "pcs": "pcs",
     "location": "Location",
     "last_updated": "Last Updated",
     "adjust": "Adjust",

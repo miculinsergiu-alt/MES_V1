@@ -1,0 +1,26 @@
+name: Uptime
+
+# Checks the live app every 30 minutes. A failed run sends the repository
+# owner a GitHub e-mail. Set the repository variable NOVA_URL to change the
+# address (e.g. after moving to Frankfurt).
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: GET /api/health
+        env:
+          URL: ${{ vars.NOVA_URL || 'https://smartfactory-mes.onrender.com' }}
+        run: |
+          # Free hosting plans sleep: allow a slow first answer, retry twice.
+          for i in 1 2 3; do
+            body=$(curl -fsS --max-time 90 "$URL/api/health") && echo "$body" && echo "$body" | grep -q '"status":"ok"' && exit 0
+            echo "Attempt $i failed"; sleep 20
+          done
+          echo "::error::NOVA is not answering at $URL"
+          exit 1

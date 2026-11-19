@@ -62,6 +62,14 @@ test('quote to invoice to DATEV, through the browser session', async ({ page }) 
   await expect(page.locator('main, #root').first()).toBeVisible();
   await page.goto('/account');
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  // The large screens (split into parts) still open, and their dialogs too
+  for (const url of ['/admin', '/planner', '/planner/items']) {
+    await page.goto(url);
+    await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
+  }
+  await page.goto('/planner');
+  await page.getByRole('button', { name: /Neuer Auftrag|New order/i }).first().click();
+  await expect(page.locator('form, [role=dialog]').first()).toBeVisible();
 
   const csp = problems.filter((p) => /Content Security Policy|Refused to/i.test(p));
   expect(csp, csp.join('\n')).toEqual([]);

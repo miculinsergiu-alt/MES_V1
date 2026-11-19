@@ -39,3 +39,48 @@ services:
           property: connectionString # internal URL, private network
       - key: DATABASE_SSL
         value: "false"
+      # Registration only with an invitation code (pilot customers get it from you).
+      - key: SIGNUP_ENABLED
+        value: "true"
+      - key: SIGNUP_INVITE_CODE
+        sync: false # set in the dashboard, never in git
+      # Outgoing e-mail (password reset, e-mail confirmation). Without SMTP_HOST
+      # the links are only written to the log. Use an EU provider.
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+
+  # Daily encrypted off-site backup (02:30 Berlin = 01:30 UTC in winter).
+  # BACKUP_KEY: a long passphrase, also stored outside Render (password manager).
+  # Copy the file to EU object storage (e.g. Hetzner / IONOS S3) by adding an
+  # upload command after the backup; Render's own daily backups stay as well.
+  - type: cron
+    name: nova-backup
+    runtime: node
+    region: frankfurt
+    plan: starter
+    schedule: "30 1 * * *"
+    buildCommand: npm ci --workspace=backend
+    startCommand: npm run backup --workspace=backend -- --out-dir /tmp/backups
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: nova-db
+          property: connectionString
+      - key: DATABASE_SSL
+        value: "false"
+      - key: BACKUP_KEY
+        sync: false
