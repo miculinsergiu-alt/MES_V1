@@ -100,6 +100,7 @@ app.use('/api/reports', require('./routes/reports'));
 app.use('/api/attachments', require('./routes/attachments'));
 app.use('/api/subcontracting', require('./routes/subcontracting'));
 app.use('/api/quote-calc', require('./routes/quotecalc'));
+app.use('/api/time', require('./routes/timeclock'));
 app.use('/api', require('./routes/dashboard'));
 
 app.use('/api', (req, res, next) => next(notFound(`API route ${req.method} ${req.path}`)));

@@ -17,6 +17,7 @@ const COMPANY_FIELDS = [
   'default_skonto_percent', 'small_business', 'invoice_footer_text', 'datev_consultant_number',
   'datev_client_number', 'datev_chart', 'dunning_fee', 'dunning_grace_days', 'timezone',
   'negative_stock', 'labor_rate', 'calc_material_surcharge', 'calc_overhead', 'calc_margin',
+  'daily_target_hours',
 ];
 
 /** IBAN check digits (ISO 13616, mod 97). */
@@ -70,6 +71,7 @@ const settingsSchema = v.z.object({
   calc_material_surcharge: v.z.coerce.number().min(0).max(500).optional(),
   calc_overhead: v.z.coerce.number().min(0).max(500).optional(),
   calc_margin: v.z.coerce.number().min(0).max(500).optional(),
+  daily_target_hours: v.z.coerce.number().min(0).max(24).optional(),
   timezone: v.z.string().refine((tz) => { try { new Intl.DateTimeFormat('en', { timeZone: tz }); return true; } catch { return false; } }, 'Unknown time zone').optional(),
 });
 

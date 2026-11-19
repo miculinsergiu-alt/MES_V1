@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { LogOut, Menu, Search, UserCog, X } from 'lucide-react';
+import ClockWidget from './ClockWidget';
 import api from '../api/axios';
 import { useAuth } from '../contexts/AuthContext';
 import { navFor, rolesFor, homeFor } from '../navigation';
@@ -151,6 +152,7 @@ export default function AppShell() {
 
   const userBox = (
     <div className="border-t border-border p-3">
+      <ClockWidget />
       <div className="mb-2 flex items-center justify-between gap-2 px-2">
         <div className="min-w-0">
           <div className="truncate text-sm font-semibold">{user.first_name} {user.last_name}</div>

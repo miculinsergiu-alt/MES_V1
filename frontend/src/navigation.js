@@ -6,7 +6,7 @@
  * server enforces its own checks independently.
  */
 import {
-  Home, LayoutDashboard, Factory, ClipboardList, HardHat, Gauge, Wrench, Boxes, Truck, Users, Warehouse,
+  Home, Clock, LayoutDashboard, Factory, ClipboardList, HardHat, Gauge, Wrench, Boxes, Truck, Users, Warehouse,
   Inbox, ArrowRightLeft, FileText, Wallet, BellRing, FileDown, Settings, ShieldCheck, Upload, GitBranch, Calculator, BarChart3,
 } from 'lucide-react';
 import { rolesOf } from './lib/roles';
@@ -18,6 +18,7 @@ export const NAV_GROUPS = [
     key: 'overview',
     items: [
       { path: '/home', key: 'home', icon: Home, roles: ALL },
+      { path: '/time', key: 'time', icon: Clock, roles: ALL },
     ],
   },
   {
