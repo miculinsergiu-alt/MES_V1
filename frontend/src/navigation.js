@@ -7,7 +7,7 @@
  */
 import {
   Home, LayoutDashboard, Factory, ClipboardList, HardHat, Gauge, Wrench, Boxes, Truck, Users, Warehouse,
-  Inbox, FileText, Wallet, BellRing, FileDown, Settings, ShieldCheck, Upload, GitBranch, Calculator, BarChart3,
+  Inbox, ArrowRightLeft, FileText, Wallet, BellRing, FileDown, Settings, ShieldCheck, Upload, GitBranch, Calculator, BarChart3,
 } from 'lucide-react';
 import { rolesOf } from './lib/roles';
 
@@ -43,6 +43,7 @@ export const NAV_GROUPS = [
     key: 'warehouse',
     items: [
       { path: '/inventory', key: 'inventory', icon: Warehouse, roles: ['warehouse_manager', 'material_planner', 'planner', 'administrator'] },
+      { path: '/subcontracting', key: 'subcontracting', icon: ArrowRightLeft, roles: ['administrator', 'planner', 'material_planner', 'warehouse_manager', 'area_supervisor', 'shift_responsible', 'accounting'] },
       { path: '/purchase-invoices', key: 'incoming_invoices', icon: Inbox, roles: ['administrator', 'accounting', 'material_planner', 'planner', 'warehouse_manager'] },
       { path: '/trace', key: 'traceability', icon: GitBranch, roles: ['administrator', 'planner', 'area_supervisor', 'shift_responsible', 'warehouse_manager', 'material_planner', 'sales'] },
     ],

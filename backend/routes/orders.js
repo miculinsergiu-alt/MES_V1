@@ -260,10 +260,22 @@ async function createProductionOrders(orders, userId) {
       let lastEnd = o.planned_start;
       let rootId = null;
       for (const [i, step] of route.entries()) {
+        if (step.step_type === 'external') {
+          // Outside processing: no machine order; a subcontract job, and the
+          // following steps wait for the parts to come back.
+          const back = addMinutes(lastEnd, Math.max(1, Number(step.external_days) || 0) * 24 * 60);
+          await db.run(`
+            INSERT INTO subcontract_jobs (order_id, routing_sequence, item_id, supplier_id, description, quantity, price_per_unit, min_charge, planned_send, planned_return)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [rootId, step.sequence, o.item_id ?? null, step.supplier_id, step.notes || `${productName} [${i + 1}/${route.length}]`,
+            o.quantity, step.external_price || 0, step.external_min_charge || 0, lastEnd, back]);
+          lastEnd = back;
+          continue;
+        }
         const start = await getMachineAvailableTime(step.machine_id, lastEnd);
         const override = o.route_overrides?.[i];
         const baseMinutes = override !== undefined && override !== null ? override : (step.process_time_min || 0);
-        const minutes = (o.is_fixed_time ? baseMinutes : baseMinutes * o.quantity) || 60;
+        const minutes = ((o.is_fixed_time ? baseMinutes : baseMinutes * o.quantity) + (Number(step.setup_time_min) || 0)) || 60;
         const end = addMinutes(start, minutes);
         const name = `${productName} [${i + 1}/${route.length}]`;
         const row = await insert(o, step.machine_id, name, start, end, rootId, step.sequence);

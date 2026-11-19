@@ -27,7 +27,7 @@ function CostingDetail({ id }) {
     api.get(`/reports/costing/${id}`).then((r) => setC(r.data)).catch((err) => toast.error(apiError(err, t('sales.messages.error'))));
   }, [id, t]);
   if (!c) return null;
-  const rows = ['material', 'machine', 'labour', 'total'];
+  const rows = ['material', 'machine', 'labour', ...(c.planned.external || c.actual.external ? ['external'] : []), 'total'];
   return (
     <div className="space-y-6">
       <Link to="/costing" className="inline-flex items-center gap-1 text-sm text-accent hover:underline"><ArrowLeft size={14} aria-hidden />{t('ops.costing.back')}</Link>
@@ -59,7 +59,7 @@ function CostingDetail({ id }) {
           <tbody>
             {rows.map((k) => (
               <tr key={k} className={k === 'total' ? 'font-semibold' : ''}>
-                <td>{t(`ops.costing.type.${k}`)}</td>
+                <td>{k === 'external' ? t('sub.external_cost') : t(`ops.costing.type.${k}`)}</td>
                 <td className="text-right tabular-nums">{eur(c.planned[k])}</td>
                 <td className="text-right tabular-nums">{eur(c.actual[k])}</td>
                 <td className="text-right"><Deviation value={Math.round((c.actual[k] - c.planned[k]) * 100) / 100} /></td>

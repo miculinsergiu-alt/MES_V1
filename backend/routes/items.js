@@ -2,7 +2,7 @@ const express = require('express');
 const db = require('../db');
 const { h } = require('../lib/handler');
 const v = require('../lib/validate');
-const { notFound } = require('../lib/errors');
+const { notFound, badRequest } = require('../lib/errors');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 
 const router = express.Router();
@@ -24,16 +24,26 @@ router.get('/:id', h(async (req, res) => {
   const item = await db.get('SELECT * FROM items WHERE id = ?', [v.paramId(req)]);
   if (!item) throw notFound('Item');
   const routes = await db.all(`
-    SELECT ir.*, m.name AS machine_name
-    FROM item_routes ir JOIN machines m ON ir.machine_id = m.id
+    SELECT ir.*, m.name AS machine_name, s.name AS supplier_name
+    FROM item_routes ir LEFT JOIN machines m ON ir.machine_id = m.id LEFT JOIN suppliers s ON s.id = ir.supplier_id
     WHERE ir.item_id = ? ORDER BY ir.sequence`, [item.id]);
   res.json({ ...item, routes });
 }));
 
+// A routing step runs on one of our machines ('internal') or at a subcontractor ('external').
 const routeStep = v.z.object({
-  machine_id: v.id,
-  process_time_min: v.nonNeg.default(0),
+  step_type: v.z.enum(['internal', 'external']).default('internal'),
+  machine_id: v.optId,
+  process_time_min: v.nonNeg.default(0),   // minutes per piece
+  setup_time_min: v.nonNeg.default(0),     // minutes per batch
+  supplier_id: v.optId,
+  external_days: v.nonNeg.default(0),
+  external_price: v.nonNeg.default(0),     // € per piece
+  external_min_charge: v.nonNeg.default(0),
   notes: v.optStr(1000),
+}).superRefine((s, ctx) => {
+  if (s.step_type === 'internal' && !s.machine_id) ctx.addIssue({ code: 'custom', message: 'Machine is required for internal steps', path: ['machine_id'] });
+  if (s.step_type === 'external' && !s.supplier_id) ctx.addIssue({ code: 'custom', message: 'Subcontractor is required for external steps', path: ['supplier_id'] });
 });
 
 const itemFields = {
@@ -54,11 +64,15 @@ const itemFields = {
 };
 
 async function replaceRoutes(itemId, routes) {
+  if (routes.length && routes[0].step_type === 'external') throw badRequest('The first routing step must be done on one of your machines');
   await db.run('DELETE FROM item_routes WHERE item_id = ?', [itemId]);
   for (const [i, r] of routes.entries()) {
+    const ext = r.step_type === 'external';
     await db.run(
-      'INSERT INTO item_routes (item_id, machine_id, sequence, process_time_min, notes) VALUES (?, ?, ?, ?, ?)',
-      [itemId, r.machine_id, i + 1, r.process_time_min, r.notes ?? ''],
+      `INSERT INTO item_routes (item_id, machine_id, sequence, process_time_min, setup_time_min, notes, step_type, supplier_id, external_days, external_price, external_min_charge)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [itemId, ext ? null : r.machine_id, i + 1, ext ? 0 : r.process_time_min, ext ? 0 : r.setup_time_min, r.notes ?? '',
+        r.step_type, ext ? r.supplier_id : null, ext ? r.external_days : 0, ext ? r.external_price : 0, ext ? r.external_min_charge : 0],
     );
   }
 }

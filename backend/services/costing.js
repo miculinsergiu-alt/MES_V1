@@ -136,13 +136,25 @@ async function costOrder(rootId) {
     }
   }
 
+  // Outside processing (subcontractors): planned = price × quantity (or minimum charge),
+  // actual = cost booked at receipt; a job not yet received counts with its planned cost.
+  const externalRows = (await db.all(`
+    SELECT j.id, j.description, j.status, j.quantity, j.price_per_unit, j.min_charge, j.actual_cost, s.name AS supplier_name
+    FROM subcontract_jobs j JOIN suppliers s ON s.id = j.supplier_id
+    WHERE j.order_id = ? AND j.status <> 'cancelled' ORDER BY j.routing_sequence, j.id`, [rootId])).map((j) => {
+    const plannedCost = round2(Math.max(Number(j.quantity) * Number(j.price_per_unit), Number(j.min_charge) || 0));
+    return { id: j.id, description: j.description, supplier_name: j.supplier_name, status: j.status,
+      planned_cost: plannedCost, actual_cost: j.status === 'received' ? round2(j.actual_cost) : plannedCost };
+  });
+
   const sum = (rows, k) => round2(rows.reduce((s, r) => s + (Number(r[k]) || 0), 0));
   const planned = {
     material: sum(materials, 'planned_cost'),
     machine: sum(stepRows, 'planned_machine_cost'),
     labour: sum(stepRows, 'planned_labour_cost'),
+    external: sum(externalRows, 'planned_cost'),
   };
-  planned.total = round2(planned.material + planned.machine + planned.labour);
+  planned.total = round2(planned.material + planned.machine + planned.labour + planned.external);
   planned.quantity = root.quantity;
   planned.per_piece = root.quantity ? round2(planned.total / root.quantity) : 0;
   planned.revenue = round2(revenuePerPiece * root.quantity);
@@ -152,8 +164,9 @@ async function costOrder(rootId) {
     material: sum(materials, 'actual_cost'),
     machine: sum(stepRows, 'actual_machine_cost'),
     labour: sum(stepRows, 'actual_labour_cost'),
+    external: sum(externalRows, 'actual_cost'),
   };
-  actual.total = round2(actual.material + actual.machine + actual.labour);
+  actual.total = round2(actual.material + actual.machine + actual.labour + actual.external);
   actual.quantity = Number(out.ok);
   actual.scrap = Number(out.fail);
   actual.per_piece = actual.quantity ? round2(actual.total / actual.quantity) : 0;
@@ -173,7 +186,7 @@ async function costOrder(rootId) {
     planned, actual,
     deviation: round2(actual.total - planned.total),
     times_estimated: stepRows.some((s) => s.estimated),
-    materials, steps: stepRows,
+    materials, steps: stepRows, external: externalRows,
   };
 }
 

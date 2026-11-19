@@ -32,6 +32,7 @@ import './index.css';
 import TracePage from './pages/ops/TracePage';
 import CostingPage from './pages/ops/CostingPage';
 import ReportsPage from './pages/ops/ReportsPage';
+import SubcontractingPage from './pages/ops/SubcontractingPage';
 
 function RootRedirect() {
   const { user } = useAuth();
@@ -93,6 +94,7 @@ export default function App() {
                 <Route path="/sales/datev" element={<DatevPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/trace" element={<TracePage />} />
+                <Route path="/subcontracting" element={<SubcontractingPage />} />
                 <Route path="/trace/:lot" element={<TracePage />} />
                 <Route path="/costing" element={<CostingPage />} />
                 <Route path="/costing/:id" element={<CostingPage />} />

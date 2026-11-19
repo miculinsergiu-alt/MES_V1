@@ -21,6 +21,7 @@
     "suppliers": "Lieferanten",
     "inventory": "Lager",
     "incoming_invoices": "Eingangsrechnungen",
+    "subcontracting": "Fremdbearbeitung",
     "documents": "Verkaufsbelege",
     "open_items": "Offene Posten",
     "dunning": "Mahnwesen",
