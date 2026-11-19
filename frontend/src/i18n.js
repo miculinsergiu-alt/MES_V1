@@ -29,15 +29,18 @@ import subRo from './locales/sub.ro.json';
 import calcDe from './locales/calc.de.json';
 import calcEn from './locales/calc.en.json';
 import calcRo from './locales/calc.ro.json';
+import qmDe from './locales/qm.de.json';
+import qmEn from './locales/qm.en.json';
+import qmRo from './locales/qm.ro.json';
 
 i18n
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
     resources: {
-      de: { translation: { ...de, sales: salesDe, shell: shellDe, onboarding: onboardingDe, screens: screensDe, ops: opsDe, account: accountDe, files: filesDe, sub: subDe, calc: calcDe } },
-      en: { translation: { ...en, sales: salesEn, shell: shellEn, onboarding: onboardingEn, screens: screensEn, ops: opsEn, account: accountEn, files: filesEn, sub: subEn, calc: calcEn, roles: { ...en.roles, material_planner: 'Material Planner', sales: 'Sales', accounting: 'Accounting' } } },
-      ro: { translation: { ...ro, sales: salesEn, shell: shellRo, onboarding: onboardingEn, screens: screensRo, ops: opsEn, account: accountRo, files: filesRo, sub: subRo, calc: calcRo, roles: { ...ro.roles, sales: 'Vânzări', accounting: 'Contabilitate' } } },
+      de: { translation: { ...de, sales: salesDe, shell: shellDe, onboarding: onboardingDe, screens: screensDe, ops: opsDe, account: accountDe, files: filesDe, sub: subDe, calc: calcDe, qm: qmDe } },
+      en: { translation: { ...en, sales: salesEn, shell: shellEn, onboarding: onboardingEn, screens: screensEn, ops: opsEn, account: accountEn, files: filesEn, sub: subEn, calc: calcEn, qm: qmEn, roles: { ...en.roles, material_planner: 'Material Planner', sales: 'Sales', accounting: 'Accounting' } } },
+      ro: { translation: { ...ro, sales: salesEn, shell: shellRo, onboarding: onboardingEn, screens: screensRo, ops: opsEn, account: accountRo, files: filesRo, sub: subRo, calc: calcRo, qm: qmRo, roles: { ...ro.roles, sales: 'Vânzări', accounting: 'Contabilitate' } } },
     },
     supportedLngs: ['de', 'en', 'ro'],
     nonExplicitSupportedLngs: true,

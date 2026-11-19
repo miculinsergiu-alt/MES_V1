@@ -1,0 +1,85 @@
+{
+  "plan": "Prüfplan",
+  "plan_saved": "Prüfplan gespeichert",
+  "plan_empty": "Noch keine Merkmale. Maße oder Sichtprüfungen hinzufügen.",
+  "add_characteristic": "Merkmal",
+  "name_ph": "z. B. Ø 25 h7",
+  "nominal": "Soll",
+  "tol_ph": "Tol. z. B. -0,021/0",
+  "tol_hint": "Unteres/oberes Abmaß eingeben, die Grenzen werden ausgefüllt",
+  "min": "Min",
+  "max": "Max",
+  "gauge": "Prüfmittel",
+  "critical": "Kritisches Merkmal",
+  "save_plan": "Prüfplan speichern",
+  "error": "Aktion fehlgeschlagen",
+  "inspection": "Prüfung",
+  "due": "{{count}} Prüfung(en) fällig",
+  "report": "Messprotokoll",
+  "hold": "Außer Toleranz: Auftrag gesperrt, Teile in Quarantäne.",
+  "release": "Freigeben",
+  "last": "zuletzt",
+  "save_values": "Werte speichern",
+  "nok_hold": "Außer Toleranz! Auftrag gesperrt, Qualität informieren.",
+  "ok_saved": "Werte gespeichert: i.O.",
+  "saved": "Gespeichert",
+  "new_complaint": "Neue Reklamation",
+  "customer": "Kunde",
+  "lot": "Charge",
+  "reference": "Kunden-Ref.",
+  "status_label": "Status",
+  "quantity": "Menge",
+  "cost": "Kosten €",
+  "due_date": "Fällig",
+  "description": "Beschreibung",
+  "save": "Speichern",
+  "no_complaints": "Keine Reklamationen.",
+  "code": "Nr.",
+  "gauge_name": "Prüfmittel",
+  "interval": "Monate",
+  "last_calibrated": "Zuletzt kalibriert",
+  "next_due": "Nächste Prüfung",
+  "overdue": "überfällig",
+  "calibrated_today": "Heute kalibriert",
+  "kind": {
+    "measure": "Maß",
+    "attribute": "Sichtprüfung / i.O."
+  },
+  "freq": {
+    "first": "Erstteil",
+    "every_n": "Alle n Teile",
+    "final": "Endprüfung",
+    "each": "Erst + laufend + End"
+  },
+  "stage": {
+    "first": "Erstteil",
+    "in_process": "Laufend",
+    "final": "Endprüfung"
+  },
+  "filter": {
+    "open": "Offen",
+    "closed": "Abgeschlossen",
+    "all": "Alle"
+  },
+  "tab": {
+    "complaints": "Reklamationen (8D)",
+    "gauges": "Prüfmittel"
+  },
+  "cstatus": {
+    "open": "Offen",
+    "analysis": "Analyse",
+    "action": "Maßnahmen",
+    "closed": "Abgeschlossen",
+    "rejected": "Abgelehnt"
+  },
+  "d8": {
+    "d1_team": "D1 Team",
+    "d2_problem": "D2 Problembeschreibung",
+    "d3_containment": "D3 Sofortmaßnahmen",
+    "d4_root_cause": "D4 Ursache",
+    "d5_corrective": "D5 Abstellmaßnahmen",
+    "d6_implemented": "D6 Umgesetzt & wirksam",
+    "d7_prevention": "D7 Vorbeugung",
+    "d8_closure": "D8 Abschluss"
+  }
+}

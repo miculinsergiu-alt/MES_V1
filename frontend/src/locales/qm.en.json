@@ -1,0 +1,85 @@
+{
+  "plan": "Inspection plan",
+  "plan_saved": "Inspection plan saved",
+  "plan_empty": "No characteristics yet. Add dimensions or visual checks the parts must meet.",
+  "add_characteristic": "Characteristic",
+  "name_ph": "e.g. Ø 25 h7",
+  "nominal": "Nominal",
+  "tol_ph": "Tol. e.g. -0.021/0",
+  "tol_hint": "Enter lower/upper deviation, the limits are filled in",
+  "min": "Min",
+  "max": "Max",
+  "gauge": "Gauge",
+  "critical": "Critical characteristic",
+  "save_plan": "Save inspection plan",
+  "error": "Action failed",
+  "inspection": "Inspection",
+  "due": "{{count}} check(s) due",
+  "report": "Report PDF",
+  "hold": "Out of tolerance: the order is on hold and its parts are in quarantine.",
+  "release": "Release",
+  "last": "last",
+  "save_values": "Save values",
+  "nok_hold": "Out of tolerance! Order on hold, inform quality.",
+  "ok_saved": "Values saved: OK",
+  "saved": "Saved",
+  "new_complaint": "New complaint",
+  "customer": "Customer",
+  "lot": "Lot",
+  "reference": "Customer ref.",
+  "status_label": "Status",
+  "quantity": "Quantity",
+  "cost": "Cost €",
+  "due_date": "Due",
+  "description": "Description",
+  "save": "Save",
+  "no_complaints": "No complaints.",
+  "code": "Code",
+  "gauge_name": "Gauge",
+  "interval": "Months",
+  "last_calibrated": "Last calibrated",
+  "next_due": "Next due",
+  "overdue": "overdue",
+  "calibrated_today": "Calibrated today",
+  "kind": {
+    "measure": "Dimension",
+    "attribute": "Visual / OK-NOK"
+  },
+  "freq": {
+    "first": "First part",
+    "every_n": "Every n parts",
+    "final": "Final",
+    "each": "First + every + final"
+  },
+  "stage": {
+    "first": "First part",
+    "in_process": "In process",
+    "final": "Final"
+  },
+  "filter": {
+    "open": "Open",
+    "closed": "Closed",
+    "all": "All"
+  },
+  "tab": {
+    "complaints": "Complaints (8D)",
+    "gauges": "Gauges"
+  },
+  "cstatus": {
+    "open": "Open",
+    "analysis": "Analysis",
+    "action": "Actions",
+    "closed": "Closed",
+    "rejected": "Rejected"
+  },
+  "d8": {
+    "d1_team": "D1 Team",
+    "d2_problem": "D2 Problem description",
+    "d3_containment": "D3 Containment",
+    "d4_root_cause": "D4 Root cause",
+    "d5_corrective": "D5 Corrective actions",
+    "d6_implemented": "D6 Implemented & verified",
+    "d7_prevention": "D7 Prevention",
+    "d8_closure": "D8 Closure"
+  }
+}

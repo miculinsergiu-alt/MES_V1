@@ -1,0 +1,85 @@
+{
+  "plan": "Plan de inspecție",
+  "plan_saved": "Plan de inspecție salvat",
+  "plan_empty": "Nicio caracteristică încă. Adaugă cote sau verificări vizuale.",
+  "add_characteristic": "Caracteristică",
+  "name_ph": "ex. Ø 25 h7",
+  "nominal": "Nominal",
+  "tol_ph": "Tol. ex. -0.021/0",
+  "tol_hint": "Introdu abaterea inferioară/superioară, limitele se completează",
+  "min": "Min",
+  "max": "Max",
+  "gauge": "Instrument",
+  "critical": "Caracteristică critică",
+  "save_plan": "Salvează planul",
+  "error": "Acțiunea a eșuat",
+  "inspection": "Inspecție",
+  "due": "{{count}} verificări scadente",
+  "report": "Raport PDF",
+  "hold": "În afara toleranței: comanda e blocată și piesele sunt în carantină.",
+  "release": "Deblochează",
+  "last": "ultima",
+  "save_values": "Salvează valorile",
+  "nok_hold": "În afara toleranței! Comanda e blocată, anunță calitatea.",
+  "ok_saved": "Valori salvate: OK",
+  "saved": "Salvat",
+  "new_complaint": "Reclamație nouă",
+  "customer": "Client",
+  "lot": "Lot",
+  "reference": "Ref. client",
+  "status_label": "Status",
+  "quantity": "Cantitate",
+  "cost": "Cost €",
+  "due_date": "Termen",
+  "description": "Descriere",
+  "save": "Salvează",
+  "no_complaints": "Nicio reclamație.",
+  "code": "Cod",
+  "gauge_name": "Instrument",
+  "interval": "Luni",
+  "last_calibrated": "Ultima calibrare",
+  "next_due": "Următoarea calibrare",
+  "overdue": "depășit",
+  "calibrated_today": "Calibrat azi",
+  "kind": {
+    "measure": "Cotă",
+    "attribute": "Vizual / OK-NOK"
+  },
+  "freq": {
+    "first": "Prima piesă",
+    "every_n": "La fiecare n piese",
+    "final": "Final",
+    "each": "Prima + pe parcurs + final"
+  },
+  "stage": {
+    "first": "Prima piesă",
+    "in_process": "Pe parcurs",
+    "final": "Final"
+  },
+  "filter": {
+    "open": "Deschise",
+    "closed": "Închise",
+    "all": "Toate"
+  },
+  "tab": {
+    "complaints": "Reclamații (8D)",
+    "gauges": "Instrumente de măsură"
+  },
+  "cstatus": {
+    "open": "Deschisă",
+    "analysis": "Analiză",
+    "action": "Acțiuni",
+    "closed": "Închisă",
+    "rejected": "Respinsă"
+  },
+  "d8": {
+    "d1_team": "D1 Echipa",
+    "d2_problem": "D2 Descrierea problemei",
+    "d3_containment": "D3 Măsuri imediate",
+    "d4_root_cause": "D4 Cauza",
+    "d5_corrective": "D5 Acțiuni corective",
+    "d6_implemented": "D6 Implementat și verificat",
+    "d7_prevention": "D7 Prevenire",
+    "d8_closure": "D8 Închidere"
+  }
+}

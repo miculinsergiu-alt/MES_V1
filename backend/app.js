@@ -86,6 +86,7 @@ app.use('/api/suppliers', require('./routes/suppliers'));
 app.use('/api/warehousing', require('./routes/warehousing'));
 app.use('/api/procurement', require('./routes/procurement'));
 app.use('/api/quality', require('./routes/quality'));
+app.use('/api/quality', require('./routes/qm'));
 app.use('/api/inventory', require('./routes/inventory'));
 app.use('/api/settings', require('./routes/settings'));
 app.use('/api/customers', require('./routes/customers'));

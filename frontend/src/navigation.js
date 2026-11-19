@@ -44,6 +44,7 @@ export const NAV_GROUPS = [
     items: [
       { path: '/inventory', key: 'inventory', icon: Warehouse, roles: ['warehouse_manager', 'material_planner', 'planner', 'administrator'] },
       { path: '/subcontracting', key: 'subcontracting', icon: ArrowRightLeft, roles: ['administrator', 'planner', 'material_planner', 'warehouse_manager', 'area_supervisor', 'shift_responsible', 'accounting'] },
+      { path: '/quality', key: 'quality', icon: ShieldCheck, roles: ['administrator', 'planner', 'area_supervisor', 'warehouse_manager', 'material_planner', 'sales'] },
       { path: '/purchase-invoices', key: 'incoming_invoices', icon: Inbox, roles: ['administrator', 'accounting', 'material_planner', 'planner', 'warehouse_manager'] },
       { path: '/trace', key: 'traceability', icon: GitBranch, roles: ['administrator', 'planner', 'area_supervisor', 'shift_responsible', 'warehouse_manager', 'material_planner', 'sales'] },
     ],

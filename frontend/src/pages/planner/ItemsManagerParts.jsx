@@ -1,5 +1,6 @@
 /** Dialogs and sub-views of ItemsManager (split out to keep the screen file small). */
 import Attachments from '../../components/Attachments';
+import InspectionPlanEditor from '../../components/InspectionPlanEditor';
 import RouteStepEditor, { routeForApi } from '../../components/RouteStepEditor';
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -239,7 +240,10 @@ export function ItemModal({ item, machines, onClose, onSave }) {
             )}
 
             {item?.id && formData.type !== 'raw_material' && (
-              <Attachments ownerType="item" ownerId={item.id} kinds={['drawing', 'nc_program', 'other']} />
+              <>
+                <Attachments ownerType="item" ownerId={item.id} kinds={['drawing', 'nc_program', 'other']} />
+                <InspectionPlanEditor itemId={item.id} />
+              </>
             )}
 
             <div className="grid grid-cols-4 gap-4 bg-muted/20 p-6 rounded-2xl border border-border/50">
