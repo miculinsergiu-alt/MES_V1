@@ -20,7 +20,7 @@ const VIES_TIMEOUT_MS = 8000;
 
 const optVat = v.z.preprocess(
   (x) => (x === '' || x === undefined ? null : x),
-  v.z.string().max(30).nullable().refine((x) => x === null || parseVatId(x) !== null, 'Invalid EU VAT number (example: DE123456789)')
+  v.z.string().max(30).nullable().refine((x) => x === null || parseVatId(x) !== null, 'Invalid VAT number (example: DE123456789 or GB123456789)')
     .transform((x) => (x === null ? null : (({ country, number }) => country + number)(parseVatId(x)))),
 ).optional();
 
@@ -64,6 +64,7 @@ const vatLimiter = rateLimit({
 router.get('/validate-vat/:vat', vatLimiter, async (req, res) => {
   const vat = parseVatId(req.params.vat);
   if (!vat) throw badRequest('Invalid EU VAT number format (example: DE123456789)');
+  if (vat.country === 'GB') throw badRequest('UK VAT numbers cannot be checked in the EU VIES service — check them with HMRC');
 
   let response;
   try {

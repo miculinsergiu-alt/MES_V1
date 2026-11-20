@@ -115,7 +115,7 @@ function Detail({ id, onChanged, t, canDecide }) {
 
       <dl className="ml-auto max-w-sm space-y-1 text-sm tabular-nums">
         <div className="flex justify-between"><dt>{t('sales.fields.net')}</dt><dd>{eur(d.totals.net)}</dd></div>
-        {d.taxes.map((x, i) => <div key={i} className="flex justify-between text-muted-foreground"><dt>{num(x.rate, 2)} % USt. ({eur(x.base)}){x.category !== 'S' ? ` ${x.category}` : ''}</dt><dd>{eur(x.amount)}</dd></div>)}
+        {d.taxes.map((x, i) => <div key={i} className="flex justify-between text-muted-foreground"><dt>{num(x.rate, 2)} % {t('sales.editor.vat_short')} ({eur(x.base)}){x.category !== 'S' ? ` ${x.category}` : ''}</dt><dd>{eur(x.amount)}</dd></div>)}
         <div className="flex justify-between border-t border-border pt-1 font-bold"><dt>{t('sales.fields.gross')}</dt><dd>{eur(d.totals.gross)}</dd></div>
         {d.totals.due !== null && d.totals.due !== d.totals.gross && <div className="flex justify-between"><dt>{t('sales.incoming.due_amount')}</dt><dd>{eur(d.totals.due)}</dd></div>}
       </dl>

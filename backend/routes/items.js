@@ -1,4 +1,5 @@
 const express = require('express');
+const { isValidRate, MAX_RATE, standardRate } = require('../lib/vat');
 const db = require('../db');
 const { h } = require('../lib/handler');
 const v = require('../lib/validate');
@@ -56,7 +57,7 @@ const itemFields = {
   production_time_min: v.nonNeg.optional(),
   supplier_name: v.optStr(300),
   lead_time_days: v.nonNeg.optional(),
-  tax_rate: v.z.coerce.number().refine((x) => [0, 7, 19].includes(x), 'VAT rate must be 0, 7 or 19').optional(),
+  tax_rate: v.z.coerce.number().refine((x) => isValidRate(x), `VAT rate must be between 0 and ${MAX_RATE} %`).optional(),
   sop_url: v.optStr(2000),
   drawing_url: v.optStr(2000),
   requires_certificate: v.flag.optional(),
@@ -80,6 +81,10 @@ async function replaceRoutes(itemId, routes) {
 // POST /api/items
 router.post('/', requireRole('planner', 'administrator'), h(async (req, res) => {
   const b = v.body(req, v.z.object({ item_code: v.z.string().trim().min(1).max(100), ...itemFields }));
+  if (b.tax_rate === undefined) {
+    const company = await db.get('SELECT country FROM companies WHERE id = nova_company_id()');
+    b.tax_rate = standardRate(company?.country);
+  }
   const row = await db.get(`
     INSERT INTO items (item_code, name, type, uom, acquisition_cost, production_cost, unit_price, production_time_min, supplier_name, lead_time_days, sop_url, drawing_url, tax_rate)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,

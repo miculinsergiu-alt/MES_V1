@@ -12,7 +12,7 @@
 const XLSX = require('@e965/xlsx');
 const db = require('../db');
 const numbering = require('../lib/numbering');
-const { normalizeVatId, defaultTaxTreatment } = require('../lib/vat');
+const { normalizeVatId, defaultTaxTreatment, isValidRate, standardRate, vatInfo } = require('../lib/vat');
 const { badRequest } = require('../lib/errors');
 
 const MAX_ROWS = 5000;
@@ -153,7 +153,7 @@ function autoMapping(type, headers) {
   return mapping;
 }
 
-function convert(field, raw) {
+function convert(field, raw, ctx = {}) {
   const empty = raw === null || raw === undefined || String(raw).trim() === '';
   if (empty) return { value: null, error: field.required ? 'is required' : null };
   switch (field.type) {
@@ -191,8 +191,10 @@ function convert(field, raw) {
       return k ? { value: k } : { error: `unknown type "${raw}" (Rohstoff, Halbfabrikat or Fertigprodukt)` };
     }
     case 'taxRate': {
+      // Imported rates must be ones of the seller's country (catches typos and outdated rates like 16 %).
       const n = parseNumber(raw);
-      return [0, 7, 19].includes(n) ? { value: n } : { error: `VAT rate "${raw}" must be 0, 7 or 19` };
+      const allowed = ctx.rates || [0, 19, 7];
+      return isValidRate(n) && allowed.includes(n) ? { value: n } : { error: `VAT rate "${raw}" must be one of ${allowed.join(', ')}` };
     }
     default: return { value: raw };
   }
@@ -209,13 +211,15 @@ async function preview(type, buffer, filename, mappingOverride) {
   // '__none__' (or an unknown column) = field deliberately not used
   for (const [k, h] of Object.entries(mapping)) if (h === '__none__' || !headers.includes(h)) delete mapping[k];
   const missing = FIELDS[type].filter((f) => f.required && !mapping[f.key]).map((f) => f.key);
+  const seller = (await db.get('SELECT country FROM companies WHERE id = nova_company_id()'))?.country;
+  const ctx = { rates: [0, ...vatInfo(seller).rates] };
 
   const rows = raw.map((r, i) => {
     const data = {};
     const errors = [];
     for (const f of FIELDS[type]) {
       if (!mapping[f.key]) continue;
-      const { value, error } = convert(f, r[mapping[f.key]]);
+      const { value, error } = convert(f, r[mapping[f.key]], ctx);
       if (error) errors.push(`${f.key}: ${error}`); else if (value !== null) data[f.key] = value;
     }
     return { row: i + 2, data, errors }; // +2: header row and 1-based numbering as in Excel
@@ -280,6 +284,7 @@ async function commit(type, buffer, filename, mappingOverride, userId) {
   const rows = p.rows.map((r) => r.data);
 
   if (type === 'items') {
+    const defaultRate = standardRate((await db.get('SELECT country FROM companies WHERE id = nova_company_id()'))?.country);
     for (const d of rows) {
       const r = await db.get(`
         INSERT INTO items (item_code, name, type, uom, unit_price, acquisition_cost, production_cost, tax_rate, lead_time_days, supplier_name)
@@ -291,7 +296,7 @@ async function commit(type, buffer, filename, mappingOverride, userId) {
           tax_rate = COALESCE(?, items.tax_rate), lead_time_days = COALESCE(?, items.lead_time_days),
           supplier_name = COALESCE(?, items.supplier_name), active = 1
         RETURNING (xmax = 0) AS inserted`,
-      [d.item_code, d.name, d.type || 'raw_material', d.uom || 'Stk', d.unit_price ?? 0, d.acquisition_cost ?? 0, d.production_cost ?? 0, d.tax_rate ?? 19, d.lead_time_days ?? 0, d.supplier_name ?? null,
+      [d.item_code, d.name, d.type || 'raw_material', d.uom || 'Stk', d.unit_price ?? 0, d.acquisition_cost ?? 0, d.production_cost ?? 0, d.tax_rate ?? defaultRate, d.lead_time_days ?? 0, d.supplier_name ?? null,
         d.type ?? null, d.uom ?? null, d.unit_price ?? null, d.acquisition_cost ?? null, d.production_cost ?? null, d.tax_rate ?? null, d.lead_time_days ?? null, d.supplier_name ?? null]);
       result[r.inserted ? 'created' : 'updated'] += 1;
     }
@@ -301,8 +306,9 @@ async function commit(type, buffer, filename, mappingOverride, userId) {
     for (const d of rows) {
       const existing = d.customer_number ? await db.get('SELECT * FROM customers WHERE customer_number = ?', [d.customer_number]) : null;
       const merged = { ...(existing || {}), ...d };
-      merged.country = merged.country || 'DE';
-      merged.tax_treatment = defaultTaxTreatment(merged.country, merged.vat_id);
+      const seller = (await db.get('SELECT country FROM companies WHERE id = nova_company_id()'))?.country || 'DE';
+      merged.country = merged.country || seller;
+      merged.tax_treatment = defaultTaxTreatment(merged.country, merged.vat_id, seller);
       if (existing) {
         const cols = Object.keys(d).concat('tax_treatment', 'country');
         await db.run(`UPDATE customers SET ${[...new Set(cols)].map((c) => `${c} = ?`).join(', ')} WHERE id = ?`,

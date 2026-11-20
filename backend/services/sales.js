@@ -2,7 +2,8 @@
  * Sales documents: quote → order confirmation → delivery note → invoice,
  * credit notes (Rechnungskorrektur), payments.
  *
- * Rules (German law):
+ * Rules (German law; for other EU countries and the UK the same structure with
+ * the seller country's VAT rates and notes, see lib/vat.js):
  *  - Numbers are assigned when a document is issued, from a gap-free series.
  *  - Issued documents are locked; the database refuses changes (see migration 002).
  *  - Invoices are corrected only by issuing a credit note that refers to them.
@@ -13,16 +14,13 @@ const crypto = require('node:crypto');
 const db = require('../db');
 const money = require('../lib/money');
 const numbering = require('../lib/numbering');
-const { lineTax, TAX_NOTES } = require('../lib/vat');
+const { lineTax, taxNote, languageFor } = require('../lib/vat');
 const { badRequest, notFound, conflict } = require('../lib/errors');
 const { addMinutes, todayLocal, nowLocal } = require('../lib/time');
 
 const TITLES = {
-  quote: 'Angebot',
-  order: 'Auftragsbestätigung',
-  delivery: 'Lieferschein',
-  invoice: 'Rechnung',
-  credit_note: 'Rechnungskorrektur',
+  de: { quote: 'Angebot', order: 'Auftragsbestätigung', delivery: 'Lieferschein', invoice: 'Rechnung', credit_note: 'Rechnungskorrektur' },
+  en: { quote: 'Quotation', order: 'Order Confirmation', delivery: 'Delivery Note', invoice: 'Invoice', credit_note: 'Credit Note' },
 };
 
 // Which document can be created from which.
@@ -45,7 +43,7 @@ async function loadDocument(id, { forUpdate = false } = {}) {
   if (!doc) throw notFound('Document');
   doc.lines = await db.all('SELECT * FROM sales_document_lines WHERE document_id = ? ORDER BY position, id', [id]);
   doc.tax_breakdown = doc.tax_breakdown ? JSON.parse(doc.tax_breakdown) : [];
-  doc.title = TITLES[doc.doc_type];
+  doc.title = (TITLES[doc.language] || TITLES.de)[doc.doc_type];
   doc.open_amount = ['invoice'].includes(doc.doc_type)
     ? money.sumAmounts([doc.gross_total, -doc.paid_total, -doc.credited_total])
     : doc.doc_type === 'credit_note' ? money.sumAmounts([doc.gross_total, -doc.paid_total]) : null;
@@ -56,16 +54,25 @@ async function getCompany() {
   return db.get('SELECT * FROM companies WHERE id = nova_company_id()');
 }
 
-function customerAddress(c) {
-  const lines = [c.name, c.name2, c.street, [c.postal_code, c.city].filter(Boolean).join(' ')];
-  if (c.country && c.country !== 'DE') lines.push(c.country);
+/** Postcode and town in the order used in that country (UK and Ireland: town first). */
+function postalLine(country, postalCode, city) {
+  return (['GB', 'IE'].includes(country) ? [city, postalCode] : [postalCode, city]).filter(Boolean).join(' ');
+}
+
+function countryName(code, lang) {
+  try { return new Intl.DisplayNames([lang === 'en' ? 'en-GB' : 'de-DE'], { type: 'region' }).of(code) || code; } catch { return code; }
+}
+
+function customerAddress(c, sellerCountry = 'DE', lang = 'de') {
+  const lines = [c.name, c.name2, c.street, postalLine(c.country, c.postal_code, c.city)];
+  if (c.country && c.country !== sellerCountry) lines.push(countryName(c.country, lang).toUpperCase());
   return lines.filter(Boolean).join('\n');
 }
 
 // ─── Drafts ─────────────────────────────────────────────────────────────────
 
 /** Fills line defaults from the item, applies the tax treatment and calculates totals. */
-async function prepareLines(lines, treatment) {
+async function prepareLines(lines, treatment, sellerCountry = 'DE') {
   const prepared = [];
   for (const [i, l] of lines.entries()) {
     let item = null;
@@ -75,7 +82,7 @@ async function prepareLines(lines, treatment) {
     }
     const description = l.description || item?.name;
     if (!description) throw badRequest(`Line ${i + 1}: description is required`);
-    const tax = lineTax(treatment, l.tax_rate ?? item?.tax_rate ?? 19);
+    const tax = lineTax(treatment, l.tax_rate ?? item?.tax_rate, sellerCountry);
     prepared.push({
       position: i + 1,
       item_id: item?.id ?? null,
@@ -146,7 +153,7 @@ async function saveDraft(id, input, userId) {
       : []);
     if (linked.some((l) => !allowed.has(l.source_line_id))) throw badRequest('A line refers to a line of another document');
   }
-  const { lines, totals } = await prepareLines(lineInput, treatment);
+  const { lines, totals } = await prepareLines(lineInput, treatment, company.country);
 
   const header = {};
   for (const f of HEADER_FIELDS) header[f] = input[f] !== undefined ? input[f] : (existing ? existing[f] : null);
@@ -161,14 +168,20 @@ async function saveDraft(id, input, userId) {
     header.valid_until = addMinutes(`${header.document_date} 00:00:00`, 30 * 24 * 60).slice(0, 10);
   }
 
+  // Drafts follow the company currency and the customer's language; issued documents keep theirs.
+  const language = input.language
+    ?? (docType === 'credit_note' && !existing ? (await db.get('SELECT language FROM sales_documents WHERE id = ?', [cancelsId]))?.language : null)
+    ?? existing?.language ?? customer.language ?? languageFor(customer.country);
   const values = {
     ...header,
     customer_id: customer.id,
     customer_name: customer.name,
-    customer_address: customerAddress(customer),
+    customer_address: customerAddress(customer, company.country, language),
     customer_country: customer.country,
     customer_vat_id: customer.vat_id,
     tax_treatment: treatment,
+    currency: company.currency || 'EUR',
+    language,
     net_total: totals.net_total,
     tax_total: totals.tax_total,
     gross_total: totals.gross_total,
@@ -205,7 +218,7 @@ async function deleteDraft(id) {
 async function convert(sourceId, targetType, userId) {
   const src = await loadDocument(sourceId, { forUpdate: true });
   if (!CONVERSIONS[src.doc_type]?.includes(targetType)) {
-    throw badRequest(`A ${TITLES[targetType]} cannot be created from a ${TITLES[src.doc_type]}`);
+    throw badRequest(`A ${TITLES.de[targetType]} cannot be created from a ${TITLES.de[src.doc_type]}`);
   }
   if (!src.locked) throw badRequest('Issue the document first');
   if (src.status === 'cancelled') throw badRequest('The document has been cancelled');
@@ -222,7 +235,7 @@ async function convert(sourceId, targetType, userId) {
     lines = src.lines;
   }
   lines = lines.filter((l) => l.quantity > 0);
-  if (!lines.length) throw badRequest(`Nothing left to put on a ${TITLES[targetType]}`);
+  if (!lines.length) throw badRequest(`Nothing left to put on a ${TITLES.de[targetType]}`);
 
   const input = {
     doc_type: targetType,
@@ -236,7 +249,10 @@ async function convert(sourceId, targetType, userId) {
     delivery_date: src.delivery_date,
     source_document_id: targetType === 'credit_note' ? null : src.id,
     cancels_document_id: targetType === 'credit_note' ? src.id : null,
-    intro_text: targetType === 'credit_note' ? `Korrektur zu Rechnung ${src.number} vom ${formatDateDE(src.document_date)}.` : null,
+    language: src.language,
+    intro_text: targetType === 'credit_note' ? (src.language === 'en'
+      ? `Correction to invoice ${src.number} dated ${formatDateDE(src.document_date).replaceAll('.', '/')}.`
+      : `Korrektur zu Rechnung ${src.number} vom ${formatDateDE(src.document_date)}.`) : null,
     lines: lines.map((l) => ({
       item_id: l.item_id, description: l.description, quantity: l.quantity, unit: l.unit,
       unit_price: l.unit_price, discount_percent: l.discount_percent, tax_rate: l.tax_rate, source_line_id: l.id, calculation_id: l.calculation_id,
@@ -260,7 +276,7 @@ function invoiceProblems(doc, company) {
   const p = [];
   if (!company.legal_name && !company.name) p.push('Company name is missing (Settings)');
   if (!company.street || !company.postal_code || !company.city) p.push('Company address is incomplete (Settings)');
-  if (!company.vat_id && !company.tax_number) p.push('Company VAT ID or tax number (Steuernummer) is missing (Settings)');
+  if (!company.vat_id && !company.tax_number && !company.small_business) p.push('Company VAT ID or tax number (Steuernummer) is missing (Settings)');
   if (!doc.customer_name || !doc.customer_address || doc.customer_address.split('\n').length < 3) p.push('Customer address is incomplete');
   if (!doc.lines.length) p.push('The document has no lines');
   if (doc.gross_total < 0) p.push('The total must not be negative');
@@ -313,7 +329,9 @@ async function issue(id, userId, opts = {}) {
     const credited = money.sumAmounts([inv.credited_total, doc.gross_total]);
     const status = credited >= inv.gross_total ? 'cancelled' : inv.status;
     await db.run('UPDATE sales_documents SET credited_total = ?, status = ?, updated_at = nova_now() WHERE id = ?', [credited, status, inv.id]);
-    doc.intro_text = doc.intro_text || `Korrektur zu Rechnung ${inv.number} vom ${formatDateDE(inv.document_date)}.`;
+    doc.intro_text = doc.intro_text || (doc.language === 'en'
+      ? `Correction to invoice ${inv.number} dated ${formatDateDE(inv.document_date).replaceAll('.', '/')}.`
+      : `Korrektur zu Rechnung ${inv.number} vom ${formatDateDE(inv.document_date)}.`);
   }
 
   const number = await numbering.nextNumber(doc.doc_type, doc.document_date);
@@ -322,10 +340,10 @@ async function issue(id, userId, opts = {}) {
     : null;
 
   // Legally required notes for tax-free sales go into the closing text.
-  const taxNote = TAX_NOTES[doc.tax_treatment];
+  const note = taxNote(doc.tax_treatment, company.country, doc.language);
   let closing = doc.closing_text || '';
-  if (taxNote && ['invoice', 'credit_note'].includes(doc.doc_type) && !closing.includes(taxNote)) {
-    closing = [taxNote, closing].filter(Boolean).join('\n');
+  if (note && ['invoice', 'credit_note'].includes(doc.doc_type) && !closing.includes(note)) {
+    closing = [note, closing].filter(Boolean).join('\n');
   }
 
   // Effects on other records.

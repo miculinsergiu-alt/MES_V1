@@ -123,7 +123,8 @@
     "method": "Zahlart",
     "reference": "Verwendungszweck",
     "delete_confirm": "Diesen Entwurf löschen?",
-    "unsaved": "Ungespeicherte Änderungen"
+    "unsaved": "Ungespeicherte Änderungen",
+    "vat_short": "USt."
   },
   "customers": {
     "title": "Kunden",
@@ -145,7 +146,9 @@
     "datev_account": "DATEV-Debitorenkonto",
     "notes": "Notizen",
     "open_amount": "Offener Betrag",
-    "deactivated": "Kunde hat Belege und wurde deaktiviert"
+    "deactivated": "Kunde hat Belege und wurde deaktiviert",
+    "language": "Belegsprache",
+    "language_auto": "Automatisch (nach Land)"
   },
   "open_items": {
     "title": "Offene Posten",
@@ -203,7 +206,10 @@
     "series_next": "Nächste Nummer",
     "series_prefix": "Präfix",
     "missing": "Für Rechnungen fehlt noch: {{fields}}",
-    "saved": "Einstellungen gespeichert"
+    "saved": "Einstellungen gespeichert",
+    "seller_country": "Land Ihres Unternehmens (Umsatzsteuer)",
+    "seller_country_hint": "Steuersätze: {{rates}} %. Bitte mit Ihrem Steuerberater prüfen.",
+    "currency": "Währung"
   },
   "messages": {
     "saved": "Gespeichert",

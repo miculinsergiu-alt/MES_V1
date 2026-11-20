@@ -5,7 +5,7 @@
     "negative_allow": "Allow",
     "negative_warn": "Allow, but warn",
     "negative_block": "Prevent (reject the booking)",
-    "labor_rate": "Labour rate (€/h)",
+    "labor_rate": "Labour rate (per hour)",
     "costing_hint": "The labour rate and machine hourly rates are used for the actual costing of production orders."
   },
   "machines": {

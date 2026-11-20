@@ -11,6 +11,7 @@ import { Input } from '../../components/ui/Input';
 import { useAuth } from '../../contexts/AuthContext';
 import { eur, num, dateDE, todayISO, apiError, openFile, downloadFile, showStockWarnings } from '../../lib/format';
 import { StatusPill } from './components';
+import { useVat } from '../../lib/useVat';
 import { EDIT_ROLES, ACCOUNTING_ROLES, hasAnyRole } from '../../lib/roles';
 
 const LOSS_REASONS = ['price', 'delivery_time', 'quality', 'no_demand', 'competitor', 'other'];
@@ -83,16 +84,17 @@ function CertificatePack({ documentId, t }) {
 const HEADER_FIELDS = ['document_date', 'service_date', 'service_period_end', 'valid_until', 'delivery_date', 'payment_terms_days',
   'skonto_days', 'skonto_percent', 'customer_reference', 'buyer_reference', 'intro_text', 'closing_text', 'internal_notes'];
 
-const emptyLine = () => ({ item_id: '', description: '', quantity: 1, unit: 'Stk', unit_price: 0, discount_percent: 0, tax_rate: 19 });
+// tax_rate null = standard rate of the company's country (resolved by the server)
+const emptyLine = () => ({ item_id: '', description: '', quantity: 1, unit: 'Stk', unit_price: 0, discount_percent: 0, tax_rate: null });
 
 /** Preview of totals (the server recalculates exactly when saving). */
-function previewTotals(lines, treatment) {
+function previewTotals(lines, treatment, standardRate = 19) {
   const exempt = treatment && treatment !== 'domestic';
   const groups = {};
   let net = 0;
   for (const l of lines) {
     const lineNet = Math.round(Number(l.quantity || 0) * Number(l.unit_price || 0) * (1 - Number(l.discount_percent || 0) / 100) * 100) / 100;
-    const rate = exempt ? 0 : Number(l.tax_rate || 0);
+    const rate = exempt ? 0 : Number(l.tax_rate ?? standardRate);
     groups[rate] = (groups[rate] || 0) + lineNet;
     net += lineNet;
   }
@@ -118,6 +120,7 @@ export default function DocumentEditor() {
   const isNew = id === 'new';
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const vat = useVat();
   const { user } = useAuth();
 
   const [doc, setDoc] = useState(null);
@@ -176,7 +179,7 @@ export default function DocumentEditor() {
 
   const customer = customers.find((c) => String(c.id) === String(customerId));
   const treatment = doc?.tax_treatment && !dirty ? doc.tax_treatment : (customer?.tax_treatment || doc?.tax_treatment || 'domestic');
-  const totals = useMemo(() => previewTotals(lines, treatment), [lines, treatment]);
+  const totals = useMemo(() => previewTotals(lines, treatment, vat.standard), [lines, treatment, vat.standard]);
   const showPrices = docType !== 'delivery';
 
   const setField = (k, v) => { setForm((f) => ({ ...f, [k]: v })); setDirty(true); };
@@ -185,7 +188,7 @@ export default function DocumentEditor() {
   const pickItem = (i, itemId) => {
     const it = items.find((x) => String(x.id) === String(itemId));
     setLine(i, it
-      ? { item_id: it.id, description: it.name, unit: it.uom || 'Stk', unit_price: it.unit_price || 0, tax_rate: Number(it.tax_rate ?? 19) }
+      ? { item_id: it.id, description: it.name, unit: it.uom || 'Stk', unit_price: it.unit_price || 0, tax_rate: Number(it.tax_rate ?? vat.standard) }
       : { item_id: '' });
   };
 
@@ -200,7 +203,7 @@ export default function DocumentEditor() {
       unit: l.unit,
       unit_price: l.unit_price,
       discount_percent: l.discount_percent || 0,
-      tax_rate: l.tax_rate,
+      tax_rate: l.tax_rate ?? undefined,
       calculation_id: l.calculation_id || null,
     })),
   });
@@ -398,8 +401,8 @@ export default function DocumentEditor() {
                   {showPrices && (
                     <td>
                       {treatment === 'domestic' ? (
-                        <select className={inputCls} disabled={!canEdit} value={Number(l.tax_rate) === 7 ? 7 : 19} onChange={(e) => setLine(i, { tax_rate: Number(e.target.value) })}>
-                          <option value={19}>19 %</option><option value={7}>7 %</option>
+                        <select className={inputCls} disabled={!canEdit} value={Number(l.tax_rate ?? vat.standard)} onChange={(e) => setLine(i, { tax_rate: Number(e.target.value) })}>
+                          {[...new Set([...vat.rates, 0, Number(l.tax_rate ?? vat.standard)])].map((r) => <option key={r} value={r}>{num(r, 2)} %</option>)}
                         </select>
                       ) : <div className="pt-2 text-sm text-muted-foreground">0 %</div>}
                     </td>
@@ -444,7 +447,7 @@ export default function DocumentEditor() {
             <dl className="space-y-1 text-sm tabular-nums">
               <div className="flex justify-between"><dt>{t('sales.fields.net')}</dt><dd>{eur(locked ? doc.net_total : totals.net)}</dd></div>
               {(locked ? doc.tax_breakdown.map((b) => ({ rate: b.tax_rate, base: b.net_amount, tax: b.tax_amount })) : totals.breakdown).map((b) => (
-                <div key={b.rate} className="flex justify-between text-muted-foreground"><dt>{num(b.rate, 2)} % USt. ({eur(b.base)})</dt><dd>{eur(b.tax)}</dd></div>
+                <div key={b.rate} className="flex justify-between text-muted-foreground"><dt>{num(b.rate, 2)} % {t('sales.editor.vat_short')} ({eur(b.base)})</dt><dd>{eur(b.tax)}</dd></div>
               ))}
               <div className="flex justify-between border-t border-border pt-2 text-base font-bold"><dt>{t('sales.fields.gross')}</dt><dd>{eur(locked ? doc.gross_total : totals.gross)}</dd></div>
               {locked && doc.open_amount !== null && (

@@ -78,7 +78,7 @@ function buildInvoiceData(doc, company, customer, { originalInvoice } = {}) {
 
   const legalInfo = [
     company.register_court && company.register_number ? `${company.register_court}, ${company.register_number}` : null,
-    company.managing_directors ? `Geschäftsführung: ${company.managing_directors}` : null,
+    company.managing_directors ? `${doc.language === 'en' ? 'Directors' : 'Geschäftsführung'}: ${company.managing_directors}` : null,
   ].filter(Boolean).join('; ');
 
   const sellerEmail = company.email || undefined;
@@ -166,7 +166,7 @@ function buildInvoiceData(doc, company, customer, { originalInvoice } = {}) {
           'cbc:Percent': amount(b.tax_rate),
           ...(VATEX[b.tax_category] ? {
             'cbc:TaxExemptionReasonCode': VATEX[b.tax_category].code,
-            'cbc:TaxExemptionReason': VATEX[b.tax_category].text,
+            'cbc:TaxExemptionReason': b.tax_category === 'E' && company.country && company.country !== 'DE' ? 'Small business exemption' : VATEX[b.tax_category].text,
           } : {}),
           'cac:TaxScheme': { 'cbc:ID': 'VAT' },
         },
@@ -226,6 +226,7 @@ function buildInvoiceData(doc, company, customer, { originalInvoice } = {}) {
 /** Problems that make an XRechnung impossible (stricter than ZUGFeRD). */
 function xrechnungProblems(company, customer) {
   const p = [];
+  if (company.country && company.country !== 'DE') p.push('XRechnung is the German standard and is only created for sellers in Germany');
   if (!company.email) p.push('Company e-mail address (Settings) is required for XRechnung');
   if (!company.phone) p.push('Company phone number (Settings) is required for XRechnung');
   if (!(customer?.invoice_email || customer?.email)) p.push('Customer e-mail address is required for XRechnung');

@@ -7,6 +7,7 @@
  */
 const db = require('../db');
 const { badRequest } = require('./errors');
+const { languageFor } = require('./vat');
 
 const DEFAULTS = {
   quote: { prefix: 'AN', yearly_reset: 1, digits: 5 },        // Angebot
@@ -23,13 +24,40 @@ const DEFAULTS = {
   customer: { prefix: '', yearly_reset: 0, digits: 5, start: 10001 }, // usable as DATEV debtor account
 };
 
+// English prefixes for companies outside German-speaking countries.
+const PREFIXES_EN = {
+  quote: 'QT', order: 'OC', delivery: 'DN', invoice: 'INV', credit_note: 'CN', dunning: 'REM',
+  purchase_order: 'PO', subcontract_delivery: 'SD', complaint: 'NCR', blanket_order: 'BO', project: 'PR', customer: '',
+};
+
+/** Default prefix of a series for a company in this country. */
+function defaultPrefix(docType, country) {
+  return languageFor(country) === 'en' ? PREFIXES_EN[docType] : DEFAULTS[docType].prefix;
+}
+
 async function ensureSeries(docType) {
   const d = DEFAULTS[docType];
   if (!d) throw new Error(`Unknown number series ${docType}`);
+  const exists = await db.get('SELECT id FROM number_series WHERE doc_type = ?', [docType]);
+  if (exists) return;
+  const company = await db.get('SELECT country FROM companies WHERE id = nova_company_id()');
   await db.run(`
     INSERT INTO number_series (doc_type, prefix, yearly_reset, digits, next_number)
     VALUES (?, ?, ?, ?, ?) ON CONFLICT (company_id, doc_type) DO NOTHING`,
-  [docType, d.prefix, d.yearly_reset, d.digits, d.start || 1]);
+  [docType, defaultPrefix(docType, company?.country), d.yearly_reset, d.digits, d.start || 1]);
+}
+
+/**
+ * After the company country changed: unused series that still carry the other
+ * language's default prefix get the default prefix of the new country.
+ */
+async function adaptPrefixes(country) {
+  for (const [docType, d] of Object.entries(DEFAULTS)) {
+    const s = await db.get('SELECT * FROM number_series WHERE doc_type = ? FOR UPDATE', [docType]);
+    if (!s || Number(s.next_number) !== (d.start || 1)) continue;
+    if (![d.prefix, PREFIXES_EN[docType]].includes(s.prefix)) continue; // set by the user
+    await db.run('UPDATE number_series SET prefix = ? WHERE id = ?', [defaultPrefix(docType, country), s.id]);
+  }
 }
 
 function format(series, year, n) {
@@ -66,4 +94,4 @@ async function peekNumber(docType, date) {
   return format(s, year, n);
 }
 
-module.exports = { nextNumber, peekNumber, ensureSeries, DEFAULTS };
+module.exports = { nextNumber, peekNumber, ensureSeries, DEFAULTS, adaptPrefixes, defaultPrefix };

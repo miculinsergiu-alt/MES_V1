@@ -3,7 +3,7 @@ const db = require('../db');
 const { h } = require('../lib/handler');
 const v = require('../lib/validate');
 const { badRequest, notFound } = require('../lib/errors');
-const { normalizeVatId } = require('../lib/vat');
+const { normalizeVatId, defaultTaxTreatment, COUNTRY_VAT, SELLER_COUNTRIES, CURRENCIES } = require('../lib/vat');
 const numbering = require('../lib/numbering');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 
@@ -17,7 +17,7 @@ const COMPANY_FIELDS = [
   'default_skonto_percent', 'small_business', 'invoice_footer_text', 'datev_consultant_number',
   'datev_client_number', 'datev_chart', 'dunning_fee', 'dunning_grace_days', 'timezone',
   'negative_stock', 'labor_rate', 'calc_material_surcharge', 'calc_overhead', 'calc_margin',
-  'daily_target_hours',
+  'daily_target_hours', 'currency', 'locale',
 ];
 
 /** IBAN check digits (ISO 13616, mod 97). */
@@ -40,9 +40,11 @@ const settingsSchema = v.z.object({
   street: optText(300),
   postal_code: optText(20),
   city: optText(200),
-  country: v.z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/).optional(),
+  country: v.z.string().trim().toUpperCase().refine((c) => SELLER_COUNTRIES.includes(c), 'Unsupported country (EU member states and GB)').optional(),
+  currency: v.z.string().trim().toUpperCase().refine((c) => CURRENCIES.includes(c), 'Unsupported currency').optional(),
+  locale: v.z.string().trim().regex(/^[a-z]{2}-[A-Z]{2}$/, 'Use a locale like en-GB').optional(),
   vat_id: v.z.preprocess((x) => (x === '' ? null : x), v.z.string().nullable().optional()
-    .refine((x) => !x || normalizeVatId(x), 'Invalid EU VAT ID').transform((x) => (x ? normalizeVatId(x) : x))),
+    .refine((x) => !x || normalizeVatId(x), 'Invalid VAT ID (EU or GB)').transform((x) => (x ? normalizeVatId(x) : x))),
   tax_number: optText(50),
   register_court: optText(200),
   register_number: optText(100),
@@ -96,14 +98,30 @@ router.get('/company', h(async (req, res) => {
 // PUT /api/settings/company (administrator)
 router.put('/company', requireRole('administrator'), h(async (req, res) => {
   const b = v.body(req, settingsSchema);
+  const before = await db.get('SELECT country FROM companies WHERE id = ?', [req.user.company_id]);
+  const countryChanged = b.country !== undefined && b.country !== before.country;
+  // A new seller country brings its currency unless one is given explicitly.
+  if (countryChanged && b.currency === undefined) b.currency = COUNTRY_VAT[b.country].currency;
   const fields = COMPANY_FIELDS.filter((f) => b[f] !== undefined);
   if (!fields.length) throw badRequest('Nothing to update');
   await db.run(
     `UPDATE companies SET ${fields.map((f) => `${f} = ?`).join(', ')} WHERE id = ?`,
     [...fields.map((f) => b[f]), req.user.company_id],
   );
+  // The tax treatment of each customer is seen from the seller's country: recompute it.
+  if (countryChanged) {
+    await numbering.adaptPrefixes(b.country);
+    for (const cu of await db.all('SELECT id, country, vat_id FROM customers')) {
+      await db.run('UPDATE customers SET tax_treatment = ? WHERE id = ?', [defaultTaxTreatment(cu.country, cu.vat_id, b.country), cu.id]);
+    }
+  }
   const c = await db.get('SELECT * FROM companies WHERE id = ?', [req.user.company_id]);
   res.json({ ...c, missing_for_invoices: missingInvoiceData(c) });
+}));
+
+// GET /api/settings/vat-countries — seller countries with their VAT rates and currency
+router.get('/vat-countries', h(async (req, res) => {
+  res.json(COUNTRY_VAT);
 }));
 
 // GET /api/settings/number-series — all series with a preview of the next number

@@ -12,11 +12,14 @@ import { apiError } from '../../lib/format';
 import { PageHeader } from './components';
 import { EDIT_ROLES, hasAnyRole } from '../../lib/roles';
 
+import { useVat } from '../../lib/useVat';
+
 const inputCls = 'h-10 w-full rounded-lg border border-border bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent';
-const EMPTY = { customer_number: '', name: '', name2: '', street: '', postal_code: '', city: '', country: 'DE', vat_id: '', email: '', invoice_email: '', phone: '', contact_person: '', payment_terms_days: '', skonto_days: '', skonto_percent: '', leitweg_id: '', notes: '' };
+const EMPTY = { customer_number: '', name: '', name2: '', street: '', postal_code: '', city: '', country: '', language: '', vat_id: '', email: '', invoice_email: '', phone: '', contact_person: '', payment_terms_days: '', skonto_days: '', skonto_percent: '', leitweg_id: '', notes: '' };
 
 function CustomerModal({ initial, onClose, onSaved }) {
   const { t } = useTranslation();
+  const { country: sellerCountry } = useVat();
   const [form, setForm] = useState({ ...EMPTY, ...Object.fromEntries(Object.entries(initial || {}).map(([k, v]) => [k, v ?? ''])) });
   const [vat, setVat] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -37,7 +40,7 @@ function CustomerModal({ initial, onClose, onSaved }) {
     e.preventDefault();
     setSaving(true);
     try {
-      const body = { ...form, country: form.country.toUpperCase() };
+      const body = { ...form, country: (form.country || sellerCountry).toUpperCase() };
       delete body.id; delete body.created_at; delete body.open_amount; delete body.open_invoices; delete body.company_id;
       if (initial?.id) await api.put(`/customers/${initial.id}`, body); else await api.post('/customers', body);
       toast.success(t('sales.messages.saved'));
@@ -68,12 +71,20 @@ function CustomerModal({ initial, onClose, onSaved }) {
           {F({ k: 'city', label: t('sales.customers.city'), className: 'sm:col-span-3' })}
           <label className="block space-y-1 sm:col-span-2">
             <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('sales.customers.country')}</span>
-            <input maxLength={2} className={`${inputCls} uppercase`} value={form.country} onChange={set('country')} />
+            <input maxLength={2} className={`${inputCls} uppercase`} placeholder={sellerCountry} value={form.country} onChange={set('country')} />
+          </label>
+          <label className="block space-y-1 sm:col-span-2">
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('sales.customers.language')}</span>
+            <select className={inputCls} value={form.language} onChange={set('language')}>
+              <option value="">{t('sales.customers.language_auto')}</option>
+              <option value="de">Deutsch</option>
+              <option value="en">English</option>
+            </select>
           </label>
           <label className="block space-y-1 sm:col-span-4">
             <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('sales.customers.vat_id')}</span>
             <div className="flex gap-2">
-              <input className={inputCls} placeholder="ATU12345678" value={form.vat_id} onChange={(e) => { set('vat_id')(e); setVat(null); }} />
+              <input className={inputCls} placeholder="ATU12345678 / GB123456789" value={form.vat_id} onChange={(e) => { set('vat_id')(e); setVat(null); }} />
               <Button type="button" size="sm" variant="secondary" disabled={!form.vat_id} onClick={checkVat}>VIES</Button>
             </div>
             {vat && <span className={`text-xs ${vat.ok ? 'text-emerald-700' : 'text-rose-700'}`}>{vat.text}</span>}

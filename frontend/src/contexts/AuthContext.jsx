@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import api from '../api/axios';
+import { setMoneyFormat } from '../lib/format';
 
 const AuthContext = createContext(null);
 
@@ -56,7 +57,8 @@ export function AuthProvider({ children }) {
     if (!loggedIn) return undefined;
     const refresh = () => {
       api.get('/auth/me').then((res) => {
-        const { role, roles, first_name, last_name, onboarding_completed } = res.data;
+        const { role, roles, first_name, last_name, onboarding_completed, company } = res.data;
+        setMoneyFormat(company?.currency, company?.locale);
         updateUser({ role, roles, first_name, last_name, onboarding_completed });
       }).catch(() => { /* 401 is handled by the API client */ });
     };

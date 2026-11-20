@@ -30,7 +30,7 @@ async function storeFile(documentId, kind, filename, mimeType, buffer, { dunning
 async function archiveDocument(doc, company) {
   const customer = await db.get('SELECT * FROM customers WHERE id = ?', [doc.customer_id]);
   const visual = await pdf.renderSalesDocument(doc, company, customer);
-  const base = safeName(`${pdf.TITLES[doc.doc_type]}_${doc.number}`);
+  const base = safeName(`${doc.title || pdf.TITLES[doc.doc_type]}_${doc.number}`);
 
   if (['invoice', 'credit_note'].includes(doc.doc_type)) {
     const original = doc.cancels_document_id
@@ -59,7 +59,7 @@ async function pdfFor(id) {
   const company = await sales.getCompany();
   const customer = await db.get('SELECT * FROM customers WHERE id = ?', [doc.customer_id]);
   const buffer = await pdf.renderSalesDocument(doc, company, customer);
-  return { buffer, filename: safeName(`${pdf.TITLES[doc.doc_type]}_Entwurf_${doc.id}.pdf`) };
+  return { buffer, filename: safeName(`${doc.title || pdf.TITLES[doc.doc_type]}_${doc.language === 'en' ? 'Draft' : 'Entwurf'}_${doc.id}.pdf`) };
 }
 
 module.exports = { archiveDocument, pdfFor, storeFile, sha256 };

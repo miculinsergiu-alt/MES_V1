@@ -42,7 +42,7 @@
     "domestic": "Domestic (German VAT)",
     "intra_eu": "EU business customer (tax-free delivery)",
     "export": "Export (outside EU)",
-    "small_business": "Small business (§ 19 UStG)"
+    "small_business": "Small business (no VAT)"
   },
   "fields": {
     "number": "Number",
@@ -123,7 +123,8 @@
     "method": "Method",
     "reference": "Reference",
     "delete_confirm": "Delete this draft?",
-    "unsaved": "Unsaved changes"
+    "unsaved": "Unsaved changes",
+    "vat_short": "VAT"
   },
   "customers": {
     "title": "Customers",
@@ -145,7 +146,9 @@
     "datev_account": "DATEV debtor account",
     "notes": "Notes",
     "open_amount": "Open amount",
-    "deactivated": "Customer has documents and was deactivated"
+    "deactivated": "Customer has documents and was deactivated",
+    "language": "Document language",
+    "language_auto": "Automatic (by country)"
   },
   "open_items": {
     "title": "Open items",
@@ -188,7 +191,7 @@
     "bic": "BIC",
     "invoicing": "Invoicing",
     "default_payment_terms": "Default payment terms (days)",
-    "small_business": "Small business (§ 19 UStG, no VAT)",
+    "small_business": "Small business / not VAT registered (no VAT charged)",
     "footer_text": "Additional invoice text",
     "logo": "Logo (PNG/JPEG, max. 300 KB)",
     "remove_logo": "Remove logo",
@@ -197,13 +200,16 @@
     "client": "Client number (Mandantennummer)",
     "chart": "Chart of accounts",
     "dunning": "Payment reminders",
-    "dunning_fee": "Fee from 2nd level (€)",
+    "dunning_fee": "Fee from 2nd level",
     "grace_days": "Grace days after due date",
     "series": "Number ranges",
     "series_next": "Next number",
     "series_prefix": "Prefix",
     "missing": "Missing for invoices: {{fields}}",
-    "saved": "Settings saved"
+    "saved": "Settings saved",
+    "seller_country": "Country of your company (VAT)",
+    "seller_country_hint": "VAT rates: {{rates}} %. Please check them with your accountant.",
+    "currency": "Currency"
   },
   "messages": {
     "saved": "Saved",

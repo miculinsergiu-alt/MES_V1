@@ -2,9 +2,15 @@ import api from '../api/axios';
 
 const locale = () => (document.documentElement.lang || navigator.language || 'de-DE');
 
-export const eur = (v) => new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(Number(v || 0));
-export const num = (v, max = 3) => new Intl.NumberFormat('de-DE', { maximumFractionDigits: max }).format(Number(v || 0));
-export const dateDE = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('.') : '');
+// Money and number format follow the company's settings (companies.currency / locale); default EUR, de-DE.
+let money = { currency: 'EUR', locale: 'de-DE' };
+export function setMoneyFormat(currency, loc) {
+  money = { currency: currency || 'EUR', locale: loc || 'de-DE' };
+}
+export const eur = (v) => new Intl.NumberFormat(money.locale, { style: 'currency', currency: money.currency }).format(Number(v || 0));
+export const num = (v, max = 3) => new Intl.NumberFormat(money.locale, { maximumFractionDigits: max }).format(Number(v || 0));
+// Dates as the company writes them: 21.11.2026 (de) or 21/11/2026 (en-GB).
+export const dateDE = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join(money.locale.startsWith('de') ? '.' : '/') : '');
 export const todayISO = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;

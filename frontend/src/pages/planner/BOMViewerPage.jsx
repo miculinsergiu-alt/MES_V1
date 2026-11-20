@@ -8,12 +8,13 @@ import {
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
+import { eur } from '../../lib/format';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Card } from '../../components/ui/Card';
 
-const fmtEur = (n) => Number(n || 0).toLocaleString(document.documentElement.lang || undefined, { style: 'currency', currency: 'EUR' });
+const fmtEur = (n) => eur(n);
 
 // ─── Level config ─────────────────────────────────────────────────────────────
 const L = {

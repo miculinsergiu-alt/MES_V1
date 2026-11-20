@@ -4,17 +4,19 @@ import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
-import { apiError } from '../../lib/format';
+import { apiError, setMoneyFormat } from '../../lib/format';
+import { useVat, clearVatCache, countryName } from '../../lib/useVat';
 import { PageHeader } from './components';
 
 const inputCls = 'h-10 w-full rounded-lg border border-border bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent';
 const FIELDS = ['name', 'legal_name', 'street', 'postal_code', 'city', 'country', 'vat_id', 'tax_number', 'register_court', 'register_number',
   'managing_directors', 'email', 'phone', 'website', 'bank_name', 'iban', 'bic', 'logo_data_url', 'default_payment_terms_days',
   'default_skonto_days', 'default_skonto_percent', 'small_business', 'invoice_footer_text', 'datev_consultant_number',
-  'datev_client_number', 'datev_chart', 'dunning_fee', 'dunning_grace_days', 'negative_stock', 'labor_rate', 'calc_material_surcharge', 'calc_overhead', 'calc_margin'];
+  'datev_client_number', 'datev_chart', 'dunning_fee', 'dunning_grace_days', 'negative_stock', 'labor_rate', 'calc_material_surcharge', 'calc_overhead', 'calc_margin', 'currency'];
 
 export default function SettingsPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const { countries } = useVat();
   const [form, setForm] = useState(null);
   const [missing, setMissing] = useState([]);
   const [series, setSeries] = useState([]);
@@ -47,6 +49,10 @@ export default function SettingsPage() {
     try {
       const res = await api.put('/settings/company', form);
       setMissing(res.data.missing_for_invoices || []);
+      // A new country can bring a new currency: show it and use it everywhere.
+      setForm((f) => ({ ...f, country: res.data.country, currency: res.data.currency }));
+      setMoneyFormat(res.data.currency, res.data.locale);
+      clearVatCache();
       toast.success(t('sales.settings.saved'));
     } catch (err) { toast.error(apiError(err, t('sales.messages.error')), { duration: 8000 }); } finally { setSaving(false); }
   };
@@ -100,6 +106,21 @@ export default function SettingsPage() {
       </> })}
 
       {Section({ title: t('sales.settings.tax'), children: <>
+        <label className="block space-y-1">
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('sales.settings.seller_country')}</span>
+          <select className={inputCls} value={form.country || 'DE'} onChange={(e) => setForm((f) => ({ ...f, country: e.target.value, currency: countries[e.target.value]?.currency || f.currency }))}>
+            {Object.keys(countries).sort((a, b) => countryName(a, i18n.language).localeCompare(countryName(b, i18n.language))).map((code) => (
+              <option key={code} value={code}>{countryName(code, i18n.language)} ({code})</option>
+            ))}
+          </select>
+          <span className="block text-xs text-muted-foreground">{t('sales.settings.seller_country_hint', { rates: (countries[form.country]?.rates || []).join(' / ') })}</span>
+        </label>
+        <label className="block space-y-1">
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('sales.settings.currency')}</span>
+          <select className={inputCls} value={form.currency || 'EUR'} onChange={set('currency')}>
+            {[...new Set(Object.values(countries).map((c) => c.currency))].sort().map((cur) => <option key={cur} value={cur}>{cur}</option>)}
+          </select>
+        </label>
         {F('vat_id', t('sales.customers.vat_id'))}{F('tax_number', t('sales.settings.tax_number'))}
         {F('register_court', t('sales.settings.register_court'))}{F('register_number', t('sales.settings.register_number'))}
         {F('managing_directors', t('sales.settings.managing_directors'), { wide: true })}

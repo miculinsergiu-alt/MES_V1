@@ -22,9 +22,10 @@ const customerSchema = v.z.object({
   street: optText(300),
   postal_code: optText(20),
   city: optText(200),
-  country: v.z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/, 'Use a 2-letter country code, e.g. DE').default('DE'),
+  country: v.z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/, 'Use a 2-letter country code, e.g. DE').optional(),
+  language: v.z.preprocess((x) => (x === '' ? null : x), v.z.enum(['de', 'en']).nullable().optional()),
   vat_id: v.z.preprocess((x) => (x === '' ? null : x), v.z.string().nullable().optional()
-    .refine((x) => !x || normalizeVatId(x), 'Invalid EU VAT ID (example: ATU12345678)')
+    .refine((x) => !x || normalizeVatId(x), 'Invalid VAT ID (example: ATU12345678 or GB123456789)')
     .transform((x) => (x ? normalizeVatId(x) : x))),
   tax_treatment: v.z.enum(['domestic', 'intra_eu', 'export']).optional(),
   contact_person: optText(200),
@@ -41,14 +42,19 @@ const customerSchema = v.z.object({
   requires_certificates: v.flag.optional(),
 });
 
-const FIELDS = ['customer_number', 'name', 'name2', 'street', 'postal_code', 'city', 'country', 'vat_id', 'tax_treatment',
+const FIELDS = ['customer_number', 'name', 'name2', 'street', 'postal_code', 'city', 'country', 'language', 'vat_id', 'tax_treatment',
   'contact_person', 'email', 'invoice_email', 'phone', 'payment_terms_days', 'skonto_days', 'skonto_percent',
   'leitweg_id', 'datev_account', 'notes', 'active', 'requires_certificates'];
 
 /** Intra-EU supply needs the customer's VAT ID; fall back to the default treatment otherwise. */
-function resolveTaxTreatment(country, vatId, requested) {
-  if (requested === 'intra_eu' && !vatId) return defaultTaxTreatment(country, vatId);
-  return requested || defaultTaxTreatment(country, vatId);
+function resolveTaxTreatment(country, vatId, requested, sellerCountry) {
+  if (requested === 'intra_eu' && !vatId) return defaultTaxTreatment(country, vatId, sellerCountry);
+  return requested || defaultTaxTreatment(country, vatId, sellerCountry);
+}
+
+/** Country of the company that issues the documents (the seller). */
+async function sellerCountry() {
+  return (await db.get('SELECT country FROM companies WHERE id = nova_company_id()'))?.country || 'DE';
 }
 
 // GET /api/customers?search=&active=1
@@ -79,8 +85,10 @@ router.get('/:id', requireRole(...READERS), h(async (req, res) => {
 // POST /api/customers
 router.post('/', requireRole(...EDITORS), h(async (req, res) => {
   const b = v.body(req, customerSchema);
+  const seller = await sellerCountry();
+  b.country = b.country || seller;
   const number = b.customer_number || await numbering.nextNumber('customer');
-  const treatment = resolveTaxTreatment(b.country, b.vat_id, b.tax_treatment);
+  const treatment = resolveTaxTreatment(b.country, b.vat_id, b.tax_treatment, seller);
   const datev = b.datev_account ?? (/^\d{5}$/.test(number) && Number(number) >= 10000 && Number(number) <= 69999 ? Number(number) : null);
   const values = { ...b, customer_number: number, tax_treatment: treatment, datev_account: datev, active: b.active ?? 1, requires_certificates: b.requires_certificates ?? 0 };
   const row = await db.get(
@@ -98,7 +106,7 @@ router.put('/:id', requireRole(...EDITORS), h(async (req, res) => {
   if (!c) throw notFound('Customer');
   const merged = { ...c, ...Object.fromEntries(Object.entries(b).filter(([, val]) => val !== undefined)) };
   const treatmentInput = b.tax_treatment ?? ((b.country !== undefined || b.vat_id !== undefined) ? undefined : c.tax_treatment);
-  merged.tax_treatment = resolveTaxTreatment(merged.country, merged.vat_id, treatmentInput);
+  merged.tax_treatment = resolveTaxTreatment(merged.country, merged.vat_id, treatmentInput, await sellerCountry());
   await db.run(
     `UPDATE customers SET ${FIELDS.map((f) => `${f} = ?`).join(', ')} WHERE id = ?`,
     [...FIELDS.map((f) => merged[f] ?? null), id],

@@ -1,4 +1,5 @@
 const express = require('express');
+const { isValidRate, MAX_RATE } = require('../lib/vat');
 const db = require('../db');
 const { h } = require('../lib/handler');
 const v = require('../lib/validate');
@@ -26,7 +27,7 @@ const lineSchema = v.z.object({
   unit: v.z.preprocess((x) => (x === '' ? undefined : x), v.z.string().trim().max(20).optional()),
   unit_price: v.z.preprocess((x) => (x === '' ? undefined : x), dec(1e10, 4).optional()),
   discount_percent: v.z.preprocess((x) => (x === '' ? 0 : x), v.z.coerce.number().min(0).max(100).default(0)),
-  tax_rate: v.z.preprocess((x) => (x === '' ? undefined : x), v.z.coerce.number().refine((x) => [0, 7, 19].includes(x), 'VAT rate must be 0, 7 or 19').optional()),
+  tax_rate: v.z.preprocess((x) => (x === '' ? undefined : x), v.z.coerce.number().refine((x) => isValidRate(x), `VAT rate must be between 0 and ${MAX_RATE} %`).optional()),
 });
 
 const optText = (max) => v.z.preprocess((x) => (x === '' ? null : x), v.z.string().max(max).nullable().optional());
@@ -46,6 +47,7 @@ const headerSchema = {
   intro_text: optText(5000),
   closing_text: optText(5000),
   internal_notes: optText(5000),
+  language: v.z.enum(['de', 'en']).optional(),
 };
 
 const createSchema = v.z.object({
