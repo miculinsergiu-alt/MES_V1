@@ -447,6 +447,8 @@
     "badge": "Badge Number",
     "password": "Secure Password",
     "button": "Login",
+    "demo_button": "View the demo – no login needed",
+    "demo_hint": "Sample company with real workflows. Or view as a role:",
     "demo_credentials": "Demo Credentials",
     "error_fill": "Complete all fields",
     "welcome": "Welcome, {{name}}!",

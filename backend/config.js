@@ -62,6 +62,8 @@ module.exports = {
   requireEmailVerification: process.env.REQUIRE_EMAIL_VERIFICATION
     ? process.env.REQUIRE_EMAIL_VERIFICATION === 'true'
     : !!process.env.SMTP_HOST,
+  // One-click demo login (company DEMO with sample data, public password). Off in production unless DEMO_LOGIN=true.
+  demoLogin: process.env.DEMO_LOGIN ? process.env.DEMO_LOGIN === 'true' : !isProduction,
   // Cookie flag: Secure in production (HTTPS only).
   cookieSecure: process.env.COOKIE_SECURE ? process.env.COOKIE_SECURE === 'true' : isProduction,
   trustProxy:process.env.TRUST_PROXY ? Number(process.env.TRUST_PROXY) || process.env.TRUST_PROXY : (isProduction ? 1 : false),

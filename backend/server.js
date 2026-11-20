@@ -3,7 +3,7 @@ const config = require('./config');
 const db = require('./db');
 const app = require('./app');
 const { initSocket } = require('./services/socket');
-const { seedDemoIfEmpty } = require('./scripts/seed-demo');
+const { seedDemoIfEmpty, ensureDemoData } = require('./scripts/seed-demo');
 
 async function main() {
   await db.initDb();
@@ -14,6 +14,11 @@ async function main() {
   const server = createServer(app);
   initSocket(server);
   server.listen(config.port, () => {
+    if (config.demoLogin) {
+      ensureDemoData(app)
+        .then((created) => created && console.log('Demo company DEMO filled with sample data.'))
+        .catch((err) => console.error('Demo data failed:', err.message));
+    }
     console.log(`NOVA backend listening on http://localhost:${config.port} (${config.env}, ${process.env.DATABASE_URL ? 'PostgreSQL' : 'embedded PostgreSQL'})`);
   });
 

@@ -73,6 +73,11 @@ Required settings in production (see `backend/.env.example`): `NODE_ENV=producti
 
 ## Changelog
 
+### [November 2026] — One-click demo
+- Button "View the demo" on the login page (no company code, badge or password), also per role (sales, accounting, planner, shift lead, operator, warehouse).
+- Company DEMO is filled at server start with a sample job shop: machines with hourly rates, suppliers, customers (DE + AT), purchase orders and lots, quotes, orders with production, deliveries, invoices (paid, open, overdue with reminder).
+- On in development; in production only with `DEMO_LOGIN=true`. Demo visitors cannot change passwords, 2FA or users.
+
 ### [November 2026] — Phase 3: Stock, traceability, costing & reports
 - All stock movements go through one stock service: lots first-in-first-out, quarantined lots skipped, unit cost on every movement.
 - Finished goods are booked into stock: one production lot per order (`FA-<order>`), valued at actual cost per good part. Deliveries take goods from lots.

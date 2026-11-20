@@ -12,7 +12,7 @@ const api = axios.create({
 // Tokens kept by older versions in localStorage are no longer used.
 try { localStorage.removeItem('sf_token'); } catch { /* storage unavailable */ }
 
-const PUBLIC_AUTH_CALLS = ['/auth/login', '/auth/signup', '/auth/forgot-password', '/auth/reset-password', '/auth/verify-email'];
+const PUBLIC_AUTH_CALLS = ['/auth/login', '/auth/demo', '/auth/signup', '/auth/forgot-password', '/auth/reset-password', '/auth/verify-email'];
 
 api.interceptors.response.use(
   (res) => res,

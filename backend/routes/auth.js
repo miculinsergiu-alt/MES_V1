@@ -7,7 +7,7 @@ const v = require('../lib/validate');
 const { unauthorized, badRequest, AppError } = require('../lib/errors');
 const crypto = require('node:crypto');
 const jwt = require('jsonwebtoken');
-const { authenticateToken, signToken, rolesOf, COOKIE_NAME } = require('../middleware/auth');
+const { authenticateToken, signToken, rolesOf, COOKIE_NAME, blockInDemo } = require('../middleware/auth');
 const config = require('../config');
 const totp = require('../lib/totp');
 const { sendMail } = require('../lib/mailer');
@@ -70,6 +70,20 @@ router.post('/login', loginLimiter, async (req, res) => {
   sendSession(res, found.user, found.company);
 });
 
+// POST /api/auth/demo — one-click login into the public demo company (only when DEMO_LOGIN is on)
+router.post('/demo', loginLimiter, async (req, res) => {
+  if (!config.demoLogin) throw new AppError(404, 'NOT_FOUND', 'Demo login is not available');
+  const { DEMO_CODE, DEMO_BADGES } = require('../scripts/seed-demo');
+  const { badge_number } = v.body(req, v.z.object({ badge_number: v.z.enum(DEMO_BADGES).default('ADMIN001') }));
+  const found = await db.withContext({ system: true }, async () => {
+    const company = await db.get('SELECT * FROM companies WHERE code = ? AND active = 1', [DEMO_CODE]);
+    const user = company && await db.get('SELECT * FROM users WHERE company_id = ? AND badge_number = ? AND active = 1', [company.id, badge_number]);
+    return { company, user };
+  });
+  if (!found.user) throw new AppError(503, 'DEMO_NOT_READY', 'The demo is being prepared. Please try again in a minute.');
+  sendSession(res, found.user, found.company);
+});
+
 /** Sets the httpOnly session cookie and returns the user data for the frontend. */
 function sendSession(res, user, company, status = 200) {
   const session = sessionFor(user, company);
@@ -118,7 +132,7 @@ const signupLimiter = rateLimit({
 
 // GET /api/auth/signup-config — whether registration is open
 router.get('/signup-config', (req, res) => {
-  res.json({ enabled: config.signupEnabled, invite_required: !!config.signupInviteCode });
+  res.json({ enabled: config.signupEnabled, invite_required: !!config.signupInviteCode, demo: config.demoLogin });
 });
 
 /** Company code suggestion from the name: 'Müller Metallbau GmbH' -> 'MUELLERMETALL'. */
@@ -275,7 +289,7 @@ async function checkPassword(user, password) {
 }
 
 // POST /api/auth/change-password { current_password, new_password }
-router.post('/change-password', authenticateToken, h(async (req, res) => {
+router.post('/change-password', authenticateToken, blockInDemo, h(async (req, res) => {
   const b = v.body(req, v.z.object({
     current_password: v.z.string().min(1).max(200),
     new_password: v.z.string().min(10, 'Password must be at least 10 characters').max(200),
@@ -288,7 +302,7 @@ router.post('/change-password', authenticateToken, h(async (req, res) => {
 }));
 
 // POST /api/auth/2fa/setup — new secret (not active until confirmed with a code)
-router.post('/2fa/setup', authenticateToken, h(async (req, res) => {
+router.post('/2fa/setup', authenticateToken, blockInDemo, h(async (req, res) => {
   const user = await ownUser(req.user.id);
   if (user.totp_enabled) throw badRequest('Two-factor login is already on');
   const secret = totp.generateSecret();
@@ -297,7 +311,7 @@ router.post('/2fa/setup', authenticateToken, h(async (req, res) => {
 }));
 
 // POST /api/auth/2fa/enable { code }
-router.post('/2fa/enable', authenticateToken, h(async (req, res) => {
+router.post('/2fa/enable', authenticateToken, blockInDemo, h(async (req, res) => {
   const { code } = v.body(req, v.z.object({ code: v.z.string().trim().max(10) }));
   const user = await ownUser(req.user.id);
   if (!user.totp_secret || !totp.verify(user.totp_secret, code)) throw new AppError(400, 'TOTP_INVALID', 'Wrong authentication code');
@@ -306,7 +320,7 @@ router.post('/2fa/enable', authenticateToken, h(async (req, res) => {
 }));
 
 // POST /api/auth/2fa/disable { password }
-router.post('/2fa/disable', authenticateToken, h(async (req, res) => {
+router.post('/2fa/disable', authenticateToken, blockInDemo, h(async (req, res) => {
   const { password } = v.body(req, v.z.object({ password: v.z.string().min(1).max(200) }));
   const user = await ownUser(req.user.id);
   await checkPassword(user, password);

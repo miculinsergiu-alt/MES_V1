@@ -20,6 +20,8 @@ const DEMO_USERS = [
   ['Maria', 'Bediener', 'OPR002', 'operator'],
   ['Viktor', 'Lager', 'WHM001', 'warehouse_manager'],
   ['Anna', 'Disposition', 'MAT001', 'material_planner'],
+  ['Sabine', 'Vertrieb', 'VK001', 'sales'],
+  ['Thomas', 'Buchhaltung', 'FIB001', 'accounting'],
 ];
 
 async function seedDemo() {
@@ -52,7 +54,24 @@ async function seedDemoIfEmpty() {
   }
 }
 
-module.exports = { seedDemo, seedDemoIfEmpty, DEMO_CODE, DEMO_PASSWORD };
+/**
+ * For the one-click demo: makes sure company DEMO exists and has sample data.
+ * Runs outside of requests (server start). Returns true when data was created.
+ */
+async function ensureDemoData(app) {
+  await seedDemo();
+  const company = await db.withContext({ system: true }, () => db.get('SELECT id FROM companies WHERE code = ?', [DEMO_CODE]));
+  const filled = await db.withContext({ companyId: company.id }, () => db.get('SELECT COUNT(*) AS n FROM customers'));
+  if (Number(filled.n) > 0) return false;
+  const { populateDemo } = require('../services/demoData');
+  await populateDemo(app, { code: DEMO_CODE, password: DEMO_PASSWORD });
+  return true;
+}
+
+/** Badges a visitor may enter the demo as (one per typical role). */
+const DEMO_BADGES = ['ADMIN001', 'VK001', 'FIB001', 'PLN001', 'SHR001', 'OPR001', 'WHM001'];
+
+module.exports = { seedDemo, seedDemoIfEmpty, ensureDemoData, DEMO_CODE, DEMO_PASSWORD, DEMO_BADGES };
 
 if (require.main === module) {
   (async () => {

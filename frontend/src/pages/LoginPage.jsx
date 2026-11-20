@@ -14,10 +14,11 @@ import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import novaLogo from '../assets/NOVA.jpg';
 import { homeFor } from '../navigation';
 
-// Demo logins are only shown in development or on a dedicated demo site (VITE_SHOW_DEMO=true).
-const SHOW_DEMO = import.meta.env.DEV || import.meta.env.VITE_SHOW_DEMO === 'true';
-const DEMO_COMPANY = 'DEMO';
-const DEMO_PASSWORD = 'demo1234';
+// One-click demo: shown when the server has the demo login switched on (DEMO_LOGIN).
+const DEMO_ROLES = [
+  ['administrator', 'ADMIN001'], ['sales', 'VK001'], ['accounting', 'FIB001'],
+  ['planner', 'PLN001'], ['shift_responsible', 'SHR001'], ['operator', 'OPR001'], ['warehouse_manager', 'WHM001'],
+];
 const COMPANY_KEY = 'sf_company';
 
 const fadeInUp = {
@@ -30,7 +31,7 @@ const stagger = {
 };
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login, demoLogin } = useAuth();
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [company, setCompany] = useState(() => {
@@ -40,12 +41,14 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [signupOpen, setSignupOpen] = useState(false);
+  const [demoOpen, setDemoOpen] = useState(false);
+  const [demoLoading, setDemoLoading] = useState(null);
   // Second step for users with two-factor login.
   const [needsTotp, setNeedsTotp] = useState(false);
   const [totpCode, setTotpCode] = useState('');
 
   useEffect(() => {
-    api.get('/auth/signup-config').then((r) => setSignupOpen(!!r.data.enabled)).catch(() => {});
+    api.get('/auth/signup-config').then((r) => { setSignupOpen(!!r.data.enabled); setDemoOpen(!!r.data.demo); }).catch(() => {});
   }, []);
 
   const handleSubmit = async (e) => {
@@ -63,6 +66,19 @@ export default function LoginPage() {
       toast.error(err.response?.data?.error || t('login.auth_error'));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const enterDemo = async (badgeNumber) => {
+    setDemoLoading(badgeNumber);
+    try {
+      const user = await demoLogin(badgeNumber);
+      toast.success(t('login.welcome', { name: user.first_name }));
+      navigate(homeFor(user));
+    } catch (err) {
+      toast.error(err.response?.data?.error || t('login.auth_error'));
+    } finally {
+      setDemoLoading(null);
     }
   };
 
@@ -185,35 +201,17 @@ export default function LoginPage() {
               </p>
             )}
 
-            {SHOW_DEMO && <div className="mt-10 pt-8 border-t border-border">
-              <div className="flex items-center justify-between mb-4">
-                <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground font-bold">{t('login.demo_credentials')}</span>
-                <div className="h-1 flex-1 bg-border/30 mx-4 rounded-full" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  { role: t('roles.administrator'), badge: 'ADMIN001' },
-                  { role: t('roles.planner'), badge: 'PLN001' },
-                  { role: t('roles.area_supervisor'), badge: 'SPV001' },
-                  { role: t('roles.shift_responsible'), badge: 'SHR001' },
-                  { role: t('roles.operator'), badge: 'OPR001' },
-                  { role: t('roles.material_planner'), badge: 'MAT001' }
-                ].map((cred) => ({ ...cred, pass: DEMO_PASSWORD })).map((cred) => (
-                  <button
-                    key={cred.badge}
-                    type="button"
-                    onClick={() => {
-                      setCompany(DEMO_COMPANY);
-                      setBadge(cred.badge);
-                      setPassword(cred.pass);
-                    }}
-                    className="flex flex-col items-start p-3 rounded-xl bg-muted/30 border border-border/50 hover:border-accent/50 hover:bg-accent/5 transition-all duration-200 group/item text-left"
-                  >
-                    <span className="text-[9px] uppercase text-muted-foreground font-bold tracking-tighter mb-1 group-hover/item:text-accent transition-colors">{cred.role}</span>
-                    <div className="flex flex-col">
-                      <span className="text-xs font-mono font-bold text-foreground">{cred.badge}</span>
-                      <span className="text-[10px] font-mono text-muted-foreground/70 group-hover/item:text-muted-foreground transition-colors">{cred.pass}</span>
-                    </div>
+            {demoOpen && <div className="mt-10 pt-8 border-t border-border">
+              <Button type="button" variant="outline" className="w-full h-12" disabled={!!demoLoading} onClick={() => enterDemo('ADMIN001')}>
+                {demoLoading === 'ADMIN001' ? <Loader className="animate-spin mr-2" size={18} /> : null}
+                {t('login.demo_button')}
+              </Button>
+              <p className="mt-3 text-xs text-center text-muted-foreground">{t('login.demo_hint')}</p>
+              <div className="mt-3 flex flex-wrap justify-center gap-2">
+                {DEMO_ROLES.slice(1).map(([role, badgeNumber]) => (
+                  <button key={badgeNumber} type="button" disabled={!!demoLoading} onClick={() => enterDemo(badgeNumber)}
+                    className="px-3 py-1.5 rounded-full text-xs bg-muted/30 border border-border/50 hover:border-accent/50 hover:bg-accent/5 transition-colors disabled:opacity-50">
+                    {demoLoading === badgeNumber ? '…' : t(`roles.${role}`)}
                   </button>
                 ))}
               </div>

@@ -42,7 +42,7 @@ test('registration can be closed or require an invitation code', async () => {
   try {
     config.signupEnabled = false;
     assert.equal((await signup({ company_name: 'Zu GmbH' })).status, 403);
-    assert.deepEqual((await t.request(t.app).get('/api/auth/signup-config')).body, { enabled: false, invite_required: false });
+    assert.deepEqual((await t.request(t.app).get('/api/auth/signup-config')).body, { enabled: false, invite_required: false, demo: config.demoLogin });
     config.signupEnabled = true;
     config.signupInviteCode = 'BETA-2026';
     assert.equal((await signup({ company_name: 'Beta GmbH' })).status, 400);

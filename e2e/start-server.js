@@ -12,6 +12,7 @@ const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nova-e2e-'));
 process.env.PGLITE_DIR = dir;
 process.env.PORT = process.env.E2E_PORT || '3101';
 process.env.NODE_ENV = 'development';
+process.env.DEMO_LOGIN = process.env.DEMO_LOGIN || 'false'; // specs create their own data in DEMO
 delete process.env.DATABASE_URL;
 
 const backend = path.join(__dirname, '..', 'backend');

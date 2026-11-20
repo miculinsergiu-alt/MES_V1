@@ -4,10 +4,10 @@ const db = require('../db');
 const { h } = require('../lib/handler');
 const v = require('../lib/validate');
 const { notFound, badRequest } = require('../lib/errors');
-const { authenticateToken, requireRole, ROLES } = require('../middleware/auth');
+const { authenticateToken, requireRole, ROLES, blockInDemo } = require('../middleware/auth');
 
 const router = express.Router();
-router.use(authenticateToken);
+router.use(authenticateToken, blockInDemo);
 
 const PUBLIC_FIELDS = 'id, first_name, last_name, badge_number, email, role, roles, active, created_at';
 const password = v.z.string().min(8, 'Password must be at least 8 characters').max(200);

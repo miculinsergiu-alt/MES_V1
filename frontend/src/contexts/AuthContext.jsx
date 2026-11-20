@@ -22,6 +22,14 @@ export function AuthProvider({ children }) {
     return res.data.user;
   };
 
+  /** One-click login into the public demo company. */
+  const demoLogin = async (badge_number) => {
+    const res = await api.post('/auth/demo', { badge_number });
+    store(res.data);
+    setUser(res.data.user);
+    return res.data.user;
+  };
+
   /** After self-service registration the new administrator is logged in directly. */
   const signup = async (data) => {
     const res = await api.post('/auth/signup', data);
@@ -65,7 +73,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, signup, updateUser, logout }}>
+    <AuthContext.Provider value={{ user, login, demoLogin, signup, updateUser, logout }}>
       {children}
     </AuthContext.Provider>
   );

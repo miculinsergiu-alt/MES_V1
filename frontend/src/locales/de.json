@@ -447,6 +447,8 @@
     "badge": "Ausweisnummer",
     "password": "Passwort",
     "button": "Anmelden",
+    "demo_button": "Demo ansehen – ohne Anmeldung",
+    "demo_hint": "Beispielfirma mit echten Abläufen. Oder als Rolle ansehen:",
     "demo_credentials": "Demo-Zugänge",
     "error_fill": "Bitte alle Felder ausfüllen",
     "welcome": "Willkommen, {{name}}!",

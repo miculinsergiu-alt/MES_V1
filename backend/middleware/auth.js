@@ -91,4 +91,13 @@ function requireRole(...roles) {
   };
 }
 
-module.exports = { COOKIE_NAME, authenticateToken, requireRole, signToken, verifyToken, rolesOf, hasRole, isOnlyOperator, ROLES };
+/** Public demo company: visitors may not lock others out (passwords, 2FA, users). */
+function blockInDemo(req, res, next) {
+  if (req.method !== 'GET' && req.user?.company_code === 'DEMO') {
+    return res.status(403).json({ error: 'Not possible in the demo', code: 'DEMO_READ_ONLY' });
+  }
+  return next();
+}
+
+module.exports = {
+  blockInDemo, COOKIE_NAME, authenticateToken, requireRole, signToken, verifyToken, rolesOf, hasRole, isOnlyOperator, ROLES };

@@ -446,6 +446,8 @@
     "badge": "Număr Legitimație",
     "password": "Parolă Securizată",
     "button": "Autentificare",
+    "demo_button": "Vezi demo – fără logare",
+    "demo_hint": "Firmă exemplu cu fluxuri reale. Sau intră pe un rol:",
     "demo_credentials": "Credențiale Demo",
     "error_fill": "Completați toate câmpurile",
     "welcome": "Bun venit, {{name}}!",
