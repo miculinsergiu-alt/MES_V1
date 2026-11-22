@@ -20,12 +20,21 @@ Asked for by the user on Telegram: "Facturarea vreau sa o faci pt uk, dar și ț
 - Currency on documents = the company's currency; the PDF formats amounts by currency + language.
 
 ## Steps
-1. [ ] lib/vat.js: COUNTRIES (rates, EU flag, language), defaultTaxTreatment(customerCountry, vatId, sellerCountry), lineTax (Z for 0), taxNote(treatment, sellerCountry, lang), GB VAT ID. Unit tests.
-2. [ ] migration 018: items tax_rate CHECK 0..30; customers.language; sales_documents.language; customers.tax_treatment stays.
-3. [ ] routes: items/sales/importer validation 0..30; customers + importer use the seller country; settings country/currency validation (+ GB VAT ID).
-4. [ ] services/sales.js: currency + language on the document, taxNote, invoiceProblems text, intro text for credit notes in EN.
-5. [ ] services/pdf.js: DE/EN labels, currency formatting, EN dunning letters.
-6. [ ] einvoice.js: currency + country already come from the doc/company; check VATEX for GB.
-7. [ ] frontend: Settings (country, currency), customer form (language), DocumentEditor tax-rate dropdown, eur() by currency (done).
-8. [ ] tests: new ones for GB / AT / FR / IE, the whole suite green; update the UK demo (20 % VAT).
-9. [ ] Report to the user. No commit or deploy without their OK.
+1. [x] lib/vat.js: COUNTRIES (rates, EU flag, language), defaultTaxTreatment(customerCountry, vatId, sellerCountry), lineTax (Z for 0), taxNote(treatment, sellerCountry, lang), GB VAT ID. Unit tests.
+2. [x] migration 018: items tax_rate CHECK 0..30; customers.language; sales_documents.language; customers.tax_treatment stays.
+3. [x] routes: items/sales/importer validation 0..30; customers + importer use the seller country; settings country/currency validation (+ GB VAT ID).
+4. [x] services/sales.js: currency + language on the document, taxNote, invoiceProblems text, intro text for credit notes in EN.
+5. [x] services/pdf.js: DE/EN labels, currency formatting, EN dunning letters.
+6. [x] einvoice.js: currency + country already come from the doc/company; check VATEX for GB.
+7. [x] frontend: Settings (country, currency), customer form (language), DocumentEditor tax-rate dropdown, eur() by currency (done).
+8. [x] tests: new ones for GB / AT / FR / IE, the whole suite green; update the UK demo (20 % VAT).
+9. [x] Report to the user. No commit or deploy without their OK.
+
+## Status 2026-11-21 00:00
+All steps done. Commit 73d68b9 pushed to origin/feat/multi-country-vat (NOT merged into main, NOT deployed).
+Open points:
+- Merge + deploy to Render only with the user's yes.
+- EU distance sales (B2C) above the €10k OSS threshold are not supported (the seller's rate is used).
+- VAT rates in lib/vat.js come from secondary sources (Nov 2026); check them before a real customer.
+- DATEV export stays German only.
+- Local demo: company NOVAGB (DEMOUK/UKDEMO/NOVAUK are obsolete leftovers in the local PGlite).

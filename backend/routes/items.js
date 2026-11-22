@@ -5,6 +5,7 @@ const { h } = require('../lib/handler');
 const v = require('../lib/validate');
 const { notFound, badRequest } = require('../lib/errors');
 const { authenticateToken, requireRole } = require('../middleware/auth');
+const { deleteItems } = require('../services/itemDeletion');
 
 const router = express.Router();
 router.use(authenticateToken);
@@ -93,6 +94,25 @@ router.post('/', requireRole('planner', 'administrator'), h(async (req, res) => 
   if (b.requires_certificate !== undefined) await db.run('UPDATE items SET requires_certificate = ? WHERE id = ?', [b.requires_certificate, row.id]);
   if (b.routes) await replaceRoutes(row.id, b.routes);
   res.status(201).json({ id: row.id, message: 'Item created' });
+}));
+
+// POST /api/items/delete — delete several items (ids and/or item codes); items in use are kept and reported
+router.post('/delete', requireRole('planner', 'administrator'), h(async (req, res) => {
+  const b = v.body(req, v.z.object({
+    ids: v.z.array(v.z.coerce.number().int().positive()).max(5000).optional(),
+    item_codes: v.z.array(v.z.string().trim().min(1).max(100)).max(5000).optional(),
+  }));
+  if (!b.ids?.length && !b.item_codes?.length) throw badRequest('No items given');
+  res.json(await deleteItems({ ids: b.ids || [], itemCodes: b.item_codes || [] }));
+}));
+
+// DELETE /api/items/:id — delete one item, only if it is not in use
+router.delete('/:id', requireRole('planner', 'administrator'), h(async (req, res) => {
+  const id = v.paramId(req);
+  const r = await deleteItems({ ids: [id] });
+  if (r.not_found) throw notFound('Item');
+  if (r.blocked.length) throw badRequest(`The item cannot be deleted (${r.blocked[0].reason})`);
+  res.json({ message: 'Item deleted' });
 }));
 
 // PUT /api/items/:id

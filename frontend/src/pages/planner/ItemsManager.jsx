@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Box, Plus, Search, List } from 'lucide-react';
+import { Box, Plus, Search, List, Trash2 } from 'lucide-react';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -28,6 +28,43 @@ export default function ItemsManager() {
   const [showBOMModal, setShowBOMModal] = useState(false);
   const [editingBOM, setEditingBOM] = useState(null);
   const [showPrintPreview, setShowPrintPreview] = useState(null);
+  const [selected, setSelected] = useState(() => new Set());
+  const [deleting, setDeleting] = useState(false);
+
+  const toggleOne = (id) => setSelected((prev) => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+  const toggleAll = (list, on) => setSelected((prev) => {
+    const next = new Set(prev);
+    for (const i of list) { if (on) next.add(i.id); else next.delete(i.id); }
+    return next;
+  });
+
+  const deleteSelected = async () => {
+    const ids = [...selected];
+    if (!ids.length || !window.confirm(t('items.delete_confirm', { count: ids.length }))) return;
+    setDeleting(true);
+    let deleted = 0; const blocked = [];
+    try {
+      for (let i = 0; i < ids.length; i += 1000) {
+        const r = (await api.post('/items/delete', { ids: ids.slice(i, i + 1000) })).data;
+        deleted += r.deleted;
+        blocked.push(...r.blocked);
+      }
+      toast.success(t('items.deleted_count', { count: deleted }));
+      if (blocked.length) {
+        toast(t('items.delete_blocked', { count: blocked.length, codes: blocked.slice(0, 5).map((b) => b.item_code).join(', ') }), { duration: 8000 });
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.error || t('items.delete_error'));
+    } finally {
+      setDeleting(false);
+      setSelected(new Set());
+      loadData();
+    }
+  };
 
   const loadData = useCallback(async () => {
     try {
@@ -88,6 +125,11 @@ export default function ItemsManager() {
                 />
              </div>
           </div>
+             {activeTab === 'items' && selected.size > 0 && (
+                <Button variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" disabled={deleting} onClick={deleteSelected}>
+                  <Trash2 size={16} className="mr-2" /> {t('items.delete_selected', { count: selected.size })}
+                </Button>
+              )}
              {activeTab === 'items' ? (
                 <Button onClick={() => { setEditingItem(null); setShowItemModal(true); }}>
                   <Plus size={16} className="mr-2" /> {t('items.new_item')}
@@ -130,6 +172,9 @@ export default function ItemsManager() {
                 )} 
                 onEdit={(item) => { setEditingItem(item); setShowItemModal(true); }}
                 loading={loading}
+                selected={selected}
+                onToggle={toggleOne}
+                onToggleAll={toggleAll}
               />
             </motion.div>
           ) : (

@@ -37,15 +37,23 @@ export function ModalWrapper({ title, children, onClose, maxWidth = "max-w-3xl" 
   );
 }
 
-export function ItemsList({ items, onEdit, loading }) {
+const MAX_ROWS_SHOWN = 500;
+
+export function ItemsList({ items, onEdit, loading, selected = new Set(), onToggle, onToggleAll }) {
   const { t } = useTranslation();
   if (loading) return <div className="p-20 text-center italic text-muted-foreground animate-pulse">{t('items.loading')}</div>;
-  
+  const shown = items.slice(0, MAX_ROWS_SHOWN);
+  const allSelected = items.length > 0 && items.every((i) => selected.has(i.id));
+
   return (
     <Card className="p-0 overflow-hidden">
       <table className="w-full text-left">
         <thead>
           <tr className="bg-muted/30 border-b border-border">
+            <th className="pl-6 py-4 w-8">
+              <input type="checkbox" aria-label={t('items.select_all', { count: items.length })} title={t('items.select_all', { count: items.length })}
+                checked={allSelected} onChange={() => onToggleAll?.(items, !allSelected)} />
+            </th>
             <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('common.item')}</th>
             <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('inventory.type')}</th>
             <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('inventory.uom')}</th>
@@ -57,11 +65,14 @@ export function ItemsList({ items, onEdit, loading }) {
           </tr>
         </thead>
         <tbody className="divide-y divide-border/50">
-          {items.map(item => {
+          {shown.map(item => {
             const totalCost = (item.acquisition_cost || 0) + (item.production_cost || 0);
             const margin = item.unit_price > 0 ? ((item.unit_price - totalCost) / item.unit_price * 100) : 0;
             return (
               <tr key={item.id} className="hover:bg-accent/[0.02] transition-colors group">
+                <td className="pl-6 py-4">
+                  <input type="checkbox" aria-label={item.item_code} checked={selected.has(item.id)} onChange={() => onToggle?.(item.id)} />
+                </td>
                 <td className="px-6 py-4">
                   <div className="font-bold text-foreground">{item.name}</div>
                   <div className="font-mono text-[10px] text-accent font-black tracking-widest">{item.item_code}</div>
@@ -92,6 +103,11 @@ export function ItemsList({ items, onEdit, loading }) {
           })}
         </tbody>
       </table>
+      {items.length > MAX_ROWS_SHOWN && (
+        <div className="px-6 py-3 text-sm text-muted-foreground border-t border-border">
+          {t('items.rows_limited', { shown: MAX_ROWS_SHOWN, total: items.length })}
+        </div>
+      )}
     </Card>
   );
 }
